@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["utils/gelatinous-cube#start", "utils/elder-brain#start"]
+    },
+    "start": {},
+    "stop": {}
+  }
+}
