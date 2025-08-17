@@ -5,7 +5,7 @@
       "outputs": ["dist/**"]
     },
     "dev": {
-      "dependsOn": ["utils/gelatinous-cube#start", "utils/elder-brain#start"]
+      "dependsOn": ["gelatinous-cube#start", "elder-brain#start"]
     },
     "start": {},
     "stop": {}

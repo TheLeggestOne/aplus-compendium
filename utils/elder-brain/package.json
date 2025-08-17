@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "./start.sh",
-    "stop": "./stop.sh"
+    "start": "bash ./start.sh",
+    "stop": "bash ./stop.sh"
   },
   "keywords": [],
   "author": "",

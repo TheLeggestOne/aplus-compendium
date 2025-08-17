@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    /* Official D&D 5e parchment background */
+    .bg-parchment {
+        background: #f7f2e8;
+        background-image:
+            radial-gradient(
+                circle at 20% 80%,
+                rgba(120, 119, 95, 0.3) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                circle at 80% 20%,
+                rgba(255, 255, 255, 0.15) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                circle at 40% 40%,
+                rgba(120, 119, 95, 0.15) 0%,
+                transparent 50%
+            );
+    }
+
+    /* D&D 5e paper texture */
+    .grain {
+        background-image:
+            radial-gradient(circle at 25% 25%, #000 1px, transparent 1px),
+            radial-gradient(circle at 75% 75%, #000 1px, transparent 1px);
+        background-size:
+            15px 15px,
+            20px 20px;
+        opacity: 0.03;
+    }
+
+    /* Authentic D&D 5e frame styling */
+    .frame-5e {
+        @apply relative border-2 bg-white/90;
+        border-color: #58180d;
+        border-radius: 0;
+        box-shadow:
+            inset 0 0 0 1px #58180d,
+            inset 3px 3px 0 0 #d4af37,
+            inset -3px -3px 0 0 #8b4513,
+            0 0 0 2px #58180d,
+            2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .frame-5e:before {
+        content: "";
+        position: absolute;
+        inset: 6px;
+        border: 1px solid #8b4513;
+        border-radius: 0;
+        pointer-events: none;
+    }
+
+    /* D&D 5e corner decorations */
+    .frame-5e:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(45deg, #58180d 0%, #58180d 8px, transparent 8px) top
+                left,
+            linear-gradient(-45deg, #58180d 0%, #58180d 8px, transparent 8px)
+                top right,
+            linear-gradient(-135deg, #58180d 0%, #58180d 8px, transparent 8px)
+                bottom right,
+            linear-gradient(135deg, #58180d 0%, #58180d 8px, transparent 8px)
+                bottom left;
+        background-size: 15px 15px;
+        background-repeat: no-repeat;
+    }
+
+    /* Official D&D 5e label styling */
+    .label-5e {
+        @apply uppercase text-[0.65rem] font-bold;
+        color: #58180d;
+        font-family: "Modesto Condensed", "Cinzel", serif;
+        letter-spacing: 0.1em;
+        text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    /* D&D 5e ability score box */
+    .stat-5e {
+        @apply grid grid-rows-[auto_1fr_auto] place-items-center px-2 py-3;
+        background: #f7f2e8;
+        border: 2px solid #58180d;
+        border-radius: 0;
+        box-shadow:
+            inset 1px 1px 0 #d4af37,
+            inset -1px -1px 0 #8b4513,
+            1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .stat-5e .score {
+        @apply text-2xl font-bold leading-none;
+        color: #58180d;
+        font-family: "Modesto Condensed", "Cinzel", serif;
+    }
+    .stat-5e .mod {
+        @apply text-xs font-bold;
+        color: #58180d;
+        font-family: "Modesto Condensed", "Cinzel", serif;
+    }
+
+    /* D&D 5e section divider */
+    .rule-5e {
+        @apply h-0.5 my-3;
+        background: linear-gradient(
+            to right,
+            transparent,
+            #58180d 20%,
+            #58180d 80%,
+            transparent
+        );
+        border: none;
+    }
+}

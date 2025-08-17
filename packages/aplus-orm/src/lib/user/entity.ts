@@ -7,7 +7,7 @@ import {
 import { UpdateDateColumn } from "typeorm/browser";
 
 @Entity()
-export class User {
+export class UserEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
