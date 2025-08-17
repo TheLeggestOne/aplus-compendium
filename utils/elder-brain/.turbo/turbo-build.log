@@ -1,0 +1,14 @@
+
+
+> elder-brain@1.0.0 build /run/media/stilts/alpha-store/Code/aplus-compendium/utils/elder-brain
+> ./build.sh && ./run.sh
+
+STEP 1/1: FROM postgres:15
+COMMIT elder-brain
+--> af3ea6376a7b
+Successfully tagged localhost/elder-brain:latest
+Successfully tagged docker.io/library/postgres:15
+af3ea6376a7b577b445ada5120c6bbcd700e510b2daa446f8cdf7aab667a1109
+Error: creating container storage: the container name "elder-brain" is already in use by f3581e207341fe11bbf40c8942685a02df1f63b9d3ff0bd1a735eb5cb3ec329a. You have to remove that container to be able to reuse that name: that name is already in use, or use --replace to instruct Podman to do so.
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 125.[39m
+[43m[30m WARN [39m[49m  Local package.json exists, but node_modules missing, did you mean to install?
