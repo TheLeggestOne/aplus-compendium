@@ -1,6 +1,6 @@
 <script module>
     import { defineMeta } from '@storybook/addon-svelte-csf';
-    import SavingThrows from "./saving-throws.svelte";
+    import SavingThrows from "../components/character-sheet/saving-throws.svelte";
 
     const { Story } = defineMeta({
         title: 'Components/CharacterSheet/SavingThrows',

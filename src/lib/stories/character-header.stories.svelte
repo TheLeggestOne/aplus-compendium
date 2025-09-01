@@ -1,6 +1,6 @@
 <script module>
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import CharacterHeader from './character-header.svelte';
+  import CharacterHeader from '../components/character-sheet/character-header.svelte';
 
   const { Story } = defineMeta({
     title: 'Components/CharacterSheet/CharacterHeader',
