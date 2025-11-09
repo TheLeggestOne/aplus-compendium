@@ -1,6 +1,4 @@
 <script lang="ts">
-import { Input } from "../ui/input";
-import { useDebouncedChange } from "./utilities/useDebouncedChange";
 
 const { armorClass = "10", onChange } = $props<{
   armorClass?: string;
@@ -10,32 +8,10 @@ const { armorClass = "10", onChange } = $props<{
 let localAC = $state(armorClass);
 
 $effect(() => {
-  if (armorClass !== localAC) {
-    localAC = armorClass;
+  if (onChange) {
+    onChange({ armorClass: localAC });
   }
 });
-
-const emitChange = useDebouncedChange(onChange, 800);
-
-$effect(() => {
-  if (emitChange) emitChange({ ac: localAC });
-});
-
-function updateAC(value: string) {
-  // Allow empty string for editing, clamp to 1-99 on blur
-  if (value === "" || /^\d{0,2}$/.test(value)) {
-    localAC = value;
-  }
-}
-function commitAC() {
-  let value = localAC;
-  if (value !== "") {
-    let num = Math.floor(Math.abs(Number(value)));
-    num = Number(String(num).replace(/^0+/, ""));
-    num = Math.max(1, Math.min(99, isNaN(num) ? 10 : num));
-    localAC = String(num);
-  }
-}
 </script>
 
 
@@ -83,17 +59,17 @@ function commitAC() {
 </style>
 
 <div class="ac-frame">
-  <Input
+
+    <input 
+    type="text" 
     class="ac-input"
-    type="text"
     inputmode="numeric"
     pattern="[0-9]*"
-    value={localAC}
-    oninput={(e) => updateAC((e.target as HTMLInputElement).value)}
-    onblur={commitAC}
+    bind:value={localAC}
     min="1"
     max="99"
     aria-label="Armor Class"
-  />
+    />
+
   <span class="ac-label">Armor Class</span>
 </div>

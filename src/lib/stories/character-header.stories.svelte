@@ -6,7 +6,6 @@
     title: 'Components/CharacterSheet/CharacterHeader',
     component: CharacterHeader,
     args: {
-      characterHeaderProps: {
         name: 'Swampy Waters',
         classLevel: 'Bard 17 Fighter 3',
         background: 'Folk Hero',
@@ -14,7 +13,6 @@
         race: 'Lizardfolk',
         alignment: 'Neutral Good',
         exp: "979400"
-      }
     }
   });
 </script>

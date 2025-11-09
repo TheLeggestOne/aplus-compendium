@@ -1,39 +1,18 @@
 <script lang="ts">
-import { Input } from "../ui/input";
-import { useDebouncedChange } from "./utilities/useDebouncedChange";
 
-const { initiative = "0", onChange } = $props<{
-  initiative?: string;
-  onChange?: (data: { initiative: string }) => void;
-}>();
+    let { initiative, onChange } = $props<{
+        initiative?: string;
+        onChange?: (data: { initiative: string }) => void;
+    }>();
 
-let localInitiative = $state(initiative);
-const emitChange = useDebouncedChange(onChange, 800);
+    let localInitiative = $state(initiative);
 
-$effect(() => {
-  if (emitChange) emitChange({ initiative: localInitiative });
-});
+    $effect(() => {
+        if (onChange) {
+            onChange({ initiative: localInitiative });
+        }
+    });
 
-$effect(() => {
-  if (initiative !== localInitiative) {
-    localInitiative = initiative;
-  }
-});
-
-function updateInitiative(value: string) {
-  // Allow empty string for editing, clamp to -99 to 99 on blur
-  if (/^-?\d{0,2}$/.test(value) || value === "") {
-    localInitiative = value;
-  }
-}
-function commitInitiative() {
-  let value = localInitiative;
-  if (value !== "") {
-    let num = Math.floor(Number(value));
-    num = Math.max(-99, Math.min(99, isNaN(num) ? 0 : num));
-    localInitiative = String(num);
-  }
-}
 </script>
 
 <style>
@@ -76,14 +55,12 @@ function commitInitiative() {
 </style>
 
 <div class="initiative-frame">
-  <Input
+  <input
     class="initiative-input"
     type="text"
     inputmode="numeric"
     pattern="-?[0-9]*"
-    value={localInitiative}
-    oninput={(e) => updateInitiative((e.target as HTMLInputElement).value)}
-    onblur={commitInitiative}
+    bind:value={localInitiative}
     min="-99"
     max="99"
     aria-label="Initiative"

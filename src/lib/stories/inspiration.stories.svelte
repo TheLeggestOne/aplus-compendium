@@ -6,7 +6,7 @@
         title: "Components/CharacterSheet/Inspiration",
         component: Inspiration,
         args: {
-            inspiration: true
+            isInspired: true
         }
     });
 </script>

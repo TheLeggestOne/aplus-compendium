@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { Input } from "../ui/input";
-	import { useDebouncedChange } from "./utilities/useDebouncedChange";
+  import { Label } from 'bits-ui';
 
-  export type CharacterHeaderProps = {
+  let {
+    name, classLevel, background, player, race, alignment, exp,
+    onChange
+  } = $props<{
     name?: string;
     classLevel?: string;
     background?: string;
@@ -10,113 +12,100 @@
     race?: string;
     alignment?: string;
     exp?: string;
-  }
-
-  const {
-    characterHeaderProps,
-    onChange
-  } = $props<{
-    characterHeaderProps?: CharacterHeaderProps;
-    onChange?: (data: CharacterHeaderProps) => void;
+    onChange?: (data: { name: string; classLevel: string; background: string; player: string; race: string; alignment: string; exp: string; }) => void;
   }>();
 
-  let localHeader = $state(characterHeaderProps);
-
-  const emitChange = useDebouncedChange(onChange, 800);
+  let localName = $state(name);
+  let localClassLevel = $state(classLevel);
+  let localBackground = $state(background);
+  let localPlayer = $state(player);
+  let localRace = $state(race);
+  let localAlignment = $state(alignment);
+  let localExp = $state(exp);
 
   $effect(() => {
-    if(emitChange){
-      emitChange({
-        name: localHeader.name,
-        classLevel: localHeader.classLevel,
-        background: localHeader.background,
-        player: localHeader.player,
-        race: localHeader.race,
-        alignment: localHeader.alignment,
-        exp: localHeader.exp
+    if (onChange) {
+      onChange({
+        name: localName,
+        classLevel: localClassLevel,
+        background: localBackground,
+        player: localPlayer,
+        race: localRace,
+        alignment: localAlignment,
+        exp: localExp
       });
     }
   });
 
-  function updateHeader(key: keyof CharacterHeaderProps, value: string) {
-    localHeader = { ...localHeader, [key]: value };
-  }
 </script>
 
 
 <div class="p-4 border rounded-lg bg-background">
   <div class="flex flex-row gap-8 items-center min-h-[120px]">
   <div class="flex-1 min-w-[200px] flex flex-col justify-center h-full">
-  <Input 
+  <input 
     id="character-name" 
     type="text" 
-    value={localHeader.name}
-    oninput={(e) => updateHeader("name", (e.target as HTMLInputElement).value)}
+    bind:value={localName}
     placeholder="Name" 
     class="w-full !text-3xl border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
-        <label for="character-name" class="block text-xs font-semibold mb-1">Character Name</label>
+        <Label.Root for="character-name" class="block text-xs font-semibold mb-1">Character Name</Label.Root>
     </div>
     <div class="flex flex-col gap-2 flex-[2] min-w-[350px]">
       <div class="grid grid-cols-3 gap-4">
         <div>
-          <label for="character-class" class="block text-xs font-semibold mb-1">Class & Level</label>
-          <Input 
+          <Label.Root for="character-class" class="block text-xs font-semibold mb-1">Class & Level</Label.Root>
+          <input 
             id="character-class" 
             type="text" 
-            value={localHeader.classLevel} 
-            oninput={(e) => updateHeader("classLevel", (e.target as HTMLInputElement).value)}
+            bind:value={localClassLevel} 
             placeholder="Class & Level" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
         <div>
-          <label for="character-background" class="block text-xs font-semibold mb-1">Background</label>
-          <Input
+          <Label.Root for="character-background" class="block text-xs font-semibold mb-1">Background</Label.Root>
+          <input
             id="character-background"  
             type="text" 
-            value={localHeader.background}
-            oninput={(e) => updateHeader("background", (e.target as HTMLInputElement).value)}
+            bind:value={localBackground}
             placeholder="Background" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
         <div>
-          <label for="character-player" class="block text-xs font-semibold mb-1">Player</label>
-          <Input 
+          <Label.Root for="character-player" class="block text-xs font-semibold mb-1">Player</Label.Root>
+          <input 
             id="character-player" 
             type="text" 
-            value={localHeader.player}
-            oninput={(e) => updateHeader("player", (e.target as HTMLInputElement).value)}
+            bind:value={localPlayer}
             placeholder="Player" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
       </div>
       <div class="grid grid-cols-3 gap-4">
         <div>
-          <label for="character-race" class="block text-xs font-semibold mb-1">Race</label>
-          <Input 
+          <Label.Root for="character-race" class="block text-xs font-semibold mb-1">Race</Label.Root>
+          <input 
             id="character-race" 
             type="text" 
-            value={localHeader.race}
-            oninput={(e) => updateHeader("race", (e.target as HTMLInputElement).value)}
+            bind:value={localRace}
             placeholder="Race" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
         <div>
-          <label for="character-alignment" class="block text-xs font-semibold mb-1">Alignment</label>
-          <Input 
+          <Label.Root for="character-alignment" class="block text-xs font-semibold mb-1">Alignment</Label.Root>
+          <input 
             id="character-alignment" 
             type="text" 
-            value={localHeader.alignment}
-            oninput={(e) => updateHeader("alignment", (e.target as HTMLInputElement).value)}
+            bind:value={localAlignment}
             placeholder="Alignment" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
         <div>
-          <label for="character-exp" class="block text-xs font-semibold mb-1">Experience Points</label>
-          <Input 
+          <Label.Root for="character-exp" class="block text-xs font-semibold mb-1">Experience Points</Label.Root>
+          <input 
             id="character-exp" 
             type="text" 
-            value={localHeader.exp}
-            oninput={(e) => updateHeader("exp", (e.target as HTMLInputElement).value)}
+            bind:value={localExp}
             placeholder="EXP" 
             class="w-full border-0 border-b-2 border-input bg-transparent rounded-none focus:ring-0 focus:border-ring shadow-none px-0" />
         </div>
