@@ -1,0 +1,26 @@
+{
+  "name": "aplus-app",
+  "version": "1.0.0",
+  "description": "backend for aplus compendium",
+  "homepage": "https://github.com/TheLeggestOne/aplus-compendium#readme",
+  "bugs": {
+    "url": "https://github.com/TheLeggestOne/aplus-compendium/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheLeggestOne/aplus-compendium.git"
+  },
+  "license": "ISC",
+  "author": "TheLeggestOne",
+  "type": "commonjs",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "echo \"No test implemented.\"",
+    "build:frontend": "cd ../aplus-front && npm run build",
+    "dev": "npm run build:frontend && electron .",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^39.1.1"
+  }
+}
