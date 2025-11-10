@@ -1,4 +1,4 @@
-# A+ Compendium
+# APlus Compendium
 
 A lightweight, desktop-native D&D 5e character sheet application with an integrated content library. Built with Electron and designed for offline use with the complete SRD bundled.
 
@@ -408,14 +408,14 @@ npm test
 - [x] First-run SRD loading
 - [x] Test suite
 - [x] Live app verification
+- [x] Tailwind CSS + shadcn-svelte setup
+- [x] 4-column responsive layout with collapsible panels
 
 ### 🚧 In Progress
-- [ ] UI development (SvelteKit + shadcn-svelte)
-- [ ] 4-column responsive layout system
+- [ ] Route structure (/characters, /resources/player, /resources/dm, /resources/reference)
 - [ ] Character sheet interface (tabbed: Combat, Inventory, Spells, Traits)
 - [ ] Content browser with organized categories
-- [ ] Multi-window support for dual monitors
-- [ ] Universal preview pane (5etools-style)
+- [ ] Navigation component with character list
 
 ### 📋 Planned Features
 
