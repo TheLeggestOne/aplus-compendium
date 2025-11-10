@@ -56,7 +56,16 @@
 
 		<!-- Main Content Column (always visible) -->
 		<ResizablePane defaultSize={previewCollapsed ? 80 : 60} minSize={40}>
-			<div class="h-full flex flex-col">
+			<div class="h-full flex flex-col relative">
+				<!-- Preview pane toggle button when collapsed -->
+				{#if previewCollapsed}
+					<div class="absolute right-2 top-2 z-10">
+						<Button variant="outline" size="sm" onclick={() => (previewCollapsed = false)}>
+							<ChevronLeft class="h-4 w-4 mr-1" />
+							Preview
+						</Button>
+					</div>
+				{/if}
 				{@render mainContent?.()}
 			</div>
 		</ResizablePane>
@@ -84,14 +93,4 @@
 			</ResizablePane>
 		{/if}
 	</ResizablePaneGroup>
-
-	<!-- Preview pane toggle button when collapsed -->
-	{#if previewCollapsed}
-		<div class="absolute right-4 top-4">
-			<Button variant="outline" size="sm" onclick={() => (previewCollapsed = false)}>
-				<ChevronLeft class="h-4 w-4 mr-1" />
-				Preview
-			</Button>
-		</div>
-	{/if}
 </div>
