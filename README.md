@@ -82,8 +82,6 @@ User Data: %APPDATA%/aplus-app/data/
 **Special Handling:**
 - **Classes**: Base classes and subclasses stored as separate entries
   - Subclasses include `className` and `classSource` references
-  - Enables flexible character building (mix/match subclasses)
-- **Rules**: Uses `variantrule` array key (not `rule`)
 
 ### Parser Architecture
 
