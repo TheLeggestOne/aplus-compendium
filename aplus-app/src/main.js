@@ -91,6 +91,14 @@ function setupIpcHandlers() {
     await contentManager.delete(type, name, source);
   });
 
+  ipcMain.handle('content:loadFile', async (event, filePath, contentType, source) => {
+    return await contentLoader.loadFile(filePath, contentType, source);
+  });
+
+  ipcMain.handle('content:loadDirectory', async (event, dirPath, source) => {
+    return await contentLoader.loadDirectory(dirPath, source);
+  });
+
   // Character handlers
   ipcMain.handle('character:getAll', async () => {
     return await characterManager.getAll();

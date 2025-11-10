@@ -5,6 +5,8 @@ interface ContentAPI {
   import: (type: string, items: any[], source: string) => Promise<void>;
   search: (type: string, query: string) => Promise<Record<string, any>>;
   delete: (type: string, name: string, source: string) => Promise<void>;
+  loadFile: (filePath: string, contentType?: string, source?: string) => Promise<{ loaded: number; contentType: string }>;
+  loadDirectory: (dirPath: string, source?: string) => Promise<{ loaded: Record<string, number> }>;
 }
 
 interface CharacterAPI {

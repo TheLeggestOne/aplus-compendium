@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     import: (type, items, source) => ipcRenderer.invoke('content:import', type, items, source),
     search: (type, query) => ipcRenderer.invoke('content:search', type, query),
     delete: (type, name, source) => ipcRenderer.invoke('content:delete', type, name, source),
+    loadFile: (filePath, contentType, source) => ipcRenderer.invoke('content:loadFile', filePath, contentType, source),
+    loadDirectory: (dirPath, source) => ipcRenderer.invoke('content:loadDirectory', dirPath, source),
   },
   
   // Character API
