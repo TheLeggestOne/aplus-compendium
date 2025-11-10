@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "src/main.js",
   "scripts": {
-    "test": "echo \"No test implemented.\"",
+    "test": "node test.js",
     "build:frontend": "cd ../aplus-front && npm run build",
     "dev": "npm run build:frontend && electron .",
     "start": "electron ."
