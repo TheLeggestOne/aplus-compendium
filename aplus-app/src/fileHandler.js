@@ -19,15 +19,24 @@ class FileHandler {
     
     // Content types we support
     this.contentTypes = [
+      'actions',
       'backgrounds',
       'classes',
-      'conditions', 
+      'conditions',
+      'decks',
+      'deities',
       'feats',
       'items',
+      'languages',
       'monsters',
+      'objects',
+      'optionalfeatures',
       'races',
       'rules',
-      'spells'
+      'senses',
+      'skills',
+      'spells',
+      'traps'
     ];
   }
   

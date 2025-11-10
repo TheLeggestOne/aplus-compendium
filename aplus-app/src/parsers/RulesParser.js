@@ -6,7 +6,7 @@ class RulesParser extends ContentParser {
   }
 
   getArrayKey() {
-    return 'rule';
+    return 'variantrule';
   }
 }
 

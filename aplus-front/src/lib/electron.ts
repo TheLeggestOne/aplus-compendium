@@ -51,15 +51,24 @@ export const electron = {
 
 // Content type constants
 export const CONTENT_TYPES = [
+  'actions',
   'backgrounds',
   'classes',
   'conditions',
+  'decks',
+  'deities',
   'feats',
   'items',
+  'languages',
   'monsters',
+  'objects',
+  'optionalfeatures',
   'races',
   'rules',
-  'spells'
+  'senses',
+  'skills',
+  'spells',
+  'traps'
 ] as const;
 
 export type ContentType = typeof CONTENT_TYPES[number];

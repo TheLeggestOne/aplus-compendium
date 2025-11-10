@@ -1,8 +1,10 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
 const fileHandler = require('./fileHandler');
 const contentManager = require('./contentManager');
 const characterManager = require('./characterManager');
+const contentLoader = require('./contentLoader');
 
 let mainWindow;
 
@@ -36,6 +38,17 @@ function createWindow() {
 app.whenReady().then(async () => {
   // Initialize data directories and files
   await fileHandler.initialize();
+  
+  // Check if SRD needs to be loaded
+  const srdFlagPath = path.join(app.getPath('userData'), 'data', '.srd-loaded');
+  try {
+    await fs.access(srdFlagPath);
+  } catch {
+    // Flag doesn't exist - load SRD
+    console.log('First run detected - loading bundled SRD content...');
+    await contentLoader.loadBundledSrd();
+    await fs.writeFile(srdFlagPath, JSON.stringify({ loaded: true, timestamp: new Date().toISOString() }));
+  }
   
   // Set up IPC handlers
   setupIpcHandlers();

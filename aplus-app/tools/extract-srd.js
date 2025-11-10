@@ -12,6 +12,22 @@ const parserRegistry = require('../src/parsers/ParserRegistry');
  *   node tools/extract-srd.js ../5etools-v2.10.1/data resources/srd
  */
 
+async function getAllJsonFiles(dir, fileList = []) {
+  const files = await fs.readdir(dir, { withFileTypes: true });
+  
+  for (const file of files) {
+    const fullPath = path.join(dir, file.name);
+    
+    if (file.isDirectory()) {
+      await getAllJsonFiles(fullPath, fileList);
+    } else if (file.name.endsWith('.json')) {
+      fileList.push(fullPath);
+    }
+  }
+  
+  return fileList;
+}
+
 async function extractSrd(inputDir, outputDir) {
   console.log('Discovering parsers...');
   await parserRegistry.discoverParsers();
@@ -22,9 +38,9 @@ async function extractSrd(inputDir, outputDir) {
   // Ensure output directory exists
   await fs.mkdir(outputDir, { recursive: true });
   
-  // Get all JSON files in the input directory
-  const files = await fs.readdir(inputDir);
-  const jsonFiles = files.filter(f => f.endsWith('.json'));
+  // Get all JSON files recursively
+  const jsonFiles = await getAllJsonFiles(inputDir);
+  console.log(`Found ${jsonFiles.length} JSON files\n`);
   
   let totalExtracted = 0;
   let filesProcessed = 0;
@@ -32,8 +48,8 @@ async function extractSrd(inputDir, outputDir) {
   // Track items per content type across all files
   const contentTypeItems = new Map();
   
-  for (const filename of jsonFiles) {
-    const inputFile = path.join(inputDir, filename);
+  for (const inputFile of jsonFiles) {
+    const filename = path.relative(inputDir, inputFile);
     
     try {
       // Read and parse input

@@ -1,0 +1,961 @@
+{
+	"_meta": {
+		"internalCopies": [
+			"deck"
+		]
+	},
+	"deck": [
+		{
+			"name": "Deck of Illusions",
+			"source": "DMG",
+			"page": 161,
+			"srd": true,
+			"cards": [
+				"Red Dragon|Deck of Illusions|DMG",
+				"Knight and Four Guards|Deck of Illusions|DMG",
+				"Succubus/Incubus|Deck of Illusions|DMG",
+				"Druid|Deck of Illusions|DMG",
+				"Cloud Giant|Deck of Illusions|DMG",
+				"Ettin|Deck of Illusions|DMG",
+				"Bugbear|Deck of Illusions|DMG",
+				"Goblin|Deck of Illusions|DMG",
+				"Beholder|Deck of Illusions|DMG",
+				"Archmage and Mage Apprentice|Deck of Illusions|DMG",
+				"Night Hag|Deck of Illusions|DMG",
+				"Assassin|Deck of Illusions|DMG",
+				"Fire Giant|Deck of Illusions|DMG",
+				"Ogre Mage|Deck of Illusions|DMG",
+				"Gnoll|Deck of Illusions|DMG",
+				"Kobold|Deck of Illusions|DMG",
+				"Lich|Deck of Illusions|DMG",
+				"Priest and Two Acolytes|Deck of Illusions|DMG",
+				"Medusa|Deck of Illusions|DMG",
+				"Veteran|Deck of Illusions|DMG",
+				"Frost Giant|Deck of Illusions|DMG",
+				"Troll|Deck of Illusions|DMG",
+				"Hobgoblin|Deck of Illusions|DMG",
+				"Goblin|Deck of Illusions|DMG",
+				"Iron Golem|Deck of Illusions|DMG",
+				"Bandit Captain and Three Bandits|Deck of Illusions|DMG",
+				"Erinyes|Deck of Illusions|DMG",
+				"Berserker|Deck of Illusions|DMG",
+				"Hill Giant|Deck of Illusions|DMG",
+				"Ogre|Deck of Illusions|DMG",
+				"Orc|Deck of Illusions|DMG",
+				"Kobold|Deck of Illusions|DMG",
+				"You (The Deck's Owner)|Deck of Illusions|DMG"
+			],
+			"back": {
+				"type": "image",
+				"href": {
+					"type": "internal",
+					"path": "decks/generic/back.webp"
+				},
+				"width": 411,
+				"height": 561
+			},
+			"entries": [
+				"This box contains a set of parchment cards. A full deck has 34 cards. A deck found as treasure is usually missing {@dice 1d20 - 1} cards.",
+				"The magic of the deck functions only if cards are drawn at random (you can use an altered deck of playing cards to simulate the deck). You can use an action to draw a card at random from the deck and throw it to the ground at a point within 30 feet of you.",
+				"An illusion of one or more creatures forms over the thrown card and remains until dispelled. An illusory creature appears real, of the appropriate size, and behaves as if it were a real creature, except that it can do no harm. While you are within 120 feet of the illusory creature and can see it, you can use an action to move it magically anywhere within 30 feet of its card. Any physical interaction with the illusory creature reveals it to be an illusion, because objects pass through it. Someone who uses an action to visually inspect the creature identifies it as illusory with a successful {@dc 15} Intelligence ({@skill Investigation}) check. The creature then appears translucent.",
+				"The illusion lasts until its card is moved or the illusion is dispelled. When the illusion ends, the image on its card disappears, and that card can't be used again.",
+				{
+					"type": "table",
+					"colLabels": [
+						"{@dice 1d34|Playing Card}",
+						"Illusion"
+					],
+					"colStyles": [
+						"col-3",
+						"col-9"
+					],
+					"rows": [
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 1
+								},
+								"entry": "Ace of hearts"
+							},
+							"{@creature adult red dragon||Red dragon}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 2
+								},
+								"entry": "King of hearts"
+							},
+							"{@creature Knight} and four {@creature guard||guards}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 3
+								},
+								"entry": "Queen of hearts"
+							},
+							"{@creature Succubus||Succubus/Incubus}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 4
+								},
+								"entry": "Jack of hearts"
+							},
+							"{@creature Druid}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 5
+								},
+								"entry": "Ten of hearts"
+							},
+							"{@creature Cloud giant}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 6
+								},
+								"entry": "Nine of hearts"
+							},
+							"{@creature Ettin}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 7
+								},
+								"entry": "Eight of hearts"
+							},
+							"{@creature Bugbear}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 8
+								},
+								"entry": "Two of hearts"
+							},
+							"{@creature Goblin}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 9
+								},
+								"entry": "Ace of diamonds"
+							},
+							"{@creature Beholder}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 10
+								},
+								"entry": "King of diamonds"
+							},
+							"{@creature Archmage} and {@creature mage} apprentice"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 11
+								},
+								"entry": "Queen of diamonds"
+							},
+							"{@creature Night hag}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 12
+								},
+								"entry": "Jack of diamonds"
+							},
+							"{@creature Assassin}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 13
+								},
+								"entry": "Ten of diamonds"
+							},
+							"{@creature Fire giant}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 14
+								},
+								"entry": "Nine of diamonds"
+							},
+							"{@creature oni||Ogre mage}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 15
+								},
+								"entry": "Eight of diamonds"
+							},
+							"{@creature Gnoll}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 16
+								},
+								"entry": "Two of diamonds"
+							},
+							"{@creature Kobold}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 17
+								},
+								"entry": "Ace of spades"
+							},
+							"{@creature Lich}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 18
+								},
+								"entry": "King of spades"
+							},
+							"{@creature Priest} and two {@creature acolyte||acolytes}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 19
+								},
+								"entry": "Queen of spades"
+							},
+							"{@creature Medusa}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 20
+								},
+								"entry": "Jack of spades"
+							},
+							"{@creature Veteran}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 21
+								},
+								"entry": "Ten of spades"
+							},
+							"{@creature Frost giant}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 22
+								},
+								"entry": "Nine of spades"
+							},
+							"{@creature Troll}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 23
+								},
+								"entry": "Eight of spades"
+							},
+							"{@creature Hobgoblin}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 24
+								},
+								"entry": "Two of spades"
+							},
+							"{@creature Goblin}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 25
+								},
+								"entry": "Ace of clubs"
+							},
+							"{@creature Iron golem}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 26
+								},
+								"entry": "King of clubs"
+							},
+							"{@creature Bandit captain} and three {@creature bandit||bandits}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 27
+								},
+								"entry": "Queen of clubs"
+							},
+							"{@creature Erinyes}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 28
+								},
+								"entry": "Jack of clubs"
+							},
+							"{@creature Berserker}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 29
+								},
+								"entry": "Ten of clubs"
+							},
+							"{@creature Hill giant}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 30
+								},
+								"entry": "Nine of clubs"
+							},
+							"{@creature Ogre}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 31
+								},
+								"entry": "Eight of clubs"
+							},
+							"{@creature Orc}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 32
+								},
+								"entry": "Two of clubs"
+							},
+							"{@creature Kobold}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"min": 33,
+									"max": 34
+								},
+								"entry": "jokers (2)"
+							},
+							"You (the deck's owner)"
+						]
+					]
+				}
+			],
+			"hasCardArt": false
+		},
+		{
+			"name": "Deck of Illusions",
+			"source": "XDMG",
+			"page": 249,
+			"srd52": true,
+			"cards": [
+				"Adult Red Dragon|Deck of Illusions|XDMG",
+				"Archmage|Deck of Illusions|XDMG",
+				"Assassin|Deck of Illusions|XDMG",
+				"Bandit Captain|Deck of Illusions|XDMG",
+				"Beholder|Deck of Illusions|XDMG",
+				"Berserker|Deck of Illusions|XDMG",
+				"Bugbear Warrior|Deck of Illusions|XDMG",
+				"Cloud Giant|Deck of Illusions|XDMG",
+				"Druid|Deck of Illusions|XDMG",
+				"Erinyes|Deck of Illusions|XDMG",
+				"Ettin|Deck of Illusions|XDMG",
+				"Fire Giant|Deck of Illusions|XDMG",
+				"Frost Giant|Deck of Illusions|XDMG",
+				"Gnoll Warrior|Deck of Illusions|XDMG",
+				"Goblin Warrior|Deck of Illusions|XDMG",
+				"Guardian Naga|Deck of Illusions|XDMG",
+				"Hill Giant|Deck of Illusions|XDMG",
+				"Hobgoblin Warrior|Deck of Illusions|XDMG",
+				"Incubus|Deck of Illusions|XDMG",
+				"Iron Golem|Deck of Illusions|XDMG",
+				"Knight|Deck of Illusions|XDMG",
+				"Kobold Warrior|Deck of Illusions|XDMG",
+				"Lich|Deck of Illusions|XDMG",
+				"Medusa|Deck of Illusions|XDMG",
+				"Night Hag|Deck of Illusions|XDMG",
+				"Ogre|Deck of Illusions|XDMG",
+				"Oni|Deck of Illusions|XDMG",
+				"Priest|Deck of Illusions|XDMG",
+				"Succubus|Deck of Illusions|XDMG",
+				"Troll|Deck of Illusions|XDMG",
+				"Warrior Veteran|Deck of Illusions|XDMG",
+				"Wyvern|Deck of Illusions|XDMG",
+				"The Card Drawer|Deck of Illusions|XDMG"
+			],
+			"back": {
+				"type": "image",
+				"href": {
+					"type": "internal",
+					"path": "decks/generic/back.webp"
+				},
+				"width": 411,
+				"height": 561
+			},
+			"entries": [
+				"This box contains a set of cards. A full deck has 34 cards: 32 depicting specific creatures and two with a mirrored surface. A deck found as treasure is usually missing {@dice 1d20 - 1} cards.",
+				"The magic of the deck functions only if its cards are drawn at random. You can take a {@action Magic|XPHB} action to draw a card at random from the deck and throw it to the ground at a point within 30 feet of yourself. An illusion of a creature, determined by rolling on the Deck of Illusions table, forms over the thrown card and remains until dispelled. The illusory creature created by the card looks and behaves like a real creature of its kind, except that it can do no harm. While you are within 120 feet of the illusory creature and can see it, you can take a {@action Magic|XPHB} action to move it anywhere within 30 feet of its card.",
+				"Any physical interaction with the illusory creature reveals it to be false, because objects pass through it. A creature that takes a {@action Study|XPHB} action to visually inspect the illusory creature identifies it as an illusion with a successful {@dc 15} Intelligence ({@skill Investigation|XPHB}) check. The illusion lasts until its card is moved or the illusion is dispelled (using a {@spell Dispel Magic|XPHB} spell or a similar effect). When the illusion ends, the image on its card disappears, and that card can't be used again.",
+				{
+					"type": "table",
+					"caption": "Deck of Illusions",
+					"colStyles": [
+						"col-2 text-center",
+						"col-10"
+					],
+					"colLabels": [
+						"1d100",
+						"Illusion"
+					],
+					"rows": [
+						[
+							"01-03",
+							"{@creature Adult Red Dragon|XMM}"
+						],
+						[
+							"04-06",
+							"{@creature Archmage|XMM}"
+						],
+						[
+							"07-09",
+							"{@creature Assassin|XMM}"
+						],
+						[
+							"10-12",
+							"{@creature Bandit Captain|XMM}"
+						],
+						[
+							"13-15",
+							"{@creature Beholder|XMM}"
+						],
+						[
+							"16-18",
+							"{@creature Berserker|XMM}"
+						],
+						[
+							"19-21",
+							"{@creature Bugbear Warrior|XMM}"
+						],
+						[
+							"22-24",
+							"{@creature Cloud Giant|XMM}"
+						],
+						[
+							"25-27",
+							"{@creature Druid|XMM}"
+						],
+						[
+							"28-30",
+							"{@creature Erinyes|XMM}"
+						],
+						[
+							"31-33",
+							"{@creature Ettin|XMM}"
+						],
+						[
+							"34-36",
+							"{@creature Fire Giant|XMM}"
+						],
+						[
+							"37-39",
+							"{@creature Frost Giant|XMM}"
+						],
+						[
+							"40-42",
+							"{@creature Gnoll Warrior|XMM}"
+						],
+						[
+							"43-45",
+							"{@creature Goblin Warrior|XMM}"
+						],
+						[
+							"46-48",
+							"{@creature Guardian Naga|XMM}"
+						],
+						[
+							"49-51",
+							"{@creature Hill Giant|XMM}"
+						],
+						[
+							"52-54",
+							"{@creature Hobgoblin Warrior|XMM}"
+						],
+						[
+							"55-57",
+							"{@creature Incubus|XMM}"
+						],
+						[
+							"58-60",
+							"{@creature Iron Golem|XMM}"
+						],
+						[
+							"61-63",
+							"{@creature Knight|XMM}"
+						],
+						[
+							"64-66",
+							"{@creature Kobold Warrior|XMM}"
+						],
+						[
+							"67-69",
+							"{@creature Lich|XMM}"
+						],
+						[
+							"70-72",
+							"{@creature Medusa|XMM}"
+						],
+						[
+							"73-75",
+							"{@creature Night Hag|XMM}"
+						],
+						[
+							"76-78",
+							"{@creature Ogre|XMM}"
+						],
+						[
+							"79-81",
+							"{@creature Oni|XMM}"
+						],
+						[
+							"82-84",
+							"{@creature Priest|XMM}"
+						],
+						[
+							"85-87",
+							"{@creature Succubus|XMM}"
+						],
+						[
+							"88-90",
+							"{@creature Troll|XMM}"
+						],
+						[
+							"91-93",
+							"{@creature Warrior Veteran|XMM}"
+						],
+						[
+							"94-96",
+							"{@creature Wyvern|XMM}"
+						],
+						[
+							"97-00",
+							"The card drawer"
+						]
+					]
+				}
+			],
+			"hasCardArt": false
+		},
+		{
+			"name": "Deck of Many Things",
+			"source": "DMG",
+			"page": 162,
+			"srd": true,
+			"cards": [
+				{
+					"uid": "Vizier|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Sun|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Moon|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Star|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Comet|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "The Fates|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Throne|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Key|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Knight|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Gem|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Talons|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "The Void|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Flames|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Skull|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Idiot|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Donjon|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Ruin|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Euryale|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Rogue|Deck of Many Things",
+					"replacement": true
+				},
+				{
+					"uid": "Balance|Deck of Many Things",
+					"replacement": true
+				},
+				"Fool|Deck of Many Things",
+				"Jester|Deck of Many Things"
+			],
+			"back": {
+				"type": "image",
+				"href": {
+					"type": "internal",
+					"path": "decks/DMG/Deck of Many Things/00-back.webp"
+				},
+				"width": 742,
+				"height": 959
+			},
+			"entries": [
+				"Usually found in a box or pouch, this deck contains a number of cards made of ivory or vellum. Most ({@chance 75}) of these decks have only thirteen cards, but the rest have twenty-two.",
+				"Before you draw a card, you must declare how many cards you intend to draw and then draw them randomly (you can use an altered deck of playing cards to simulate the deck). Any cards drawn in excess of this number have no effect. Otherwise, as soon as you draw a card from the deck, its magic takes effect. You must draw each card no more than 1 hour after the previous draw. If you fail to draw the chosen number, the remaining number of cards fly from the deck on their own and take effect all at once.",
+				"Once a card is drawn, it fades from existence. Unless the card is the {@card Fool|Deck of Many Things} or the {@card Jester|Deck of Many Things}, the card reappears in the deck, making it possible to draw the same card twice.",
+				{
+					"type": "entries",
+					"name": "A Question of Enmity",
+					"entries": [
+						"Two of the cards in a deck of many things can earn a character the enmity of another being. With the {@card Flames|Deck of Many Things} card, the enmity is overt. The character should experience the devil's malevolent efforts on multiple occasions. Seeking out the fiend shouldn't be a simple task, and the adventurer should clash with the devil's allies and followers a few times before being able to confront the devil itself.",
+						"In the case of the {@card Rogue|Deck of Many Things} card, the enmity is secret and should come from someone thought to be a friend or an ally. As Dungeon Master, you should wait for a dramatically appropriate moment to reveal this enmity, leaving the adventurer guessing who is likely to become a betrayer."
+					]
+				},
+				{
+					"type": "table",
+					"colLabels": [
+						"{@dice 1d22|Playing Card}",
+						"Card"
+					],
+					"colStyles": [
+						"col-6 text-center",
+						"col-6 text-center"
+					],
+					"rows": [
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 1
+								},
+								"entry": "Ace of diamonds"
+							},
+							"{@card Vizier|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 2
+								},
+								"entry": "King of diamonds"
+							},
+							"{@card Sun|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 3
+								},
+								"entry": "Queen of diamonds"
+							},
+							"{@card Moon|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 4
+								},
+								"entry": "Jack of diamonds"
+							},
+							"{@card Star|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 5
+								},
+								"entry": "Two of diamonds"
+							},
+							"{@card Comet|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 6
+								},
+								"entry": "Ace of hearts"
+							},
+							"{@card The Fates|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 7
+								},
+								"entry": "King of hearts"
+							},
+							"{@card Throne|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 8
+								},
+								"entry": "Queen of hearts"
+							},
+							"{@card Key|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 9
+								},
+								"entry": "Jack of hearts"
+							},
+							"{@card Knight|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 10
+								},
+								"entry": "Two of hearts"
+							},
+							"{@card Gem|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 11
+								},
+								"entry": "Ace of clubs"
+							},
+							"{@card Talons|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 12
+								},
+								"entry": "King of clubs"
+							},
+							"{@card The Void|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 13
+								},
+								"entry": "Queen of clubs"
+							},
+							"{@card Flames|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 14
+								},
+								"entry": "Jack of clubs"
+							},
+							"{@card Skull|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 15
+								},
+								"entry": "Two of clubs"
+							},
+							"{@card Idiot|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 16
+								},
+								"entry": "Ace of spades"
+							},
+							"{@card Donjon|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 17
+								},
+								"entry": "King of spades"
+							},
+							"{@card Ruin|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 18
+								},
+								"entry": "Queen of spades"
+							},
+							"{@card Euryale|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 19
+								},
+								"entry": "Jack of spades"
+							},
+							"{@card Rogue|Deck of Many Things}"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 20
+								},
+								"entry": "Two of spades"
+							},
+							"{@card Balance|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 21
+								},
+								"entry": "Joker (with TM)"
+							},
+							"{@card Fool|Deck of Many Things}*"
+						],
+						[
+							{
+								"type": "cell",
+								"roll": {
+									"exact": 22
+								},
+								"entry": "Joker (without TM)"
+							},
+							"{@card Jester|Deck of Many Things}"
+						]
+					],
+					"footnotes": [
+						"* Found only in a deck with twenty-two cards"
+					]
+				}
+			],
+			"hasCardArt": true
+		}
+	]
+}
