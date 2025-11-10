@@ -7,12 +7,69 @@ A lightweight, desktop-native D&D 5e character sheet application with an integra
 This project started as an over-engineered web app and was rebuilt from the ground up as a focused tool: a dynamic character sheet that understands D&D 5e content. Characters are self-contained JSON files that embed full copies of all selected content (classes, spells, items, etc.), while a shared content library prevents duplication and enables easy content browsing.
 
 **Key Design Principles:**
+- **Character-first**: Primary interface is the character sheet, with content library as reference
 - **Local-first**: All data stored in local files (no database, no cloud)
 - **Self-contained characters**: Each character.json contains full copies of all referenced content
 - **Content deduplication**: Shared library uses compound keys (`name::SOURCE`) to store unique items
 - **Extensible**: Parser architecture auto-discovers new content types
 - **SRD bundled**: 2,723 items from the 5e SRD load automatically on first run
 - **User imports**: Accept 5etools JSON format for homebrew/published content
+- **Multi-window support**: Pop out characters and content for dual-monitor workflows
+
+## User Interface
+
+### Layout Architecture
+
+**4-Column Responsive System** (all collapsible):
+1. **Left Navigation** - Character list, route navigation, new character button
+2. **Middle Browser** - Context-aware content categories and filters
+3. **Right Main** - Primary content (character sheet or content tables)
+4. **Right Preview** - Detail pane for item inspection (5etools-style)
+
+### Routes
+
+- **`/characters`** - Character sheet view
+  - Tabbed sections: Combat, Inventory, Spells, Traits
+  - Readonly by default with Edit button(s)
+  - Functions as guided builder for new characters
+  - Clicking embedded content opens preview pane
+  
+- **`/resources/player`** - Player content library
+  - Races, classes, backgrounds, feats, spells, items, optionalfeatures, skills, languages
+  
+- **`/resources/dm`** - DM content library
+  - Monsters, traps, objects
+  - Can be hidden via settings (anti-metagaming)
+  
+- **`/resources/reference`** - Reference content
+  - Conditions, senses, actions, deities, decks, rules
+
+### Key Features
+
+**Multi-Window Support:**
+- Hover arrow buttons on any character or content item
+- Click to open in new window
+- New windows open with collapsed navigation by default
+- Full app functionality in each window (can expand nav and browse)
+- Data syncs across all windows via shared backend
+
+**Preview Pane:**
+- Universal detail viewer (works on all routes)
+- Click any content item to see full formatted details
+- Click spell/feat/item on character sheet to preview
+- Collapsible to maximize main content space
+
+**Content Editing:**
+- Modal-based editing with type-specific forms
+- Multi-select with bulk operations (delete, bulk edit)
+- Search and filter across all content
+- Import preview with review/edit before confirmation
+
+**Character Sheet:**
+- Readonly display with section-level edit controls
+- Guided builder mode for character creation
+- Content references open preview pane
+- Full data embedded (works offline)
 
 ## Project Structure
 
@@ -353,19 +410,50 @@ npm test
 - [x] Live app verification
 
 ### 🚧 In Progress
-- [ ] UI development (shadcn-svelte)
-- [ ] Character sheet interface
-- [ ] Content browser
-- [ ] User import UI
-- [ ] Character creation wizard
+- [ ] UI development (SvelteKit + shadcn-svelte)
+- [ ] 4-column responsive layout system
+- [ ] Character sheet interface (tabbed: Combat, Inventory, Spells, Traits)
+- [ ] Content browser with organized categories
+- [ ] Multi-window support for dual monitors
+- [ ] Universal preview pane (5etools-style)
 
-### 📋 Planned
+### 📋 Planned Features
+
+**Core UI:**
+- [ ] Guided character builder (step-by-step wizard)
+- [ ] Modal-based content editing with validation
+- [ ] Bulk operations (multi-select, bulk edit, bulk delete)
+- [ ] Advanced search and filtering
+- [ ] Import preview and review system
+- [ ] Collapsible navigation (all columns)
+
+**Character Management:**
 - [ ] Character export/sharing
+- [ ] Character switcher/selector
+- [ ] Character duplication workflow
+- [ ] Readonly mode with section-level edit controls
+
+**Content Features:**
+- [ ] Organized content categories:
+  - Player Resources (races, classes, backgrounds, feats, spells, items, optionalfeatures, skills, languages)
+  - DM Resources (monsters, traps, objects)
+  - Reference (conditions, senses, actions, deities, decks, rules)
+- [ ] Pop-out windows with hover arrows
+- [ ] Item detail preview pane
+- [ ] Content editing modals (type-specific forms)
+
+**Settings & Preferences:**
+- [ ] Hide DM content toggle (anti-metagaming)
+- [ ] Column collapse state persistence
+- [ ] Window layout preferences
+- [ ] Theme customization
+
+**Future Enhancements:**
 - [ ] Dice roller integration
-- [ ] Homebrew content manager
 - [ ] Campaign/session notes
-- [ ] Multi-character management
 - [ ] PDF character sheet export
+- [ ] Homebrew content creator
+- [ ] Password protection for DM content reveal
 
 ## License
 
