@@ -454,6 +454,7 @@ npm test
 - [ ] PDF character sheet export
 - [ ] Homebrew content creator
 - [ ] Password protection for DM content reveal
+- [ ] Quick scratchpad: Pull-out tab at bottom of character sheet for immediate note-taking (per-character data)
 
 ## License
 
