@@ -16,11 +16,9 @@ const config = {
 		// Use relative paths for assets - critical for Electron's file:// protocol
 		paths: {
 			relative: true
-		},
-		// Use hash-based routing for Electron (file:// protocol)
-		router: {
-			type: 'hash'
 		}
+		// Normal client-side routing (no hash routing)
+		// SvelteKit handles client-side navigation automatically
 	}
 };
 
