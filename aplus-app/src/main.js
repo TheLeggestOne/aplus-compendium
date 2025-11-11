@@ -5,8 +5,34 @@ const fileHandler = require('./fileHandler');
 const contentManager = require('./contentManager');
 const characterManager = require('./characterManager');
 const contentLoader = require('./contentLoader');
+const http = require('http');
+const express = require('express');
 
 let mainWindow;
+let server;
+const PORT = 3000;
+
+function startServer() {
+  return new Promise((resolve, reject) => {
+    const expressApp = express();
+    const buildPath = path.join(__dirname, '../../aplus-front/build');
+    
+    // Serve static files
+    expressApp.use(express.static(buildPath));
+    
+    // SPA fallback - serve index.html for all other routes
+    expressApp.use((req, res) => {
+      res.sendFile(path.join(buildPath, 'index.html'));
+    });
+    
+    server = expressApp.listen(PORT, 'localhost', () => {
+      console.log(`Frontend server running at http://localhost:${PORT}`);
+      resolve();
+    });
+    
+    server.on('error', reject);
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,10 +45,8 @@ function createWindow() {
     }
   });
 
-  // Load your frontend (adjust URL as needed)
-  // For development, you might load from localhost:5173 (Vite dev server)
-  // For production, load the built index.html
-  mainWindow.loadURL('http://localhost:5173');
+  // Load from local server
+  mainWindow.loadURL(`http://localhost:${PORT}`);
   
   // Open DevTools in development
   if (!app.isPackaged) {
@@ -53,6 +77,9 @@ app.whenReady().then(async () => {
   // Set up IPC handlers
   setupIpcHandlers();
   
+  // Start the local server
+  await startServer();
+  
   createWindow();
 
   app.on('activate', () => {
@@ -63,6 +90,11 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  // Close the server
+  if (server) {
+    server.close();
+  }
+  
   if (process.platform !== 'darwin') {
     app.quit();
   }

@@ -66,6 +66,13 @@ export default function (options = {}) {
 				html = html.replace(/src="\/_app\//g, 'src="./_app/');
 				html = html.replace(/import\("\/_app\//g, 'import("./_app/');
 				
+				// Fix the base path calculation for file:// protocol
+				// Replace the dynamic calculation with an empty string
+				html = html.replace(
+					/base: new URL\('\.', location\)\.pathname\.slice\(0, -1\)/,
+					'base: ""'
+				);
+				
 				writeFileSync(fallbackPath, html);
 				builder.log.minor('Fixed asset paths for Electron');
 			}
