@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Search, Filter, SortAsc, SortDesc } from 'lucide-svelte';
+	import { Search, Funnel, ArrowUpNarrowWide, ArrowDownWideNarrow } from 'lucide-svelte';
 	import { previewItem, previewOpen } from '$lib/stores/preview';
 	import { getAllContent, CONTENT_TYPES } from '$lib/api/electron';
 	
@@ -186,7 +185,7 @@
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm">
-				<Filter class="h-4 w-4 mr-2" />
+				<Funnel class="h-4 w-4 mr-2" />
 				Filters
 			</Button>
 			<Button 
@@ -195,9 +194,9 @@
 				onclick={() => sortAscending = !sortAscending}
 			>
 				{#if sortAscending}
-					<SortAsc class="h-4 w-4 mr-2" />
+					<ArrowUpNarrowWide class="h-4 w-4 mr-2" />
 				{:else}
-					<SortDesc class="h-4 w-4 mr-2" />
+					<ArrowDownWideNarrow class="h-4 w-4 mr-2" />
 				{/if}
 				Sort
 			</Button>
