@@ -50,17 +50,15 @@
 	<!-- Tabbed Content -->
 	<div class="flex-1 overflow-auto">
 		<Tabs.Root value="stats" class="h-full flex flex-col">
-			<Tabs.List class="px-4 pt-2">
-				<Tabs.Trigger value="stats">Stats</Tabs.Trigger>
-				<Tabs.Trigger value="combat">Combat</Tabs.Trigger>
-				<Tabs.Trigger value="inventory">Inventory</Tabs.Trigger>
-				<Tabs.Trigger value="spellcasting">Spellcasting</Tabs.Trigger>
-				<Tabs.Trigger value="information">Information</Tabs.Trigger>
-				<Tabs.Trigger value="notes">Notes</Tabs.Trigger>
-			</Tabs.List>
-
-			<!-- Stats Tab -->
-			<Tabs.Content value="stats" class="flex-1 p-4 space-y-4">
+		<Tabs.List class="flex w-full">
+			<Tabs.Trigger value="stats" class="flex-1 min-w-0 shadow-sm">Stats</Tabs.Trigger>
+			<Tabs.Trigger value="combat" class="flex-1 min-w-0 shadow-sm">Combat</Tabs.Trigger>
+			<Tabs.Trigger value="inventory" class="flex-1 min-w-0 shadow-sm">Items & Equipment</Tabs.Trigger>
+			<Tabs.Trigger value="spellcasting" class="flex-1 min-w-0 shadow-sm">Spellcasting</Tabs.Trigger>
+			<Tabs.Trigger value="information" class="flex-1 min-w-0 shadow-sm">Information</Tabs.Trigger>
+			<Tabs.Trigger value="notes" class="flex-1 min-w-0 shadow-sm">Notes</Tabs.Trigger>
+		</Tabs.List>			<!-- Stats Tab -->
+			<Tabs.Content value="stats" class="flex-1 p-4 space-y-4 overflow-y-scroll">
 				<div>
 					<h2 class="text-sm font-semibold mb-2">Ability Scores</h2>
 					<div class="grid grid-cols-6 gap-2">
@@ -167,7 +165,7 @@
 			</Tabs.Content>
 
 			<!-- Combat Tab -->
-			<Tabs.Content value="combat" class="flex-1 p-4 space-y-4">
+			<Tabs.Content value="combat" class="flex-1 p-4 space-y-4 overflow-y-scroll">
 				<div>
 					<h2 class="text-sm font-semibold mb-2">Attacks & Spellcasting</h2>
 					<div class="space-y-2">
@@ -216,7 +214,7 @@
 			</Tabs.Content>
 
 			<!-- Inventory Tab -->
-			<Tabs.Content value="inventory" class="flex-1 p-4 space-y-4">
+			<Tabs.Content value="inventory" class="flex-1 p-4 space-y-4 overflow-y-scroll">
 				<div class="flex items-center justify-between mb-2">
 					<h2 class="text-sm font-semibold">Inventories</h2>
 					<div class="flex items-center gap-2">
@@ -405,7 +403,7 @@
 			</Tabs.Content>
 
 			<!-- Spellcasting Tab -->
-			<Tabs.Content value="spellcasting" class="flex-1 p-6">
+			<Tabs.Content value="spellcasting" class="flex-1 p-6 overflow-y-scroll">
 				<div class="flex items-center justify-center h-full">
 					<div class="text-center text-muted-foreground">
 						<p class="text-lg mb-2">No spellcasting ability</p>
@@ -415,7 +413,7 @@
 			</Tabs.Content>
 
 			<!-- Information Tab -->
-			<Tabs.Content value="information" class="flex-1 p-4 space-y-4">
+			<Tabs.Content value="information" class="flex-1 p-4 space-y-4 overflow-y-scroll">
 				<div>
 					<h2 class="text-sm font-semibold mb-2">Character Details</h2>
 					<div class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
@@ -483,7 +481,7 @@
 			</Tabs.Content>
 
 			<!-- Notes Tab -->
-			<Tabs.Content value="notes" class="flex-1 p-4">
+			<Tabs.Content value="notes" class="flex-1 p-4 overflow-y-scroll">
 				<div class="h-full flex flex-col">
 					<h2 class="text-sm font-semibold mb-2">Session Notes</h2>
 					<Card class="flex-1 p-3">
