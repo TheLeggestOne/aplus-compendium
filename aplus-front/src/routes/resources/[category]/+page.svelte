@@ -20,64 +20,83 @@
 
 	// Display configuration for each content type
 	interface DisplayConfig {
-		typeField?: string; // Field to show in the "Type" column
-		levelField?: string; // Field to show in the "Level/CR" column
-		levelLabel?: string; // Label for the level column
+		columns: Array<{
+			label: string;
+			field?: string; // Direct field path (e.g., "size", "school")
+			render?: (item: any) => string; // Custom render function
+		}>;
 	}
 
 	const displayConfig: Record<string, DisplayConfig> = {
-		spells: {
-			typeField: 'school',
-			levelField: 'level',
-			levelLabel: 'Level'
-		},
-		monsters: {
-			typeField: 'type',
-			levelField: 'cr',
-			levelLabel: 'CR'
-		},
 		races: {
-			typeField: 'size',
-			levelField: undefined
+			columns: [
+				{ label: 'Name', field: 'name' },
+				{ 
+					label: 'Ability', 
+					render: (item) => {
+						// ability is an array like [{str: 2, dex: 1}] or [{cha: 2, choose: {from: [...], count: 2}}]
+						if (Array.isArray(item.ability)) {
+							const parts: string[] = [];
+							
+							for (const ab of item.ability) {
+								if (typeof ab === 'object') {
+									// First add fixed ability scores
+									Object.entries(ab).forEach(([key, value]) => {
+										if (key !== 'choose' && !key.startsWith('_') && typeof value === 'number') {
+											parts.push(`${key.toUpperCase()} +${value}`);
+										}
+									});
+									
+									// Then add choose options
+									if (ab.choose) {
+										const count = ab.choose.count || 1;
+										const amount = ab.choose.amount || 1;
+										if (ab.choose.from && ab.choose.from.length > 0) {
+											parts.push(`Any other ${count} +${amount}`);
+										} else {
+											parts.push(`Any +${amount}`);
+										}
+									}
+								}
+							}
+							
+							return parts.length > 0 ? parts.join(', ') : 'Lineage';
+						}
+						return 'Lineage';
+					}
+				},
+				{ label: 'Size', field: 'size' },
+				{ label: 'Source', field: 'source' }
+			]
 		},
-		classes: {
-			typeField: 'hd.faces', // Hit dice type
-			levelField: undefined
-		},
-		backgrounds: {
-			typeField: undefined,
-			levelField: undefined
-		},
-		items: {
-			typeField: 'type',
-			levelField: 'rarity',
-			levelLabel: 'Rarity'
-		},
-		feats: {
-			typeField: 'prerequisite',
-			levelField: undefined
-		},
-		conditions: {
-			typeField: undefined,
-			levelField: undefined
-		},
-		languages: {
-			typeField: 'type',
-			levelField: undefined
-		},
-		skills: {
-			typeField: 'ability',
-			levelField: undefined
+		// We'll add more configurations as we review each type
+		spells: {
+			columns: [
+				{ label: 'Name', field: 'name' },
+				{ label: 'School', field: 'school' },
+				{ label: 'Level', field: 'level' },
+				{ label: 'Source', field: 'source' }
+			]
 		}
 	};
 
-	const config = $derived(displayConfig[category] || {});
+	const config = $derived(displayConfig[category] || {
+		columns: [
+			{ label: 'Name', field: 'name' },
+			{ label: 'Source', field: 'source' }
+		]
+	});
 
-	// Get nested field value (e.g., "hd.faces")
-	function getNestedValue(obj: any, path: string | undefined): string {
-		if (!path) return '—';
-		const value = path.split('.').reduce((curr, prop) => curr?.[prop], obj);
-		return value !== undefined && value !== null ? String(value) : '—';
+	// Get value from item using field path or render function
+	function getCellValue(item: any, column: any): string {
+		if (column.render) {
+			return column.render(item);
+		}
+		if (column.field) {
+			const value = column.field.split('.').reduce((curr: any, prop: string) => curr?.[prop], item);
+			return value !== undefined && value !== null ? String(value) : '—';
+		}
+		return '—';
 	}
 
 	// Map URL categories to content types (backend expects plural forms)
@@ -205,14 +224,11 @@
 				<table class="w-full">
 					<thead>
 						<tr class="text-left text-sm border-b bg-background sticky top-0 shadow-sm">
-							<th class="p-3 font-semibold bg-background">Name</th>
-							{#if config.typeField}
-								<th class="p-3 font-semibold bg-background">Type</th>
-							{/if}
-							{#if config.levelField}
-								<th class="p-3 font-semibold bg-background">{config.levelLabel || 'Level'}</th>
-							{/if}
-							<th class="p-3 font-semibold bg-background">Source</th>
+							{#each config.columns.slice(0, -1) as column}
+								<th class="p-3 font-semibold bg-background">{column.label}</th>
+							{/each}
+							<!-- Source column always last with special styling -->
+							<th class="p-3 font-semibold bg-background">{config.columns[config.columns.length - 1].label}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -221,19 +237,16 @@
 								class="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
 								onclick={() => handleRowClick(item)}
 							>
-								<td class="p-3 font-medium">{item.name}</td>
-								{#if config.typeField}
-									<td class="p-3 text-sm text-muted-foreground">
-										{getNestedValue(item, config.typeField)}
+								{#each config.columns.slice(0, -1) as column, idx}
+									<td class="p-3 {idx === 0 ? 'font-medium' : 'text-sm text-muted-foreground'}">
+										{getCellValue(item, column)}
 									</td>
-								{/if}
-								{#if config.levelField}
-									<td class="p-3 text-sm text-muted-foreground">
-										{getNestedValue(item, config.levelField)}
-									</td>
-								{/if}
+								{/each}
+								<!-- Source column with badge styling -->
 								<td class="p-3">
-									<span class="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{item.source || 'Unknown'}</span>
+									<span class="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+										{getCellValue(item, config.columns[config.columns.length - 1])}
+									</span>
 								</td>
 							</tr>
 						{/each}
