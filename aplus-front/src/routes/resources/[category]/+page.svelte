@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Search, Filter, SortAsc, SortDesc } from 'lucide-svelte';
+	import { previewItem, previewOpen } from '$lib/stores/preview';
 	
 	const category = $derived($page.params.category ?? '');
 	const categoryName = $derived(
@@ -12,6 +13,11 @@
 
 	let searchQuery = $state('');
 	let sortAscending = $state(true);
+
+	function handleRowClick(item: any) {
+		previewItem.set(item);
+		previewOpen.set(true);
+	}
 
 	// Mock data for different categories with more detailed info
 	const mockData: Record<string, Array<{ name: string; type: string; source: string; level?: string }>> = {
@@ -152,7 +158,10 @@
 					</thead>
 					<tbody>
 						{#each filteredItems as item}
-							<tr class="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors">
+							<tr 
+								class="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
+								onclick={() => handleRowClick(item)}
+							>
 								<td class="p-3 font-medium">{item.name}</td>
 								<td class="p-3 text-sm text-muted-foreground">{item.type}</td>
 								{#if filteredItems.some(i => i.level)}

@@ -6,15 +6,28 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ChevronRight, Plus } from 'lucide-svelte';
 	import { page } from '$app/stores';
+	import { previewItem, previewOpen } from '$lib/stores/preview';
 
 	let { children } = $props();
+	
+	// Sync previewOpen store with AppLayout's previewCollapsed state
+	let previewCollapsed = $state(true);
+	
+	$effect(() => {
+		const unsubscribe = previewOpen.subscribe(value => {
+			if (value) {
+				previewCollapsed = false;
+			}
+		});
+		return unsubscribe;
+	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<AppLayout>
+<AppLayout bind:previewCollapsed>
 	{#snippet leftNav()}
 		<div class="p-2">
 			<Accordion.Root class="w-full" type="single">
@@ -105,10 +118,30 @@
 
 	{#snippet previewPane()}
 		<div class="p-4">
-			<h3 class="font-semibold mb-2">Preview</h3>
-			<div class="text-sm text-muted-foreground">
-				Click on any content item to preview it here.
-			</div>
+			{#if $previewItem}
+				<h3 class="font-semibold text-lg mb-2">{$previewItem.name}</h3>
+				<div class="space-y-3">
+					<div>
+						<div class="text-xs text-muted-foreground uppercase mb-1">Type</div>
+						<div class="text-sm">{$previewItem.type}</div>
+					</div>
+					{#if $previewItem.level}
+						<div>
+							<div class="text-xs text-muted-foreground uppercase mb-1">Level</div>
+							<div class="text-sm">{$previewItem.level}</div>
+						</div>
+					{/if}
+					<div>
+						<div class="text-xs text-muted-foreground uppercase mb-1">Source</div>
+						<div class="text-sm">{$previewItem.source}</div>
+					</div>
+				</div>
+			{:else}
+				<h3 class="font-semibold mb-2">Preview</h3>
+				<div class="text-sm text-muted-foreground">
+					Click on any content item to preview it here.
+				</div>
+			{/if}
 		</div>
 	{/snippet}
 </AppLayout>

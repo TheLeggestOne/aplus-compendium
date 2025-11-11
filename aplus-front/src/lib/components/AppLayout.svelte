@@ -6,16 +6,17 @@
 	let {
 		leftNav = $bindable(),
 		mainContent = $bindable(),
-		previewPane = $bindable()
+		previewPane = $bindable(),
+		previewCollapsed = $bindable(true)
 	}: {
 		leftNav?: any;
 		mainContent?: any;
 		previewPane?: any;
+		previewCollapsed?: boolean;
 	} = $props();
 	
-	// Collapse state for each column
+	// Collapse state for left column
 	let leftCollapsed = $state(false);
-	let previewCollapsed = $state(true); // Start collapsed
 </script>
 
 <div class="h-screen flex">
