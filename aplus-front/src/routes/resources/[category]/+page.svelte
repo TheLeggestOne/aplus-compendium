@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Search, Funnel, ArrowUpNarrowWide, ArrowDownWideNarrow } from 'lucide-svelte';
-	import { previewItem, previewOpen } from '$lib/stores/preview';
 	import { getAllContent, CONTENT_TYPES } from '$lib/api/electron';
+	import RacesTable from '$lib/components/resources/RacesTable.svelte';
+	import ClassesTable from '$lib/components/resources/ClassesTable.svelte';
+	import SpellsTable from '$lib/components/resources/SpellsTable.svelte';
+	import DefaultTable from '$lib/components/resources/DefaultTable.svelte';
 	
 	const category = $derived($page.params.category ?? '');
 	const categoryName = $derived(
@@ -16,87 +18,6 @@
 	let sortAscending = $state(true);
 	let items = $state<any[]>([]);
 	let loading = $state(true);
-
-	// Display configuration for each content type
-	interface DisplayConfig {
-		columns: Array<{
-			label: string;
-			field?: string; // Direct field path (e.g., "size", "school")
-			render?: (item: any) => string; // Custom render function
-		}>;
-	}
-
-	const displayConfig: Record<string, DisplayConfig> = {
-		races: {
-			columns: [
-				{ label: 'Name', field: 'name' },
-				{ 
-					label: 'Ability', 
-					render: (item) => {
-						// ability is an array like [{str: 2, dex: 1}] or [{cha: 2, choose: {from: [...], count: 2}}]
-						if (Array.isArray(item.ability)) {
-							const parts: string[] = [];
-							
-							for (const ab of item.ability) {
-								if (typeof ab === 'object') {
-									// First add fixed ability scores
-									Object.entries(ab).forEach(([key, value]) => {
-										if (key !== 'choose' && !key.startsWith('_') && typeof value === 'number') {
-											parts.push(`${key.toUpperCase()} +${value}`);
-										}
-									});
-									
-									// Then add choose options
-									if (ab.choose) {
-										const count = ab.choose.count || 1;
-										const amount = ab.choose.amount || 1;
-										if (ab.choose.from && ab.choose.from.length > 0) {
-											parts.push(`Any other ${count} +${amount}`);
-										} else {
-											parts.push(`Any +${amount}`);
-										}
-									}
-								}
-							}
-							
-							return parts.length > 0 ? parts.join(', ') : 'Lineage';
-						}
-						return 'Lineage';
-					}
-				},
-				{ label: 'Size', field: 'size' },
-				{ label: 'Source', field: 'source' }
-			]
-		},
-		// We'll add more configurations as we review each type
-		spells: {
-			columns: [
-				{ label: 'Name', field: 'name' },
-				{ label: 'School', field: 'school' },
-				{ label: 'Level', field: 'level' },
-				{ label: 'Source', field: 'source' }
-			]
-		}
-	};
-
-	const config = $derived(displayConfig[category] || {
-		columns: [
-			{ label: 'Name', field: 'name' },
-			{ label: 'Source', field: 'source' }
-		]
-	});
-
-	// Get value from item using field path or render function
-	function getCellValue(item: any, column: any): string {
-		if (column.render) {
-			return column.render(item);
-		}
-		if (column.field) {
-			const value = column.field.split('.').reduce((curr: any, prop: string) => curr?.[prop], item);
-			return value !== undefined && value !== null ? String(value) : '—';
-		}
-		return '—';
-	}
 
 	// Map URL categories to content types (backend expects plural forms)
 	const categoryTypeMap: Record<string, string> = {
@@ -119,11 +40,6 @@
 		spells: CONTENT_TYPES.SPELLS,
 		traps: CONTENT_TYPES.TRAPS
 	};
-
-	function handleRowClick(item: any) {
-		previewItem.set(item);
-		previewOpen.set(true);
-	}
 
 	// Load content when category changes
 	async function loadContent() {
@@ -214,51 +130,14 @@
 	</div>
 
 	<div class="flex-1 overflow-y-scroll">
-		{#if loading}
-			<Card class="p-8 text-center">
-				<p class="text-muted-foreground">Loading {categoryName.toLowerCase()}...</p>
-			</Card>
-		{:else if filteredItems.length > 0}
-			<div class="border rounded-md overflow-hidden">
-				<table class="w-full">
-					<thead>
-						<tr class="text-left text-sm border-b bg-background sticky top-0 shadow-sm">
-							{#each config.columns.slice(0, -1) as column}
-								<th class="p-3 font-semibold bg-background">{column.label}</th>
-							{/each}
-							<!-- Source column always last with special styling -->
-							<th class="p-3 font-semibold bg-background">{config.columns[config.columns.length - 1].label}</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each filteredItems as item}
-							<tr 
-								class="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
-								onclick={() => handleRowClick(item)}
-							>
-								{#each config.columns.slice(0, -1) as column, idx}
-									<td class="p-3 {idx === 0 ? 'font-medium' : 'text-sm text-muted-foreground'}">
-										{getCellValue(item, column)}
-									</td>
-								{/each}
-								<!-- Source column with badge styling -->
-								<td class="p-3">
-									<span class="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-										{getCellValue(item, config.columns[config.columns.length - 1])}
-									</span>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+		{#if category === 'races'}
+			<RacesTable items={filteredItems} {loading} />
+		{:else if category === 'classes'}
+			<ClassesTable items={filteredItems} {loading} />
+		{:else if category === 'spells'}
+			<SpellsTable items={filteredItems} {loading} />
 		{:else}
-			<Card class="p-8 text-center">
-				<p class="text-muted-foreground">No {categoryName.toLowerCase()} found.</p>
-				<p class="text-sm text-muted-foreground mt-2">
-					{searchQuery ? 'Try adjusting your search.' : 'Check back later or try a different category.'}
-				</p>
-			</Card>
+			<DefaultTable items={filteredItems} {loading} category={categoryName.toLowerCase()} />
 		{/if}
 	</div>
 </div>

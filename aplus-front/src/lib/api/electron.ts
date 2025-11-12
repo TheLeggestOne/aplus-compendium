@@ -37,6 +37,7 @@ export const CONTENT_TYPES = {
 	ACTIONS: 'actions',
 	BACKGROUNDS: 'backgrounds',
 	CLASSES: 'classes',
+	SUBCLASSES: 'subclasses',
 	CONDITIONS: 'conditions',
 	DECKS: 'decks',
 	DEITIES: 'deities',

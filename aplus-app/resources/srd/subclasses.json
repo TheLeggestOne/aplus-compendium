@@ -1,0 +1,1067 @@
+{
+	"_meta": {
+		"internalCopies": [
+			"subclass"
+		]
+	},
+	"subclass": [
+		{
+			"name": "Path of the Berserker",
+			"shortName": "Berserker",
+			"source": "PHB",
+			"className": "Barbarian",
+			"classSource": "PHB",
+			"page": 49,
+			"srd": true,
+			"reprintedAs": [
+				"Berserker|Barbarian|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"subclassFeatures": [
+				"Path of the Berserker|Barbarian||Berserker||3",
+				"Mindless Rage|Barbarian||Berserker||6",
+				"Intimidating Presence|Barbarian||Berserker||10",
+				"Retaliation|Barbarian||Berserker||14"
+			]
+		},
+		{
+			"name": "Path of the Berserker",
+			"shortName": "Berserker",
+			"source": "XPHB",
+			"className": "Barbarian",
+			"classSource": "XPHB",
+			"page": 54,
+			"srd52": true,
+			"edition": "one",
+			"subclassFeatures": [
+				"Path of the Berserker|Barbarian|XPHB|Berserker|XPHB|3",
+				"Mindless Rage|Barbarian|XPHB|Berserker|XPHB|6",
+				"Retaliation|Barbarian|XPHB|Berserker|XPHB|10",
+				"Intimidating Presence|Barbarian|XPHB|Berserker|XPHB|14"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "College of Lore",
+			"shortName": "Lore",
+			"source": "PHB",
+			"className": "Bard",
+			"classSource": "PHB",
+			"page": 54,
+			"srd": true,
+			"reprintedAs": [
+				"Lore|Bard|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"name": "Additional Magical Secrets",
+					"known": {
+						"6": [
+							{
+								"choose": "level=0;1;2;3"
+							},
+							{
+								"choose": "level=0;1;2;3"
+							}
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"College of Lore|Bard||Lore||3",
+				"Additional Magical Secrets|Bard||Lore||6",
+				"Peerless Skill|Bard||Lore||14"
+			]
+		},
+		{
+			"name": "College of Lore",
+			"shortName": "Lore",
+			"source": "XPHB",
+			"className": "Bard",
+			"classSource": "XPHB",
+			"page": 66,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"6": [
+							{
+								"choose": "level=0;1;2;3|class=Cleric;Druid;Wizard"
+							},
+							{
+								"choose": "level=0;1;2;3|class=Cleric;Druid;Wizard"
+							}
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"College of Lore|Bard|XPHB|Lore|XPHB|3",
+				"Magical Discoveries|Bard|XPHB|Lore|XPHB|6",
+				"Peerless Skill|Bard|XPHB|Lore|XPHB|14"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Life Domain",
+			"shortName": "Life",
+			"source": "PHB",
+			"className": "Cleric",
+			"classSource": "PHB",
+			"page": 60,
+			"srd": true,
+			"basicRules": true,
+			"reprintedAs": [
+				"Life|Cleric|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"1": [
+							"bless",
+							"cure wounds"
+						],
+						"3": [
+							"lesser restoration",
+							"spiritual weapon"
+						],
+						"5": [
+							"beacon of hope",
+							"revivify"
+						],
+						"7": [
+							"death ward",
+							"guardian of faith"
+						],
+						"9": [
+							"mass cure wounds",
+							"raise dead"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Life Domain|Cleric||Life||1",
+				"Channel Divinity: Preserve Life|Cleric||Life||2",
+				"Blessed Healer|Cleric||Life||6",
+				"Divine Strike|Cleric||Life||8",
+				"Blessed Strikes|Cleric||Life||8|TCE",
+				"Supreme Healing|Cleric||Life||17"
+			]
+		},
+		{
+			"name": "Life Domain",
+			"shortName": "Life",
+			"source": "XPHB",
+			"className": "Cleric",
+			"classSource": "XPHB",
+			"page": 73,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"3": [
+							"aid|xphb",
+							"bless|xphb",
+							"cure wounds|xphb",
+							"lesser restoration|xphb"
+						],
+						"5": [
+							"mass healing word|xphb",
+							"revivify|xphb"
+						],
+						"7": [
+							"aura of life|xphb",
+							"death ward|xphb"
+						],
+						"9": [
+							"greater restoration|xphb",
+							"mass cure wounds|xphb"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Life Domain|Cleric|XPHB|Life|XPHB|3",
+				"Blessed Healer|Cleric|XPHB|Life|XPHB|6",
+				"Supreme Healing|Cleric|XPHB|Life|XPHB|17"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Circle of the Land",
+			"shortName": "Land",
+			"source": "PHB",
+			"className": "Druid",
+			"classSource": "PHB",
+			"page": 68,
+			"srd": true,
+			"reprintedAs": [
+				"Land|Druid|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"name": "Arctic",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"hold person",
+							"spike growth"
+						],
+						"5": [
+							"sleet storm",
+							"slow"
+						],
+						"7": [
+							"freedom of movement",
+							"ice storm"
+						],
+						"9": [
+							"commune with nature",
+							"cone of cold"
+						]
+					}
+				},
+				{
+					"name": "Coast",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"mirror image",
+							"misty step"
+						],
+						"5": [
+							"water breathing",
+							"water walk"
+						],
+						"7": [
+							"control water",
+							"freedom of movement"
+						],
+						"9": [
+							"conjure elemental",
+							"scrying"
+						]
+					}
+				},
+				{
+					"name": "Desert",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"blur",
+							"silence"
+						],
+						"5": [
+							"create food and water",
+							"protection from energy"
+						],
+						"7": [
+							"blight",
+							"hallucinatory terrain"
+						],
+						"9": [
+							"insect plague",
+							"wall of stone"
+						]
+					}
+				},
+				{
+					"name": "Forest",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"barkskin",
+							"spider climb"
+						],
+						"5": [
+							"call lightning",
+							"plant growth"
+						],
+						"7": [
+							"divination",
+							"freedom of movement"
+						],
+						"9": [
+							"commune with nature",
+							"tree stride"
+						]
+					}
+				},
+				{
+					"name": "Grassland",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"invisibility",
+							"pass without trace"
+						],
+						"5": [
+							"daylight",
+							"haste"
+						],
+						"7": [
+							"divination",
+							"freedom of movement"
+						],
+						"9": [
+							"dream",
+							"insect plague"
+						]
+					}
+				},
+				{
+					"name": "Mountain",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"spider climb",
+							"spike growth"
+						],
+						"5": [
+							"lightning bolt",
+							"meld into stone"
+						],
+						"7": [
+							"stone shape",
+							"stoneskin"
+						],
+						"9": [
+							"passwall",
+							"wall of stone"
+						]
+					}
+				},
+				{
+					"name": "Swamp",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"darkness",
+							"Melf's acid arrow"
+						],
+						"5": [
+							"water walk",
+							"stinking cloud"
+						],
+						"7": [
+							"freedom of movement",
+							"locate creature"
+						],
+						"9": [
+							"insect plague",
+							"scrying"
+						]
+					}
+				},
+				{
+					"name": "Underdark",
+					"known": {
+						"1": {
+							"_": [
+								{
+									"choose": "level=0|class=Druid"
+								}
+							]
+						}
+					},
+					"prepared": {
+						"3": [
+							"spider climb",
+							"web"
+						],
+						"5": [
+							"gaseous form",
+							"stinking cloud"
+						],
+						"7": [
+							"greater invisibility",
+							"stone shape"
+						],
+						"9": [
+							"cloudkill",
+							"insect plague"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Circle of the Land|Druid||Land||2",
+				"Land's Stride|Druid||Land||6",
+				"Nature's Ward|Druid||Land||10",
+				"Nature's Sanctuary|Druid||Land||14"
+			]
+		},
+		{
+			"name": "Circle of the Land",
+			"shortName": "Land",
+			"source": "XPHB",
+			"className": "Druid",
+			"classSource": "XPHB",
+			"page": 84,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"name": "Arid Land",
+					"prepared": {
+						"3": [
+							"blur|xphb",
+							"burning hands|xphb",
+							"fire bolt|xphb"
+						],
+						"5": [
+							"fireball|xphb"
+						],
+						"7": [
+							"blight|xphb"
+						],
+						"9": [
+							"wall of stone|xphb"
+						]
+					}
+				},
+				{
+					"name": "Polar Land",
+					"prepared": {
+						"3": [
+							"fog cloud|xphb",
+							"hold person|xphb",
+							"ray of frost|xphb"
+						],
+						"5": [
+							"sleet storm|xphb"
+						],
+						"7": [
+							"ice storm|xphb"
+						],
+						"9": [
+							"cone of cold|xphb"
+						]
+					}
+				},
+				{
+					"name": "Temperate Land",
+					"prepared": {
+						"3": [
+							"misty step|xphb",
+							"shocking grasp|xphb",
+							"sleep|xphb"
+						],
+						"5": [
+							"lightning bolt|xphb"
+						],
+						"7": [
+							"freedom of movement|xphb"
+						],
+						"9": [
+							"tree stride|xphb"
+						]
+					}
+				},
+				{
+					"name": "Tropical Land",
+					"prepared": {
+						"3": [
+							"acid splash|xphb",
+							"ray of sickness|xphb",
+							"web|xphb"
+						],
+						"5": [
+							"stinking cloud|xphb"
+						],
+						"7": [
+							"polymorph|xphb"
+						],
+						"9": [
+							"insect plague|xphb"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Circle of the Land|Druid|XPHB|Land|XPHB|3",
+				"Natural Recovery|Druid|XPHB|Land|XPHB|6",
+				"Nature's Ward|Druid|XPHB|Land|XPHB|10",
+				"Nature's Sanctuary|Druid|XPHB|Land|XPHB|14"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Champion",
+			"shortName": "Champion",
+			"source": "PHB",
+			"className": "Fighter",
+			"classSource": "PHB",
+			"page": 72,
+			"srd": true,
+			"basicRules": true,
+			"reprintedAs": [
+				"Champion|Fighter|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"optionalfeatureProgression": [
+				{
+					"name": "Fighting Style",
+					"featureType": [
+						"FS:F"
+					],
+					"progression": {
+						"10": 1
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Champion|Fighter||Champion||3",
+				"Remarkable Athlete|Fighter||Champion||7",
+				"Additional Fighting Style|Fighter||Champion||10",
+				"Superior Critical|Fighter||Champion||15",
+				"Survivor|Fighter||Champion||18"
+			]
+		},
+		{
+			"name": "Champion",
+			"shortName": "Champion",
+			"source": "XPHB",
+			"className": "Fighter",
+			"classSource": "XPHB",
+			"page": 96,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"featProgression": [
+				{
+					"name": "Fighting Style",
+					"category": [
+						"FS"
+					],
+					"progression": {
+						"7": 1
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Champion|Fighter|XPHB|Champion|XPHB|3",
+				"Additional Fighting Style|Fighter|XPHB|Champion|XPHB|7",
+				"Heroic Warrior|Fighter|XPHB|Champion|XPHB|10",
+				"Superior Critical|Fighter|XPHB|Champion|XPHB|15",
+				"Survivor|Fighter|XPHB|Champion|XPHB|18"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Way of the Open Hand",
+			"shortName": "Open Hand",
+			"source": "PHB",
+			"className": "Monk",
+			"classSource": "PHB",
+			"page": 79,
+			"srd": true,
+			"reprintedAs": [
+				"Open Hand|Monk|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"innate": {
+						"11": {
+							"daily": {
+								"1": [
+									"sanctuary"
+								]
+							}
+						}
+					},
+					"ability": "wis"
+				}
+			],
+			"subclassFeatures": [
+				"Way of the Open Hand|Monk||Open Hand||3",
+				"Wholeness of Body|Monk||Open Hand||6",
+				"Tranquility|Monk||Open Hand||11",
+				"Quivering Palm|Monk||Open Hand||17"
+			]
+		},
+		{
+			"name": "Warrior of the Open Hand",
+			"shortName": "Open Hand",
+			"source": "XPHB",
+			"className": "Monk",
+			"classSource": "XPHB",
+			"page": 107,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"subclassFeatures": [
+				"Warrior of the Open Hand|Monk|XPHB|Open Hand|XPHB|3",
+				"Wholeness of Body|Monk|XPHB|Open Hand|XPHB|6",
+				"Fleet Step|Monk|XPHB|Open Hand|XPHB|11",
+				"Quivering Palm|Monk|XPHB|Open Hand|XPHB|17"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Oath of Devotion",
+			"shortName": "Devotion",
+			"source": "PHB",
+			"className": "Paladin",
+			"classSource": "PHB",
+			"page": 85,
+			"srd": true,
+			"reprintedAs": [
+				"Devotion|Paladin|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"3": [
+							"protection from evil and good",
+							"sanctuary"
+						],
+						"5": [
+							"lesser restoration",
+							"zone of truth"
+						],
+						"9": [
+							"beacon of hope",
+							"dispel magic"
+						],
+						"13": [
+							"freedom of movement",
+							"guardian of faith"
+						],
+						"17": [
+							"commune",
+							"flame strike"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Oath of Devotion|Paladin||Devotion||3",
+				"Aura of Devotion|Paladin||Devotion||7",
+				"Purity of Spirit|Paladin||Devotion||15",
+				"Holy Nimbus|Paladin||Devotion||20"
+			]
+		},
+		{
+			"name": "Oath of Devotion",
+			"shortName": "Devotion",
+			"source": "XPHB",
+			"className": "Paladin",
+			"classSource": "XPHB",
+			"page": 113,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"3": [
+							"protection from evil and good|xphb",
+							"shield of faith|xphb"
+						],
+						"5": [
+							"aid|xphb",
+							"zone of truth|xphb"
+						],
+						"9": [
+							"beacon of hope|xphb",
+							"dispel magic|xphb"
+						],
+						"13": [
+							"freedom of movement|xphb",
+							"guardian of faith|xphb"
+						],
+						"17": [
+							"commune|xphb",
+							"flame strike|xphb"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Oath of Devotion|Paladin|XPHB|Devotion|XPHB|3",
+				"Aura of Devotion|Paladin|XPHB|Devotion|XPHB|7",
+				"Smite of Protection|Paladin|XPHB|Devotion|XPHB|15",
+				"Holy Nimbus|Paladin|XPHB|Devotion|XPHB|20"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Hunter",
+			"shortName": "Hunter",
+			"source": "PHB",
+			"className": "Ranger",
+			"classSource": "PHB",
+			"page": 93,
+			"srd": true,
+			"reprintedAs": [
+				"Hunter|Ranger|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"subclassFeatures": [
+				"Hunter|Ranger||Hunter||3",
+				"Defensive Tactics|Ranger||Hunter||7",
+				"Multiattack|Ranger||Hunter||11",
+				"Superior Hunter's Defense|Ranger||Hunter||15"
+			]
+		},
+		{
+			"name": "Hunter",
+			"shortName": "Hunter",
+			"source": "XPHB",
+			"className": "Ranger",
+			"classSource": "XPHB",
+			"page": 127,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"subclassFeatures": [
+				"Hunter|Ranger|XPHB|Hunter|XPHB|3",
+				"Defensive Tactics|Ranger|XPHB|Hunter|XPHB|7",
+				"Superior Hunter's Prey|Ranger|XPHB|Hunter|XPHB|11",
+				"Superior Hunter's Defense|Ranger|XPHB|Hunter|XPHB|15"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Thief",
+			"shortName": "Thief",
+			"source": "PHB",
+			"className": "Rogue",
+			"classSource": "PHB",
+			"page": 97,
+			"srd": true,
+			"basicRules": true,
+			"reprintedAs": [
+				"Thief|Rogue|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"subclassFeatures": [
+				"Thief|Rogue||Thief||3",
+				"Supreme Sneak|Rogue||Thief||9",
+				"Use Magic Device|Rogue||Thief||13",
+				"Thief's Reflexes|Rogue||Thief||17"
+			]
+		},
+		{
+			"name": "Thief",
+			"shortName": "Thief",
+			"source": "XPHB",
+			"className": "Rogue",
+			"classSource": "XPHB",
+			"page": 137,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"subclassFeatures": [
+				"Thief|Rogue|XPHB|Thief|XPHB|3",
+				"Supreme Sneak|Rogue|XPHB|Thief|XPHB|9",
+				"Use Magic Device|Rogue|XPHB|Thief|XPHB|13",
+				"Thief's Reflexes|Rogue|XPHB|Thief|XPHB|17"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "Draconic Bloodline",
+			"shortName": "Draconic",
+			"source": "PHB",
+			"className": "Sorcerer",
+			"classSource": "PHB",
+			"page": 102,
+			"srd": true,
+			"reprintedAs": [
+				"Draconic|Sorcerer|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"subclassFeatures": [
+				"Draconic Bloodline|Sorcerer||Draconic||1",
+				"Elemental Affinity|Sorcerer||Draconic||6",
+				"Dragon Wings|Sorcerer||Draconic||14",
+				"Draconic Presence|Sorcerer||Draconic||18"
+			]
+		},
+		{
+			"name": "Draconic Sorcery",
+			"shortName": "Draconic",
+			"source": "XPHB",
+			"className": "Sorcerer",
+			"classSource": "XPHB",
+			"page": 148,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"3": [
+							"alter self|xphb",
+							"chromatic orb|xphb",
+							"command|xphb",
+							"dragon's breath|xphb"
+						],
+						"5": [
+							"fear|xphb",
+							"fly|xphb"
+						],
+						"7": [
+							"arcane eye|xphb",
+							"charm monster|xphb"
+						],
+						"9": [
+							"legend lore|xphb",
+							"summon dragon|xphb"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Draconic Sorcery|Sorcerer|XPHB|Draconic|XPHB|3",
+				"Elemental Affinity|Sorcerer|XPHB|Draconic|XPHB|6",
+				"Dragon Wings|Sorcerer|XPHB|Draconic|XPHB|14",
+				"Dragon Companion|Sorcerer|XPHB|Draconic|XPHB|18"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "The Fiend",
+			"shortName": "Fiend",
+			"source": "PHB",
+			"className": "Warlock",
+			"classSource": "PHB",
+			"page": 109,
+			"srd": true,
+			"reprintedAs": [
+				"Fiend|Warlock|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"additionalSpells": [
+				{
+					"expanded": {
+						"s1": [
+							"burning hands",
+							"command"
+						],
+						"s2": [
+							"blindness/deafness",
+							"scorching ray"
+						],
+						"s3": [
+							"fireball",
+							"stinking cloud"
+						],
+						"s4": [
+							"fire shield",
+							"wall of fire"
+						],
+						"s5": [
+							"flame strike",
+							"hallow"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"The Fiend|Warlock||Fiend||1",
+				"Dark One's Own Luck|Warlock||Fiend||6",
+				"Fiendish Resilience|Warlock||Fiend||10",
+				"Hurl Through Hell|Warlock||Fiend||14"
+			]
+		},
+		{
+			"name": "Fiend Patron",
+			"shortName": "Fiend",
+			"source": "XPHB",
+			"className": "Warlock",
+			"classSource": "XPHB",
+			"page": 161,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"prepared": {
+						"3": [
+							"burning hands|xphb",
+							"command|xphb",
+							"scorching ray|xphb",
+							"suggestion|xphb"
+						],
+						"5": [
+							"fireball|xphb",
+							"stinking cloud|xphb"
+						],
+						"7": [
+							"fire shield|xphb",
+							"wall of fire|xphb"
+						],
+						"9": [
+							"geas|xphb",
+							"insect plague|xphb"
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Fiend Patron|Warlock|XPHB|Fiend|XPHB|3",
+				"Dark One's Own Luck|Warlock|XPHB|Fiend|XPHB|6",
+				"Fiendish Resilience|Warlock|XPHB|Fiend|XPHB|10",
+				"Hurl Through Hell|Warlock|XPHB|Fiend|XPHB|14"
+			],
+			"hasFluffImages": true
+		},
+		{
+			"name": "School of Evocation",
+			"shortName": "Evocation",
+			"source": "PHB",
+			"className": "Wizard",
+			"classSource": "PHB",
+			"page": 117,
+			"srd": true,
+			"basicRules": true,
+			"reprintedAs": [
+				"Evoker|Wizard|XPHB|XPHB"
+			],
+			"edition": "classic",
+			"subclassFeatures": [
+				"School of Evocation|Wizard||Evocation||2",
+				"Potent Cantrip|Wizard||Evocation||6",
+				"Empowered Evocation|Wizard||Evocation||10",
+				"Overchannel|Wizard||Evocation||14"
+			]
+		},
+		{
+			"name": "Evoker",
+			"shortName": "Evoker",
+			"source": "XPHB",
+			"className": "Wizard",
+			"classSource": "XPHB",
+			"page": 174,
+			"srd52": true,
+			"basicRules2024": true,
+			"edition": "one",
+			"additionalSpells": [
+				{
+					"known": {
+						"3": [
+							{
+								"choose": "level=0;1;2|class=Wizard|school=V"
+							},
+							{
+								"choose": "level=0;1;2|class=Wizard|school=V"
+							}
+						],
+						"5": [
+							{
+								"choose": "level=0;1;2;3|class=Wizard|school=V"
+							}
+						],
+						"7": [
+							{
+								"choose": "level=0;1;2;3;4|class=Wizard|school=V"
+							}
+						],
+						"9": [
+							{
+								"choose": "level=0;1;2;3;4;5|class=Wizard|school=V"
+							}
+						],
+						"11": [
+							{
+								"choose": "level=0;1;2;3;4;5;6|class=Wizard|school=V"
+							}
+						],
+						"13": [
+							{
+								"choose": "level=0;1;2;3;4;5;6;7|class=Wizard|school=V"
+							}
+						],
+						"15": [
+							{
+								"choose": "level=0;1;2;3;4;5;6;7;8|class=Wizard|school=V"
+							}
+						],
+						"17": [
+							{
+								"choose": "level=0;1;2;3;4;5;6;7;8;9|class=Wizard|school=V"
+							}
+						]
+					}
+				}
+			],
+			"subclassFeatures": [
+				"Evoker|Wizard|XPHB|Evoker|XPHB|3",
+				"Sculpt Spells|Wizard|XPHB|Evoker|XPHB|6",
+				"Empowered Evocation|Wizard|XPHB|Evoker|XPHB|10",
+				"Overchannel|Wizard|XPHB|Evoker|XPHB|14"
+			],
+			"hasFluffImages": true
+		}
+	]
+}

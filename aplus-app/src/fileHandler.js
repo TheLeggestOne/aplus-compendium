@@ -22,6 +22,7 @@ class FileHandler {
       'actions',
       'backgrounds',
       'classes',
+      'subclasses',
       'conditions',
       'decks',
       'deities',
