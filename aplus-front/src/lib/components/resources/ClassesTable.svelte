@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { previewItem, previewOpen } from '$lib/stores/preview';
 
 	interface Props {
 		items: any[];
@@ -9,9 +8,10 @@
 
 	let { items = [], loading = false }: Props = $props();
 
-	function handleRowClick(item: any) {
-		previewItem.set(item);
-		previewOpen.set(true);
+	function getClassUrl(classItem: any): string {
+		// Create URL-safe key from name and source
+		const key = `${classItem.name}::${classItem.source}`;
+		return `/resources/classes/${encodeURIComponent(key)}`;
 	}
 </script>
 
@@ -30,11 +30,15 @@
 			</thead>
 			<tbody>
 				{#each items as classItem}
-					<tr 
-						class="border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
-						onclick={() => handleRowClick(classItem)}
-					>
-						<td class="p-3 font-medium">{classItem.name || '—'}</td>
+					<tr class="border-b last:border-b-0 hover:bg-muted/50 transition-colors">
+						<td class="p-3">
+							<a 
+								href={getClassUrl(classItem)}
+								class="font-medium hover:underline block"
+							>
+								{classItem.name || '—'}
+							</a>
+						</td>
 						<td class="p-3">
 							<span class="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
 								{classItem.source || '—'}
