@@ -123,9 +123,22 @@
 				<div class="space-y-3">
 					<div>
 						<div class="text-xs text-muted-foreground uppercase mb-1">Type</div>
-						<div class="text-sm">{$previewItem.type}</div>
+						<div class="text-sm">
+							{#if typeof $previewItem.type === 'object' && $previewItem.type !== null}
+								{#if $previewItem.type.type}
+									{$previewItem.type.type}
+									{#if $previewItem.type.tags && $previewItem.type.tags.length > 0}
+										({$previewItem.type.tags.join(', ')})
+									{/if}
+								{:else}
+									{JSON.stringify($previewItem.type)}
+								{/if}
+							{:else}
+								{$previewItem.type || '—'}
+							{/if}
+						</div>
 					</div>
-					{#if $previewItem.level}
+					{#if $previewItem.level !== undefined}
 						<div>
 							<div class="text-xs text-muted-foreground uppercase mb-1">Level</div>
 							<div class="text-sm">{$previewItem.level}</div>
