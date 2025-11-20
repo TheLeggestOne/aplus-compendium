@@ -17,6 +17,14 @@ function startServer() {
     const expressApp = express();
     const buildPath = path.join(__dirname, '../../aplus-front/build');
     
+    // Disable caching for development
+    expressApp.use((req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      next();
+    });
+    
     // Serve static files
     expressApp.use(express.static(buildPath));
     
@@ -41,12 +49,16 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      cache: false
     }
   });
 
   // Load from local server
   mainWindow.loadURL(`http://localhost:${PORT}`);
+  
+  // Clear cache on load
+  mainWindow.webContents.session.clearCache();
   
   // Open DevTools in development
   if (!app.isPackaged) {
@@ -107,8 +119,13 @@ function setupIpcHandlers() {
     return await contentManager.getAll(type);
   });
 
-  ipcMain.handle('content:get', async (event, type, name, source) => {
-    return await contentManager.get(type, name, source);
+  ipcMain.handle('content:get', async (event, type, nameOrKey, source) => {
+    // Support compound key format (name::source)
+    if (nameOrKey && nameOrKey.includes('::') && !source) {
+      const [name, src] = nameOrKey.split('::');
+      return await contentManager.get(type, name, src);
+    }
+    return await contentManager.get(type, nameOrKey, source);
   });
 
   ipcMain.handle('content:import', async (event, type, items, source) => {
@@ -154,5 +171,21 @@ function setupIpcHandlers() {
 
   ipcMain.handle('character:exists', async (event, characterId) => {
     return await characterManager.exists(characterId);
+  });
+  
+  // Window handlers
+  ipcMain.handle('window:openNew', async (event, url) => {
+    const newWindow = new BrowserWindow({
+      width: 1000,
+      height: 800,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+    
+    newWindow.loadURL(`http://localhost:${PORT}${url}`);
+    return true;
   });
 }

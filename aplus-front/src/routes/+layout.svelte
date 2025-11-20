@@ -6,7 +6,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ChevronRight, Plus } from 'lucide-svelte';
 	import { page } from '$app/stores';
-	import { previewItem, previewOpen } from '$lib/stores/preview';
+	import { previewItem, previewContentType, previewOpen } from '$lib/stores/preview';
+	import { ContentDisplay } from '$lib/components/content';
 
 	let { children } = $props();
 	
@@ -117,44 +118,20 @@
 	{/snippet}
 
 	{#snippet previewPane()}
-		<div class="p-4">
-			{#if $previewItem}
-				<h3 class="font-semibold text-lg mb-2">{$previewItem.name}</h3>
-				<div class="space-y-3">
-					<div>
-						<div class="text-xs text-muted-foreground uppercase mb-1">Type</div>
-						<div class="text-sm">
-							{#if typeof $previewItem.type === 'object' && $previewItem.type !== null}
-								{#if $previewItem.type.type}
-									{$previewItem.type.type}
-									{#if $previewItem.type.tags && $previewItem.type.tags.length > 0}
-										({$previewItem.type.tags.join(', ')})
-									{/if}
-								{:else}
-									{JSON.stringify($previewItem.type)}
-								{/if}
-							{:else}
-								{$previewItem.type || '—'}
-							{/if}
-						</div>
-					</div>
-					{#if $previewItem.level !== undefined}
-						<div>
-							<div class="text-xs text-muted-foreground uppercase mb-1">Level</div>
-							<div class="text-sm">{$previewItem.level}</div>
-						</div>
-					{/if}
-					<div>
-						<div class="text-xs text-muted-foreground uppercase mb-1">Source</div>
-						<div class="text-sm">{$previewItem.source}</div>
-					</div>
-				</div>
-			{:else}
+		{#if $previewItem && $previewContentType}
+			<ContentDisplay 
+				contentType={$previewContentType} 
+				item={$previewItem} 
+				itemKey="{$previewItem.name}::{$previewItem.source}"
+				compact={true}
+			/>
+		{:else}
+			<div class="p-4">
 				<h3 class="font-semibold mb-2">Preview</h3>
 				<div class="text-sm text-muted-foreground">
 					Click on any content item to preview it here.
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	{/snippet}
 </AppLayout>

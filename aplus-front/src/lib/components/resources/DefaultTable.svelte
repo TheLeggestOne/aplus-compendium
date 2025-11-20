@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { previewItem, previewOpen } from '$lib/stores/preview';
+	import { setPreview } from '$lib/stores/preview';
 
 	interface Props {
 		items: any[];
 		loading?: boolean;
 		category?: string;
+		contentType?: string;
 	}
 
-	let { items = [], loading = false, category = '' }: Props = $props();
+	let { items = [], loading = false, category = '', contentType = '' }: Props = $props();
 
 	function handleRowClick(item: any) {
-		previewItem.set(item);
-		previewOpen.set(true);
+		setPreview(item, contentType);
 	}
 </script>
 

@@ -137,7 +137,12 @@
 		{:else if category === 'spells'}
 			<SpellsTable items={filteredItems} {loading} />
 		{:else}
-			<DefaultTable items={filteredItems} {loading} category={categoryName.toLowerCase()} />
+			<DefaultTable 
+				items={filteredItems} 
+				{loading} 
+				category={categoryName.toLowerCase()}
+				contentType={categoryTypeMap[category]}
+			/>
 		{/if}
 	</div>
 </div>

@@ -1,7 +1,8 @@
 // Type definitions for Electron API
 interface ContentAPI {
   getAll: (type: string) => Promise<Record<string, any>>;
-  get: (type: string, name: string, source: string) => Promise<any | null>;
+  // Supports both compound key (name::source) and separate params
+  get: (type: string, nameOrKey: string, source?: string) => Promise<any | null>;
   import: (type: string, items: any[], source: string) => Promise<void>;
   search: (type: string, query: string) => Promise<Record<string, any>>;
   delete: (type: string, name: string, source: string) => Promise<void>;
@@ -18,9 +19,14 @@ interface CharacterAPI {
   exists: (characterId: string) => Promise<boolean>;
 }
 
+interface WindowAPI {
+  openNew: (url: string) => Promise<boolean>;
+}
+
 interface ElectronAPI {
   content: ContentAPI;
   character: CharacterAPI;
+  window: WindowAPI;
 }
 
 // Extend window interface
@@ -44,6 +50,13 @@ export const electron = {
       throw new Error('Electron API not available');
     }
     return window.electronAPI.character;
+  },
+  
+  get window() {
+    if (!window.electronAPI) {
+      throw new Error('Electron API not available');
+    }
+    return window.electronAPI.window;
   },
   
   get isAvailable() {

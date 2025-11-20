@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { previewItem, previewOpen } from '$lib/stores/preview';
+	import { setPreview } from '$lib/stores/preview';
 
 	interface Props {
 		items: any[];
@@ -10,8 +10,7 @@
 	let { items = [], loading = false }: Props = $props();
 
 	function handleRowClick(item: any) {
-		previewItem.set(item);
-		previewOpen.set(true);
+		setPreview(item, 'races');
 	}
 
 	function formatAbilities(item: any): string {
