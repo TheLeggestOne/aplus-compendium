@@ -1,37 +1,11 @@
 <script lang="ts">
-  let {label, value} = $props();
+    import Separator from "./ui/separator/separator.svelte";
+
+  let { name, value } = $props();
 </script>
 
-<div class="underline-field">
-  <div class="value">{value}</div>
-  <div class="line" aria-hidden="true"></div>
-  <div class="label">{label}</div>
+<div>
+<span class="text-xl">{value}</span>
+<Separator class="my-1" />
+<span class="text-sm text-muted-foreground">{name}</span>
 </div>
-
-<style>
-  .underline-field {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    align-items: flex-start;
-    font-family: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
-  }
-
-  .underline-field .value {
-    font-weight: 600;
-    font-size: 1rem;
-    color: #111827;
-  }
-
-  .underline-field .line {
-    width: 100%;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.25);
-  }
-
-  .underline-field .label {
-    font-size: 0.65rem;
-    color: #6b7280;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
-</style>

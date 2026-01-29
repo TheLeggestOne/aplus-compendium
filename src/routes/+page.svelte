@@ -2,38 +2,33 @@
     import AttributeField from "$lib/components/attribute-field.svelte";
     import CheckboxWithLabel from "$lib/components/checkbox-with-label.svelte";
     import NumberField from "$lib/components/number-field.svelte";
+    import Separator from "$lib/components/ui/separator/separator.svelte";
     import UnderlineField from "$lib/components/underline-field.svelte";
 
 </script>
 
-<UnderlineField label="Name" value="Threek" />
-<UnderlineField label="Class & Level" value="Druid 8" />
-<UnderlineField label="Background" value="Folk Hero" />
-<UnderlineField label="Player Name" value="Stilts" />
-<br>
-<UnderlineField label="Race" value="Kobold" />
-<UnderlineField label="Alignment" value="Chaotic Good" />
-<UnderlineField label="Experience Points" value="34,000" />
+<UnderlineField name="Name" value="Threek" />
+<UnderlineField name="Class & Level" value="Druid 8" />
+<UnderlineField name="Background" value="Folk Hero" />
+<UnderlineField name="Player Name" value="Stilts" />
+<UnderlineField name="Race" value="Kobold" />
+<UnderlineField name="Alignment" value="Chaotic Good" />
+<UnderlineField name="Experience Points" value="34,000" />
 
-<hr/>
+<Separator />
 
 <AttributeField label="STRENGTH" value="10" subValue="+0" />
-<br>
 <AttributeField label="DEXTERITY" value="14" subValue="+2" />
-<br>
 <AttributeField label="CONSTITUTION" value="12" subValue="+1" />
-<br>
 <AttributeField label="INTELLIGENCE" value="13" subValue="+1" />
-<br>
 <AttributeField label="WISDOM" value="16" subValue="+3" />
-<br>
 <AttributeField label="CHARISMA" value="8" subValue="-1" />
 
-<hr/>
+<Separator />
 
 <CheckboxWithLabel labelText="Inspiration" checked={false} />
 
-<hr/>
+<Separator />
 
 <NumberField label="Armor Class" value="15" />
 <NumberField label="Initiative" value="+2"/>
