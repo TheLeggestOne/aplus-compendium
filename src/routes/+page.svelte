@@ -35,7 +35,7 @@
 
 <hr/>
 
-<NumberField label="Armor Class" value="15" tone="default" />
-<NumberField label="Initiative" value="+2" tone="muted" />
-<NumberField label="Speed" value="30 ft." tone="default" />
-<NumberField label="Proficiency Bonus" value="+3" tone="muted" />
+<NumberField label="Armor Class" value="15" />
+<NumberField label="Initiative" value="+2"/>
+<NumberField label="Speed" value="30 ft." />
+<NumberField label="Proficiency Bonus" value="+3" />
