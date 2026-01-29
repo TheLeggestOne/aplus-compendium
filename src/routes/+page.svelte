@@ -1,8 +1,11 @@
 <script>
     import AttributeField from "$lib/components/attribute-field.svelte";
+    import CheckboxWithLabel from "$lib/components/checkbox-with-label.svelte";
+    import NumberField from "$lib/components/number-field.svelte";
     import UnderlineField from "$lib/components/underline-field.svelte";
 
 </script>
+
 <UnderlineField label="Name" value="Threek" />
 <UnderlineField label="Class & Level" value="Druid 8" />
 <UnderlineField label="Background" value="Folk Hero" />
@@ -13,6 +16,7 @@
 <UnderlineField label="Experience Points" value="34,000" />
 
 <hr/>
+
 <AttributeField label="STRENGTH" value="10" subValue="+0" />
 <br>
 <AttributeField label="DEXTERITY" value="14" subValue="+2" />
@@ -26,3 +30,12 @@
 <AttributeField label="CHARISMA" value="8" subValue="-1" />
 
 <hr/>
+
+<CheckboxWithLabel labelText="Inspiration" checked={false} />
+
+<hr/>
+
+<NumberField label="Armor Class" value="15" tone="default" />
+<NumberField label="Initiative" value="+2" tone="muted" />
+<NumberField label="Speed" value="30 ft." tone="default" />
+<NumberField label="Proficiency Bonus" value="+3" tone="muted" />

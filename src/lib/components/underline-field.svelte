@@ -1,6 +1,5 @@
 <script lang="ts">
-  export let label = "";
-  export let value = "";
+  let {label, value} = $props();
 </script>
 
 <div class="underline-field">

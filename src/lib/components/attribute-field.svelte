@@ -1,7 +1,5 @@
 <script lang="ts">
-  export let label = "";
-  export let value: number | string = "";
-  export let subValue: number | string = "";
+  let {label, value, subValue} = $props();
 </script>
 
 <div class="attribute-field">
