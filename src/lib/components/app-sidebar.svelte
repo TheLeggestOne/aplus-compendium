@@ -39,7 +39,7 @@
 <Sidebar.Root>
  <Sidebar.Content>
   <Sidebar.Group>
-   <Sidebar.GroupLabel>Application</Sidebar.GroupLabel>
+   <Sidebar.GroupLabel>APlus Compendium</Sidebar.GroupLabel>
    <Sidebar.GroupContent>
     <Sidebar.Menu>
      {#each items as item (item.title)}
