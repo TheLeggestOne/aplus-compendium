@@ -1,8 +1,7 @@
 <script lang="ts">
- import CalendarIcon from "@lucide/svelte/icons/calendar";
+    import AngryIcon from "@lucide/svelte/icons/angry";
  import HouseIcon from "@lucide/svelte/icons/house";
- import InboxIcon from "@lucide/svelte/icons/inbox";
- import SearchIcon from "@lucide/svelte/icons/search";
+ import BookOpenIcon from "@lucide/svelte/icons/book-open";
  import SettingsIcon from "@lucide/svelte/icons/settings";
  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
  
@@ -14,19 +13,14 @@
    icon: HouseIcon,
   },
   {
-   title: "Inbox",
+   title: "Characters",
    url: "#",
-   icon: InboxIcon,
+   icon: AngryIcon,
   },
   {
-   title: "Calendar",
+   title: "Docs",
    url: "#",
-   icon: CalendarIcon,
-  },
-  {
-   title: "Search",
-   url: "#",
-   icon: SearchIcon,
+   icon: BookOpenIcon,
   },
   {
    title: "Settings",
