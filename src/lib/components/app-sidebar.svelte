@@ -1,33 +1,38 @@
 <script lang="ts">
     import AngryIcon from "@lucide/svelte/icons/angry";
- import HouseIcon from "@lucide/svelte/icons/house";
- import BookOpenIcon from "@lucide/svelte/icons/book-open";
- import SettingsIcon from "@lucide/svelte/icons/settings";
- import * as Sidebar from "$lib/components/ui/sidebar/index.js";
- 
- // Menu items.
- const items = [
-  {
-   title: "Home",
-   url: "#",
-   icon: HouseIcon,
-  },
-  {
-   title: "Characters",
-   url: "#",
-   icon: AngryIcon,
-  },
-  {
-   title: "Docs",
-   url: "#",
-   icon: BookOpenIcon,
-  },
-  {
-   title: "Settings",
-   url: "#",
-   icon: SettingsIcon,
-  },
- ];
+    import HouseIcon from "@lucide/svelte/icons/house";
+    import BookOpenIcon from "@lucide/svelte/icons/book-open";
+    import SettingsIcon from "@lucide/svelte/icons/settings";
+    import SmilePlusIcon from "@lucide/svelte/icons/smile-plus";
+    import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+    // Menu items.
+    const items = [
+        {
+            title: "Home",
+            url: "#",
+            icon: HouseIcon,
+        },
+        {
+            title: "New Character",
+            url: "#",
+            icon: SmilePlusIcon,
+        },
+        {
+            title: "Characters",
+            url: "#",
+            icon: AngryIcon,
+        },
+        {
+            title: "Docs",
+            url: "#",
+            icon: BookOpenIcon,
+        },
+        {
+            title: "Settings",
+            url: "#",
+            icon: SettingsIcon,
+        },
+    ];
 </script>
  
 <Sidebar.Root>
