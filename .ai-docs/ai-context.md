@@ -9,6 +9,7 @@ This document gathers the rulesets, standards, and references the AI should inge
 4. [UX Interaction Rules](./ux-interaction.md) – Readonly versus interactive styling, focus states, accessibility, and motion guidance.
 5. [Data Contracts](./data-contracts.md) – Canonical property lists for key models (character, spell, equipment, attributes).
 6. [Feature Guidelines](./feature-guidelines.md) – Workflow/feature expectations such as modals, guided flows, 5etools import, and data export/import patterns.
+7. [shadcn LLMS Guide](./shadcn-llms.md) – Canonical list of shadcn components, installation links, and the requirement to enforce runes mode styling via their primitives.
 
 ## Usage Notes
 - Before asking for any feature or change, open this file and use the VS Code Copilot Chat `Send to chat` button to load it into the current session.
