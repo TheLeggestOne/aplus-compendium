@@ -1,0 +1,11 @@
+export type Alignment =
+  | 'lawful-good'
+  | 'neutral-good'
+  | 'chaotic-good'
+  | 'lawful-neutral'
+  | 'true-neutral'
+  | 'chaotic-neutral'
+  | 'lawful-evil'
+  | 'neutral-evil'
+  | 'chaotic-evil'
+  | 'unaligned';

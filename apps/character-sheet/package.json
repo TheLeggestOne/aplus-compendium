@@ -1,0 +1,43 @@
+{
+  "name": "@aplus-compendium/character-sheet",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev:renderer": "vite dev",
+    "dev:electron": "wait-on tcp:5173 && electron-vite dev",
+    "dev": "concurrently --kill-others-on-fail --names \"renderer,electron\" --prefix-colors \"cyan,yellow\" \"pnpm dev:renderer\" \"pnpm dev:electron\"",
+    "build:renderer": "vite build",
+    "build:electron": "electron-vite build",
+    "build": "pnpm run build:renderer && pnpm run build:electron",
+    "preview": "electron .",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint src electron"
+  },
+  "dependencies": {
+    "@aplus-compendium/types": "workspace:*",
+    "electron": "^36.0.0"
+  },
+  "devDependencies": {
+    "@internationalized/date": "^3.11.0",
+    "@lucide/svelte": "^0.561.0",
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.20.6",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tailwindcss/vite": "^4.1.4",
+    "bits-ui": "^2.16.2",
+    "clsx": "^2.1.1",
+    "concurrently": "^9.1.2",
+    "electron-vite": "^3.1.0",
+    "svelte": "^5.28.2",
+    "svelte-check": "^4.1.6",
+    "tailwind-merge": "^3.2.0",
+    "tailwind-variants": "^3.2.2",
+    "tailwindcss": "^4.1.4",
+    "typescript": "5.9.2",
+    "vite": "^6.3.4",
+    "wait-on": "^8.0.3"
+  }
+}
