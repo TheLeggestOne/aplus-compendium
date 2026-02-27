@@ -15,6 +15,10 @@
   import CurrencyDisplay from '$lib/components/character/currency-display.svelte';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { uiStore } from '$lib/stores/ui-state.svelte.js';
+  import type { PageData } from './$types.js';
+
+  const { data } = $props<{ data: PageData }>();
+  $effect(() => { characterStore.reinit(data.character); });
 
   const { character } = $derived(characterStore);
 </script>

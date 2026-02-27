@@ -5,6 +5,25 @@ import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 function createCharacterStore(initial: Character) {
   let character = $state<Character>(structuredClone(initial));
 
+  let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function queueSave(): void {
+    if (_saveTimer !== null) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      _saveTimer = null;
+      if (!window.electronAPI) return;
+      await window.electronAPI.characters.save(character);
+    }, 1500);
+  }
+
+  function reinit(newChar: Character): void {
+    if (_saveTimer !== null) {
+      clearTimeout(_saveTimer);
+      _saveTimer = null;
+    }
+    character = structuredClone(newChar);
+  }
+
   // --- Derived values ---
 
   const totalLevel = $derived(
@@ -70,6 +89,7 @@ function createCharacterStore(initial: Character) {
       ...character,
       combat: { ...character.combat, currentHitPoints: next },
     };
+    queueSave();
   }
 
   function setCurrentHp(value: number): void {
@@ -78,6 +98,7 @@ function createCharacterStore(initial: Character) {
       ...character,
       combat: { ...character.combat, currentHitPoints: clamped },
     };
+    queueSave();
   }
 
   function setTempHp(hp: number): void {
@@ -85,6 +106,7 @@ function createCharacterStore(initial: Character) {
       ...character,
       combat: { ...character.combat, temporaryHitPoints: Math.max(0, hp) },
     };
+    queueSave();
   }
 
   function useSpellSlot(level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9): void {
@@ -96,6 +118,7 @@ function createCharacterStore(initial: Character) {
       ...character,
       spellcasting: { ...character.spellcasting, slots },
     };
+    queueSave();
   }
 
   function restoreSpellSlot(level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9): void {
@@ -107,6 +130,7 @@ function createCharacterStore(initial: Character) {
       ...character,
       spellcasting: { ...character.spellcasting, slots },
     };
+    queueSave();
   }
 
   function useFeature(featureId: string): void {
@@ -115,6 +139,7 @@ function createCharacterStore(initial: Character) {
       return { ...f, uses: { ...f.uses, current: f.uses.current - 1 } };
     });
     character = { ...character, features };
+    queueSave();
   }
 
   function restoreFeature(featureId: string): void {
@@ -123,6 +148,7 @@ function createCharacterStore(initial: Character) {
       return { ...f, uses: { ...f.uses, current: f.uses.current + 1 } };
     });
     character = { ...character, features };
+    queueSave();
   }
 
   function useHitDie(dieType: string): void {
@@ -132,6 +158,7 @@ function createCharacterStore(initial: Character) {
         : p,
     );
     character = { ...character, combat: { ...character.combat, hitDicePools } };
+    queueSave();
   }
 
   function recordDeathSave(type: 'success' | 'failure'): void {
@@ -141,6 +168,7 @@ function createCharacterStore(initial: Character) {
         ? { ...deathSaves, successes: Math.min(3, deathSaves.successes + 1) }
         : { ...deathSaves, failures: Math.min(3, deathSaves.failures + 1) };
     character = { ...character, combat: { ...character.combat, deathSaves: updated } };
+    queueSave();
   }
 
   function resetDeathSaves(): void {
@@ -148,10 +176,12 @@ function createCharacterStore(initial: Character) {
       ...character,
       combat: { ...character.combat, deathSaves: { successes: 0, failures: 0 } },
     };
+    queueSave();
   }
 
   function toggleInspiration(): void {
     character = { ...character, inspiration: !character.inspiration };
+    queueSave();
   }
 
   function shortRest(): void {
@@ -159,6 +189,7 @@ function createCharacterStore(initial: Character) {
       f.uses?.resetOn === 'short' ? { ...f, uses: { ...f.uses, current: f.uses.maximum } } : f,
     );
     character = { ...character, features };
+    queueSave();
   }
 
   function longRest(): void {
@@ -185,6 +216,7 @@ function createCharacterStore(initial: Character) {
           ? { ...character.spellcasting, slots }
           : character.spellcasting,
     };
+    queueSave();
   }
 
   return {
@@ -199,6 +231,7 @@ function createCharacterStore(initial: Character) {
     get xpForNextLevel() {
       return xpForNextLevel[totalLevel] ?? Infinity;
     },
+    reinit,
     adjustHp,
     setCurrentHp,
     setTempHp,

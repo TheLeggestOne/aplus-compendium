@@ -118,7 +118,6 @@ declare module '$env/static/private' {
 	export const npm_config_registry: string;
 	export const XKB_DEFAULT_OPTIONS: string;
 	export const npm_node_execpath: string;
-	export const OLDPWD: string;
 	export const TERM_PROGRAM: string;
 	export const NODE_ENV: string;
 }
@@ -242,7 +241,6 @@ declare module '$env/dynamic/private' {
 		npm_config_registry: string;
 		XKB_DEFAULT_OPTIONS: string;
 		npm_node_execpath: string;
-		OLDPWD: string;
 		TERM_PROGRAM: string;
 		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
