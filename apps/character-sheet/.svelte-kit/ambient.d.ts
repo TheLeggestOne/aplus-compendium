@@ -101,7 +101,6 @@ declare module '$env/static/private' {
 	export const npm_execpath: string;
 	export const FC_FONTATIONS: string;
 	export const XDG_RUNTIME_DIR: string;
-	export const NODE_PATH: string;
 	export const DEBUGINFOD_URLS: string;
 	export const npm_package_json: string;
 	export const VSCODE_GIT_ASKPASS_MAIN: string;
@@ -224,7 +223,6 @@ declare module '$env/dynamic/private' {
 		npm_execpath: string;
 		FC_FONTATIONS: string;
 		XDG_RUNTIME_DIR: string;
-		NODE_PATH: string;
 		DEBUGINFOD_URLS: string;
 		npm_package_json: string;
 		VSCODE_GIT_ASKPASS_MAIN: string;

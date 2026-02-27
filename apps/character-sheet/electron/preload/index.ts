@@ -9,4 +9,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     save: (character: unknown) => ipcRenderer.invoke('characters:save', character),
     delete: (id: string) => ipcRenderer.invoke('characters:delete', id),
   },
+
+  compendium: {
+    status: () =>
+      ipcRenderer.invoke('compendium:status'),
+    selectDir: () =>
+      ipcRenderer.invoke('compendium:select-dir'),
+    import: (dirPath: string) =>
+      ipcRenderer.invoke('compendium:import', dirPath),
+    search: (query: string, contentType: string, filters: unknown, limit?: number) =>
+      ipcRenderer.invoke('compendium:search', query, contentType, filters, limit),
+    get: (id: string, contentType: string) =>
+      ipcRenderer.invoke('compendium:get', id, contentType),
+    listSources: (contentType: string) =>
+      ipcRenderer.invoke('compendium:list-sources', contentType),
+    onProgress: (callback: (progress: unknown) => void) => {
+      ipcRenderer.on('compendium:progress', (_event, progress) => callback(progress));
+    },
+    offProgress: () => {
+      ipcRenderer.removeAllListeners('compendium:progress');
+    },
+  },
 });

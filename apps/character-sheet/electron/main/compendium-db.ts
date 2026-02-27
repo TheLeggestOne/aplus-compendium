@@ -1,0 +1,764 @@
+import { app } from 'electron';
+import Database from 'better-sqlite3';
+import { readFile, readdir } from 'fs/promises';
+import { join, basename } from 'path';
+import type {
+  CompendiumContentType,
+  CompendiumEntry,
+  CompendiumSearchFilters,
+  CompendiumSearchResult,
+  CompendiumStatus,
+  CharacterDropTarget,
+  ImportProgress,
+} from '@aplus-compendium/types';
+
+// ---------------------------------------------------------------------------
+// DB singleton
+// ---------------------------------------------------------------------------
+
+let _db: Database.Database | null = null;
+
+function db(): Database.Database {
+  if (!_db) {
+    const dbPath = join(app.getPath('userData'), 'compendium.db');
+    _db = new Database(dbPath);
+    _db.pragma('journal_mode = WAL');
+    _db.pragma('synchronous = NORMAL');
+    initSchema(_db);
+  }
+  return _db;
+}
+
+// ---------------------------------------------------------------------------
+// Schema
+// ---------------------------------------------------------------------------
+
+function initSchema(d: Database.Database): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS spells (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      source      TEXT NOT NULL,
+      level       INTEGER,
+      school      TEXT,
+      casting_time TEXT,
+      concentration INTEGER,
+      ritual      INTEGER,
+      classes_json TEXT,
+      raw_json    TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS spells_fts USING fts5(
+      name, source, content='spells', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS items (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      source        TEXT NOT NULL,
+      item_type     TEXT,
+      character_type TEXT,
+      rarity        TEXT,
+      requires_attunement INTEGER,
+      raw_json      TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
+      name, source, content='items', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS feats (
+      id           TEXT PRIMARY KEY,
+      name         TEXT NOT NULL,
+      source       TEXT NOT NULL,
+      prerequisite TEXT,
+      raw_json     TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS feats_fts USING fts5(
+      name, source, content='feats', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS backgrounds (
+      id       TEXT PRIMARY KEY,
+      name     TEXT NOT NULL,
+      source   TEXT NOT NULL,
+      raw_json TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS backgrounds_fts USING fts5(
+      name, source, content='backgrounds', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS races (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      source     TEXT NOT NULL,
+      subrace_of TEXT,
+      raw_json   TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS races_fts USING fts5(
+      name, source, content='races', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS classes (
+      id       TEXT PRIMARY KEY,
+      name     TEXT NOT NULL,
+      source   TEXT NOT NULL,
+      raw_json TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS classes_fts USING fts5(
+      name, source, content='classes', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS subclasses (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      source     TEXT NOT NULL,
+      class_name TEXT NOT NULL,
+      raw_json   TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS subclasses_fts USING fts5(
+      name, source, class_name, content='subclasses', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS optional_features (
+      id           TEXT PRIMARY KEY,
+      name         TEXT NOT NULL,
+      source       TEXT NOT NULL,
+      feature_type TEXT,
+      raw_json     TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS optional_features_fts USING fts5(
+      name, source, content='optional_features', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS conditions (
+      id       TEXT PRIMARY KEY,
+      name     TEXT NOT NULL,
+      source   TEXT NOT NULL,
+      raw_json TEXT NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS conditions_fts USING fts5(
+      name, source, content='conditions', content_rowid='rowid'
+    );
+
+    CREATE TABLE IF NOT EXISTS meta (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+}
+
+// ---------------------------------------------------------------------------
+// Status
+// ---------------------------------------------------------------------------
+
+export function getCompendiumStatus(): CompendiumStatus {
+  const d = db();
+  const importedAt = (d.prepare('SELECT value FROM meta WHERE key = ?').get('imported_at') as { value: string } | undefined)?.value;
+
+  if (!importedAt) return { imported: false, counts: {} };
+
+  const counts: Partial<Record<CompendiumContentType, number>> = {};
+  const tables: Array<[string, CompendiumContentType]> = [
+    ['spells', 'spell'],
+    ['items', 'item'],
+    ['feats', 'feat'],
+    ['backgrounds', 'background'],
+    ['races', 'race'],
+    ['classes', 'class'],
+    ['subclasses', 'subclass'],
+    ['optional_features', 'optional-feature'],
+    ['conditions', 'condition'],
+  ];
+  for (const [table, type] of tables) {
+    const row = d.prepare(`SELECT COUNT(*) as n FROM ${table}`).get() as { n: number };
+    counts[type] = row.n;
+  }
+  return { imported: true, importedAt, counts };
+}
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+
+// 5etools school codes → readable names
+const SCHOOL_MAP: Record<string, string> = {
+  A: 'Abjuration', C: 'Conjuration', D: 'Divination', E: 'Enchantment',
+  V: 'Evocation', I: 'Illusion', N: 'Necromancy', T: 'Transmutation',
+  P: 'Psionic',
+};
+
+// 5etools item type → character drop target
+function itemDropTarget(typeCode: string | undefined): CharacterDropTarget {
+  if (!typeCode) return 'equipment';
+  if (['W', 'EWP', 'M', 'R'].includes(typeCode)) return 'weapon';
+  if (['LA', 'MA', 'HA', 'S'].includes(typeCode)) return 'armor';
+  return 'equipment';
+}
+
+// Extract readable prerequisite from feat data
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPrerequisite(feat: any): string | undefined {
+  if (!feat.prerequisite) return undefined;
+  const parts: string[] = [];
+  for (const prereq of feat.prerequisite) {
+    if (prereq.level) parts.push(`Level ${prereq.level.level}`);
+    if (prereq.ability) {
+      for (const [ab, score] of Object.entries(prereq.ability as Record<string, number>)) {
+        parts.push(`${ab.toUpperCase()} ${score}+`);
+      }
+    }
+    if (prereq.race) parts.push(prereq.race.map((r: { name: string }) => r.name).join(' or '));
+    if (prereq.spellcasting) parts.push('Spellcasting');
+    if (prereq.proficiency) parts.push('Proficiency');
+  }
+  return parts.length ? parts.join(', ') : undefined;
+}
+
+// Extract class names from spell data
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractSpellClasses(spell: any): string[] {
+  const classes: string[] = [];
+  if (spell.classes?.fromClassList) {
+    for (const c of spell.classes.fromClassList) classes.push(c.name);
+  }
+  if (spell.classes?.fromSubclass) {
+    for (const s of spell.classes.fromSubclass) classes.push(s.class.name);
+  }
+  return [...new Set(classes)];
+}
+
+// Extract casting time as a string
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractCastingTime(spell: any): string | undefined {
+  if (!spell.time?.length) return undefined;
+  const t = spell.time[0];
+  return `${t.number} ${t.unit}`;
+}
+
+export type ProgressCallback = (progress: ImportProgress) => void;
+
+export async function importCompendium(dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  const d = db();
+
+  // Clear existing data
+  const tables = ['spells', 'items', 'feats', 'backgrounds', 'races', 'classes', 'subclasses', 'optional_features', 'conditions'];
+  const ftsTables = tables.map(t => `${t}_fts`);
+  for (const t of [...tables, ...ftsTables]) {
+    d.prepare(`DELETE FROM ${t}`).run();
+  }
+  d.prepare("DELETE FROM meta WHERE key != 'imported_at'").run();
+
+  await importSpells(d, dirPath, onProgress);
+  await importItems(d, dirPath, onProgress);
+  await importFeats(d, dirPath, onProgress);
+  await importBackgrounds(d, dirPath, onProgress);
+  await importRaces(d, dirPath, onProgress);
+  await importClasses(d, dirPath, onProgress);
+  await importOptionalFeatures(d, dirPath, onProgress);
+  await importConditions(d, dirPath, onProgress);
+
+  // Rebuild FTS indexes
+  for (const t of tables) {
+    d.prepare(`INSERT INTO ${t}_fts(${t}_fts) VALUES('rebuild')`).run();
+  }
+
+  d.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('imported_at', ?)").run(new Date().toISOString());
+
+  onProgress({ stage: 'done', current: 0, total: 0, done: true });
+}
+
+async function importSpells(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  const spellsDir = join(dirPath, 'spells');
+  let files: string[];
+  try {
+    files = await readdir(spellsDir);
+  } catch {
+    onProgress({ stage: 'spells', current: 0, total: 0, done: false, error: 'spells/ directory not found' });
+    return;
+  }
+
+  const spellFiles = files.filter(f => f.startsWith('spells-') && f.endsWith('.json'));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allSpells: any[] = [];
+
+  for (const file of spellFiles) {
+    try {
+      const raw = await readFile(join(spellsDir, file), 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.spell)) allSpells.push(...parsed.spell);
+    } catch { /* skip bad files */ }
+  }
+
+  onProgress({ stage: 'spells', current: 0, total: allSpells.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO spells (id, name, source, level, school, casting_time, concentration, ritual, classes_json, raw_json)
+    VALUES (@id, @name, @source, @level, @school, @casting_time, @concentration, @ritual, @classes_json, @raw_json)
+  `);
+
+  const insertMany = d.transaction(() => {
+    let i = 0;
+    for (const spell of allSpells) {
+      const classes = extractSpellClasses(spell);
+      insert.run({
+        id: `${spell.name}|${spell.source}`,
+        name: spell.name,
+        source: spell.source ?? '',
+        level: spell.level ?? 0,
+        school: SCHOOL_MAP[spell.school] ?? spell.school ?? null,
+        casting_time: extractCastingTime(spell) ?? null,
+        concentration: spell.duration?.some((d: { concentration?: boolean }) => d.concentration) ? 1 : 0,
+        ritual: spell.meta?.ritual ? 1 : 0,
+        classes_json: JSON.stringify(classes),
+        raw_json: JSON.stringify(spell),
+      });
+      if (++i % 500 === 0) onProgress({ stage: 'spells', current: i, total: allSpells.length, done: false });
+    }
+  });
+  insertMany();
+  onProgress({ stage: 'spells', current: allSpells.length, total: allSpells.length, done: false });
+}
+
+async function importItems(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allItems: any[] = [];
+
+  for (const file of ['items.json', 'items-base.json', 'magicvariants.json']) {
+    try {
+      const raw = await readFile(join(dirPath, file), 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.item)) allItems.push(...parsed.item);
+      if (Array.isArray(parsed.baseitem)) allItems.push(...parsed.baseitem);
+      if (Array.isArray(parsed.variant)) allItems.push(...parsed.variant);
+    } catch { /* skip missing files */ }
+  }
+
+  onProgress({ stage: 'items', current: 0, total: allItems.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO items (id, name, source, item_type, character_type, rarity, requires_attunement, raw_json)
+    VALUES (@id, @name, @source, @item_type, @character_type, @rarity, @requires_attunement, @raw_json)
+  `);
+
+  const insertMany = d.transaction(() => {
+    let i = 0;
+    for (const item of allItems) {
+      const typeCode = item.type as string | undefined;
+      insert.run({
+        id: `${item.name}|${item.source}`,
+        name: item.name,
+        source: item.source ?? '',
+        item_type: typeCode ?? null,
+        character_type: itemDropTarget(typeCode),
+        rarity: item.rarity ?? null,
+        requires_attunement: item.reqAttune ? 1 : 0,
+        raw_json: JSON.stringify(item),
+      });
+      if (++i % 500 === 0) onProgress({ stage: 'items', current: i, total: allItems.length, done: false });
+    }
+  });
+  insertMany();
+  onProgress({ stage: 'items', current: allItems.length, total: allItems.length, done: false });
+}
+
+async function importFeats(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let feats: any[] = [];
+  try {
+    const raw = await readFile(join(dirPath, 'feats.json'), 'utf-8');
+    feats = JSON.parse(raw).feat ?? [];
+  } catch { return; }
+
+  onProgress({ stage: 'feats', current: 0, total: feats.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO feats (id, name, source, prerequisite, raw_json)
+    VALUES (@id, @name, @source, @prerequisite, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const feat of feats) {
+      insert.run({
+        id: `${feat.name}|${feat.source}`,
+        name: feat.name,
+        source: feat.source ?? '',
+        prerequisite: extractPrerequisite(feat) ?? null,
+        raw_json: JSON.stringify(feat),
+      });
+    }
+  })();
+  onProgress({ stage: 'feats', current: feats.length, total: feats.length, done: false });
+}
+
+async function importBackgrounds(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let backgrounds: any[] = [];
+  try {
+    const raw = await readFile(join(dirPath, 'backgrounds.json'), 'utf-8');
+    backgrounds = JSON.parse(raw).background ?? [];
+  } catch { return; }
+
+  onProgress({ stage: 'backgrounds', current: 0, total: backgrounds.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO backgrounds (id, name, source, raw_json)
+    VALUES (@id, @name, @source, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const bg of backgrounds) {
+      insert.run({
+        id: `${bg.name}|${bg.source}`,
+        name: bg.name,
+        source: bg.source ?? '',
+        raw_json: JSON.stringify(bg),
+      });
+    }
+  })();
+  onProgress({ stage: 'backgrounds', current: backgrounds.length, total: backgrounds.length, done: false });
+}
+
+async function importRaces(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let races: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let subraces: any[] = [];
+  try {
+    const raw = await readFile(join(dirPath, 'races.json'), 'utf-8');
+    const parsed = JSON.parse(raw);
+    races = parsed.race ?? [];
+    subraces = parsed.subrace ?? [];
+  } catch { return; }
+
+  const total = races.length + subraces.length;
+  onProgress({ stage: 'races', current: 0, total, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO races (id, name, source, subrace_of, raw_json)
+    VALUES (@id, @name, @source, @subrace_of, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const race of races) {
+      insert.run({
+        id: `${race.name}|${race.source}`,
+        name: race.name,
+        source: race.source ?? '',
+        subrace_of: null,
+        raw_json: JSON.stringify(race),
+      });
+    }
+    for (const sr of subraces) {
+      insert.run({
+        id: `${sr.name}|${sr.source}`,
+        name: sr.name,
+        source: sr.source ?? '',
+        subrace_of: sr.raceName ?? null,
+        raw_json: JSON.stringify(sr),
+      });
+    }
+  })();
+  onProgress({ stage: 'races', current: total, total, done: false });
+}
+
+async function importClasses(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  const classDir = join(dirPath, 'class');
+  let files: string[];
+  try {
+    files = await readdir(classDir);
+  } catch { return; }
+
+  const classFiles = files.filter(f => f.startsWith('class-') && f.endsWith('.json'));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allClasses: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allSubclasses: any[] = [];
+
+  for (const file of classFiles) {
+    try {
+      const raw = await readFile(join(classDir, file), 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.class)) allClasses.push(...parsed.class);
+      if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass);
+    } catch { /* skip */ }
+  }
+
+  const total = allClasses.length + allSubclasses.length;
+  onProgress({ stage: 'classes', current: 0, total, done: false });
+
+  const insertClass = d.prepare(`
+    INSERT OR REPLACE INTO classes (id, name, source, raw_json)
+    VALUES (@id, @name, @source, @raw_json)
+  `);
+  const insertSubclass = d.prepare(`
+    INSERT OR REPLACE INTO subclasses (id, name, source, class_name, raw_json)
+    VALUES (@id, @name, @source, @class_name, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const cls of allClasses) {
+      insertClass.run({
+        id: `${cls.name}|${cls.source}`,
+        name: cls.name,
+        source: cls.source ?? '',
+        raw_json: JSON.stringify(cls),
+      });
+    }
+    for (const sc of allSubclasses) {
+      insertSubclass.run({
+        id: `${sc.name}|${sc.source}`,
+        name: sc.name,
+        source: sc.source ?? '',
+        class_name: sc.className ?? '',
+        raw_json: JSON.stringify(sc),
+      });
+    }
+  })();
+  onProgress({ stage: 'classes', current: total, total, done: false });
+}
+
+async function importOptionalFeatures(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let features: any[] = [];
+  try {
+    const raw = await readFile(join(dirPath, 'optionalfeatures.json'), 'utf-8');
+    features = JSON.parse(raw).optionalfeature ?? [];
+  } catch { return; }
+
+  onProgress({ stage: 'optional-features', current: 0, total: features.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO optional_features (id, name, source, feature_type, raw_json)
+    VALUES (@id, @name, @source, @feature_type, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const f of features) {
+      insert.run({
+        id: `${f.name}|${f.source}`,
+        name: f.name,
+        source: f.source ?? '',
+        feature_type: Array.isArray(f.featureType) ? f.featureType[0] : (f.featureType ?? null),
+        raw_json: JSON.stringify(f),
+      });
+    }
+  })();
+  onProgress({ stage: 'optional-features', current: features.length, total: features.length, done: false });
+}
+
+async function importConditions(d: Database.Database, dirPath: string, onProgress: ProgressCallback): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let entries: any[] = [];
+  try {
+    const raw = await readFile(join(dirPath, 'conditionsdiseases.json'), 'utf-8');
+    const parsed = JSON.parse(raw);
+    entries = [...(parsed.condition ?? []), ...(parsed.disease ?? [])];
+  } catch { return; }
+
+  onProgress({ stage: 'conditions', current: 0, total: entries.length, done: false });
+
+  const insert = d.prepare(`
+    INSERT OR REPLACE INTO conditions (id, name, source, raw_json)
+    VALUES (@id, @name, @source, @raw_json)
+  `);
+
+  d.transaction(() => {
+    for (const e of entries) {
+      insert.run({
+        id: `${e.name}|${e.source}`,
+        name: e.name,
+        source: e.source ?? '',
+        raw_json: JSON.stringify(e),
+      });
+    }
+  })();
+  onProgress({ stage: 'conditions', current: entries.length, total: entries.length, done: false });
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+// Content type → table + column config
+const TABLE_CONFIG: Record<CompendiumContentType, {
+  table: string;
+  fts: string;
+  extraCols: string;
+  toResult: (row: Record<string, unknown>) => Partial<CompendiumSearchResult>;
+  dropTarget: (row: Record<string, unknown>) => CharacterDropTarget | null;
+}> = {
+  spell: {
+    table: 'spells', fts: 'spells_fts',
+    extraCols: ', level, school, casting_time, concentration, ritual, classes_json',
+    toResult: (r) => ({
+      level: r['level'] as number,
+      school: r['school'] as string,
+      castingTime: r['casting_time'] as string,
+      concentration: (r['concentration'] as number) === 1,
+      ritual: (r['ritual'] as number) === 1,
+    }),
+    dropTarget: () => 'spell',
+  },
+  item: {
+    table: 'items', fts: 'items_fts',
+    extraCols: ', item_type, character_type, rarity, requires_attunement',
+    toResult: (r) => ({ itemType: r['item_type'] as string, rarity: r['rarity'] as string }),
+    dropTarget: (r) => r['character_type'] as CharacterDropTarget,
+  },
+  feat: {
+    table: 'feats', fts: 'feats_fts',
+    extraCols: ', prerequisite',
+    toResult: (r) => ({ prerequisite: r['prerequisite'] as string }),
+    dropTarget: () => 'feature',
+  },
+  background: {
+    table: 'backgrounds', fts: 'backgrounds_fts',
+    extraCols: '',
+    toResult: () => ({}),
+    dropTarget: () => null,
+  },
+  race: {
+    table: 'races', fts: 'races_fts',
+    extraCols: ', subrace_of',
+    toResult: () => ({}),
+    dropTarget: () => null,
+  },
+  class: {
+    table: 'classes', fts: 'classes_fts',
+    extraCols: '',
+    toResult: () => ({}),
+    dropTarget: () => null,
+  },
+  subclass: {
+    table: 'subclasses', fts: 'subclasses_fts',
+    extraCols: ', class_name',
+    toResult: (r) => ({ className: r['class_name'] as string }),
+    dropTarget: () => null,
+  },
+  'optional-feature': {
+    table: 'optional_features', fts: 'optional_features_fts',
+    extraCols: ', feature_type',
+    toResult: (r) => ({ featureType: r['feature_type'] as string }),
+    dropTarget: () => 'feature',
+  },
+  condition: {
+    table: 'conditions', fts: 'conditions_fts',
+    extraCols: '',
+    toResult: () => ({}),
+    dropTarget: () => null,
+  },
+};
+
+export function searchCompendium(
+  query: string,
+  contentType: CompendiumContentType,
+  filters: CompendiumSearchFilters,
+  limit = 100,
+): CompendiumSearchResult[] {
+  const d = db();
+  const cfg = TABLE_CONFIG[contentType];
+  const params: (string | number)[] = [];
+  const where: string[] = [];
+
+  // FTS query
+  if (query.trim()) {
+    where.push(`t.id IN (SELECT content_rowid FROM ${cfg.fts} WHERE ${cfg.fts} MATCH ?)`);
+    params.push(`"${query.trim().replace(/"/g, '')}"`);
+  }
+
+  // Filters
+  if (filters.source?.length) {
+    where.push(`t.source IN (${filters.source.map(() => '?').join(',')})`);
+    params.push(...filters.source);
+  }
+
+  if (contentType === 'spell') {
+    if (filters.level?.length) {
+      where.push(`t.level IN (${filters.level.map(() => '?').join(',')})`);
+      params.push(...filters.level);
+    }
+    if (filters.school?.length) {
+      where.push(`t.school IN (${filters.school.map(() => '?').join(',')})`);
+      params.push(...filters.school);
+    }
+    if (filters.ritual !== undefined) {
+      where.push('t.ritual = ?');
+      params.push(filters.ritual ? 1 : 0);
+    }
+    if (filters.concentration !== undefined) {
+      where.push('t.concentration = ?');
+      params.push(filters.concentration ? 1 : 0);
+    }
+    // Class filter: classes_json contains the class name
+    if (filters.classes?.length) {
+      const classWhere = filters.classes.map(() => "t.classes_json LIKE ?").join(' OR ');
+      where.push(`(${classWhere})`);
+      params.push(...filters.classes.map(c => `%"${c}"%`));
+    }
+  }
+
+  if (contentType === 'item') {
+    if (filters.rarity?.length) {
+      where.push(`t.rarity IN (${filters.rarity.map(() => '?').join(',')})`);
+      params.push(...filters.rarity);
+    }
+    if (filters.requiresAttunement !== undefined) {
+      where.push('t.requires_attunement = ?');
+      params.push(filters.requiresAttunement ? 1 : 0);
+    }
+  }
+
+  if (contentType === 'optional-feature' && filters.featureType?.length) {
+    where.push(`t.feature_type IN (${filters.featureType.map(() => '?').join(',')})`);
+    params.push(...filters.featureType);
+  }
+
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const sql = `
+    SELECT t.id, t.name, t.source ${cfg.extraCols}
+    FROM ${cfg.table} t
+    ${whereClause}
+    ORDER BY t.name
+    LIMIT ?
+  `;
+  params.push(limit);
+
+  const rows = d.prepare(sql).all(...params) as Record<string, unknown>[];
+
+  return rows.map((row) => ({
+    id: row['id'] as string,
+    name: row['name'] as string,
+    source: row['source'] as string,
+    contentType,
+    dropTarget: cfg.dropTarget(row),
+    ...cfg.toResult(row),
+  }));
+}
+
+export function getCompendiumEntry(id: string, contentType: CompendiumContentType): CompendiumEntry | null {
+  const d = db();
+  const cfg = TABLE_CONFIG[contentType];
+  const row = d.prepare(`SELECT * FROM ${cfg.table} WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  if (!row) return null;
+
+  return {
+    id: row['id'] as string,
+    name: row['name'] as string,
+    source: row['source'] as string,
+    contentType,
+    dropTarget: cfg.dropTarget(row),
+    ...cfg.toResult(row),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    raw: JSON.parse(row['raw_json'] as string) as Record<string, any>,
+  };
+}
+
+// Convenience: list all distinct sources for a content type (for filter dropdowns)
+export function listSources(contentType: CompendiumContentType): string[] {
+  const d = db();
+  const cfg = TABLE_CONFIG[contentType];
+  const rows = d.prepare(`SELECT DISTINCT source FROM ${cfg.table} ORDER BY source`).all() as { source: string }[];
+  return rows.map(r => r.source);
+}
+
+// unused import suppression
+void basename;

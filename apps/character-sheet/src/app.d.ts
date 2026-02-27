@@ -1,4 +1,12 @@
-import type { Character } from '@aplus-compendium/types';
+import type {
+  Character,
+  CompendiumContentType,
+  CompendiumEntry,
+  CompendiumSearchFilters,
+  CompendiumSearchResult,
+  CompendiumStatus,
+  ImportProgress,
+} from '@aplus-compendium/types';
 
 type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -13,11 +21,28 @@ declare global {
   interface Window {
     electronAPI?: {
       platform: string;
+
       characters: {
         list: () => Promise<IpcResult<Character[]>>;
         get: (id: string) => Promise<IpcResult<Character | null>>;
         save: (character: Character) => Promise<IpcResult<void>>;
         delete: (id: string) => Promise<IpcResult<void>>;
+      };
+
+      compendium: {
+        status: () => Promise<IpcResult<CompendiumStatus>>;
+        selectDir: () => Promise<IpcResult<string | null>>;
+        import: (dirPath: string) => Promise<IpcResult<null>>;
+        search: (
+          query: string,
+          contentType: CompendiumContentType,
+          filters: CompendiumSearchFilters,
+          limit?: number,
+        ) => Promise<IpcResult<CompendiumSearchResult[]>>;
+        get: (id: string, contentType: CompendiumContentType) => Promise<IpcResult<CompendiumEntry | null>>;
+        listSources: (contentType: CompendiumContentType) => Promise<IpcResult<string[]>>;
+        onProgress: (callback: (progress: ImportProgress) => void) => void;
+        offProgress: () => void;
       };
     };
   }

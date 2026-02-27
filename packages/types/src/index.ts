@@ -8,3 +8,4 @@ export * from './dnd5e/features.js';
 export * from './dnd5e/skills.js';
 export * from './dnd5e/spellcasting.js';
 export * from './character.js';
+export * from './compendium.js';
