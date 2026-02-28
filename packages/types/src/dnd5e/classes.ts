@@ -99,6 +99,23 @@ export const CLASS_SUBCLASS_LEVEL: Record<DndClass, number> = {
   wizard: 2,
 };
 
+/** Saving throw proficiencies granted by each class (only applies to 1st class taken) */
+export const CLASS_SAVING_THROWS: Record<DndClass, [AbilityScore, AbilityScore]> = {
+  artificer: ['constitution', 'intelligence'],
+  barbarian: ['strength', 'constitution'],
+  bard: ['dexterity', 'charisma'],
+  cleric: ['wisdom', 'charisma'],
+  druid: ['intelligence', 'wisdom'],
+  fighter: ['strength', 'constitution'],
+  monk: ['strength', 'dexterity'],
+  paladin: ['wisdom', 'charisma'],
+  ranger: ['strength', 'dexterity'],
+  rogue: ['dexterity', 'intelligence'],
+  sorcerer: ['constitution', 'charisma'],
+  warlock: ['wisdom', 'charisma'],
+  wizard: ['intelligence', 'wisdom'],
+};
+
 /** Class levels at which each class gains an ASI (or feat) */
 export const CLASS_ASI_LEVELS: Record<DndClass, number[]> = {
   artificer: [4, 8, 12, 16, 19],

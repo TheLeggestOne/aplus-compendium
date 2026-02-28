@@ -34,7 +34,7 @@
       </p>
     </div>
     <div class="flex items-center gap-2">
-      {#if stack.length > 1}
+      {#if stack.length > 0}
         {#if confirmUndo}
           <div class="flex items-center gap-1">
             <span class="text-xs text-muted-foreground">Undo?</span>

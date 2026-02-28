@@ -5,7 +5,7 @@ import type {
 } from '@aplus-compendium/types';
 import {
   abilityModifier, SKILL_ABILITY_MAP,
-  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL,
+  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS,
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
@@ -583,6 +583,19 @@ function createCharacterStore(initial: Character) {
 
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
 
+    // First class ever → set saving throw proficiencies
+    if (stack.length === 0) {
+      const [save1, save2] = CLASS_SAVING_THROWS[params.class];
+      const savingThrows = { ...character.savingThrows };
+      for (const ability of ABILITY_KEYS) {
+        savingThrows[ability] = {
+          ...savingThrows[ability],
+          proficient: ability === save1 || ability === save2,
+        };
+      }
+      character = { ...character, savingThrows };
+    }
+
     const updatedStack = [...stack, newLevel];
     const updatedClasses = deriveClassesSummary(updatedStack);
     const newProfBonus = proficiencyBonusForLevel(updatedStack.length);
@@ -607,7 +620,7 @@ function createCharacterStore(initial: Character) {
 
   function removeLastLevel(): void {
     const stack = character.levelStack;
-    if (!stack || stack.length <= 1) return;
+    if (!stack || stack.length === 0) return;
 
     const removed = stack[stack.length - 1]!;
     const newStack = stack.slice(0, -1);
@@ -654,6 +667,15 @@ function createCharacterStore(initial: Character) {
 
         return { ...cs, cantrips, spellsKnown };
       });
+    }
+
+    // Removing last level → clear saving throw proficiencies from the first class
+    if (newStack.length === 0) {
+      const savingThrows = { ...character.savingThrows };
+      for (const ability of ABILITY_KEYS) {
+        savingThrows[ability] = { ...savingThrows[ability], proficient: false };
+      }
+      character = { ...character, savingThrows };
     }
 
     const newProfBonus = proficiencyBonusForLevel(newStack.length);
