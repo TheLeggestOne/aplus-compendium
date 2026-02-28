@@ -12,7 +12,15 @@ function createCharacterStore(initial: Character) {
     _saveTimer = setTimeout(async () => {
       _saveTimer = null;
       if (!window.electronAPI) return;
-      await window.electronAPI.characters.save(character);
+      try {
+        // JSON round-trip strips Svelte 5 reactive proxies — passing a proxy directly
+        // to Electron IPC causes a silent structured-clone failure.
+        const plain = JSON.parse(JSON.stringify(character)) as Character;
+        const result = await window.electronAPI.characters.save(plain);
+        if (!result.ok) console.error('[character] save failed:', result.error);
+      } catch (e) {
+        console.error('[character] save IPC error:', e);
+      }
     }, 1500);
   }
 
