@@ -12,22 +12,21 @@
     'sleight-of-hand', 'stealth', 'survival',
   ];
 
-  const { character, passivePerception } = $derived(characterStore);
+  const { character } = $derived(characterStore);
 </script>
 
-<div class="flex flex-col min-h-0 flex-1">
+<div class="flex flex-col min-h-0 flex-1 max-w-md">
   <SectionHeader title="Skills" />
 
-  <div class="rounded-md border border-border bg-card px-3 py-1 mb-2">
-    <div class="flex items-center justify-between py-1">
-      <span class="text-sm text-muted-foreground">Passive Perception</span>
-      <span class="text-sm font-bold tabular-nums">{passivePerception}</span>
+  <ScrollArea class="flex-1 rounded-md border border-border bg-card">
+    <div class="flex items-center px-3 py-1 border-b border-border/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <span class="w-5"></span>
+      <span class="flex-1">Skill</span>
+      <span class="w-7 text-center">Mod</span>
+      <span class="w-7 text-center">Pas</span>
     </div>
-  </div>
-
-  <ScrollArea class="flex-1 rounded-md border border-border bg-card px-3 py-2">
-    {#each SKILL_ORDER as skill}
-      <SkillEntry {skill} entry={character.skills[skill]} />
+    {#each SKILL_ORDER as skill, i}
+      <SkillEntry {skill} entry={character.skills[skill]} odd={i % 2 === 1} />
     {/each}
   </ScrollArea>
 </div>

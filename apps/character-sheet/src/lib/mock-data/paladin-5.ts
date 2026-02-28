@@ -324,6 +324,12 @@ export const mockPaladinAerindel: Character = {
     },
   ],
 
+  languages: ['Common', 'Celestial'],
+  otherProficiencies: [
+    'All armor', 'Shields', 'Simple weapons', 'Martial weapons',
+    'Land vehicles', 'Playing card set',
+  ],
+
   appearance: {
     age: '28',
     height: '6\'2"',

@@ -62,6 +62,10 @@ export interface Character {
   // Features & traits
   features: Feature[];
 
+  // Proficiencies & languages
+  languages: string[];
+  otherProficiencies: string[];
+
   // Flavor
   appearance?: CharacterAppearance;
   narrative?: CharacterNarrative;

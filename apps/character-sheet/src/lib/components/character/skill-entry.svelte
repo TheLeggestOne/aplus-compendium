@@ -20,16 +20,21 @@
   interface Props {
     skill: SkillName;
     entry: SkillEntry;
+    odd?: boolean;
   }
 
-  let { skill, entry }: Props = $props();
+  let { skill, entry, odd = false }: Props = $props();
 
   const ability = $derived(SKILL_ABILITY_MAP[skill]);
+  const passive = $derived(10 + entry.modifier);
 </script>
 
-<div class="flex items-center gap-2 py-0.5">
+<div class="flex items-center gap-1.5 px-3 py-0.5 {odd ? 'bg-muted/30' : ''}">
   <ProficiencyDot level={entry.proficiency} />
-  <span class="flex-1 text-sm">{titleCase(skill)}</span>
-  <span class="text-[10px] text-muted-foreground w-6 text-center">{ABILITY_ABBREV[ability]}</span>
-  <ModifierDisplay value={entry.modifier} class="text-sm font-medium w-8 text-right" />
+  <span class="flex-1 text-xs">
+    {titleCase(skill)}
+    <span class="text-[10px] text-muted-foreground ml-0.5">{ABILITY_ABBREV[ability]}</span>
+  </span>
+  <ModifierDisplay value={entry.modifier} class="text-xs font-medium w-7 text-right tabular-nums" />
+  <span class="text-xs tabular-nums w-7 text-center text-muted-foreground">{passive}</span>
 </div>

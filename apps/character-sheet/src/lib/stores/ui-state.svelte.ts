@@ -2,7 +2,8 @@ export type CharacterSheetTab =
   | 'core-stats'
   | 'combat'
   | 'spellcasting'
-  | 'features-equipment';
+  | 'features-equipment'
+  | 'details';
 
 function createUiStore() {
   let activeTab = $state<CharacterSheetTab>('core-stats');
