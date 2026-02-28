@@ -11,7 +11,16 @@
 
 <div class="flex flex-col gap-0.5 min-w-0">
   <h1 class="text-xl font-bold leading-none truncate">{character.name}</h1>
-  <p class="text-sm text-muted-foreground truncate capitalize">{classString || 'No class'}</p>
+  <p class="text-sm text-muted-foreground truncate capitalize">
+    {#if classString}
+      {classString}
+    {:else}
+      <button
+        class="italic text-amber-400/80 hover:text-amber-400 transition-colors"
+        onclick={() => compendiumStore.openPanel('class')}
+      >No class</button>
+    {/if}
+  </p>
   <p class="text-xs text-muted-foreground/70 truncate capitalize">
     {#if raceDisplay}
       {raceDisplay}
