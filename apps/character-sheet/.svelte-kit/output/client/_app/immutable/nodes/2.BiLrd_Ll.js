@@ -1,1 +1,0 @@
-import"../chunks/Bzak7iHL.js";import{i as a}from"../chunks/BlghU-q-.js";import{p as r,o as t,a as p}from"../chunks/DoDi1JM4.js";import{g as e}from"../chunks/BhNu_S1Y.js";function f(i,o){r(o,!1),t(()=>{e("/character/aerindel",{replaceState:!0})}),a(),p()}export{f as component};
