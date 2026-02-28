@@ -1,6 +1,8 @@
 <script lang="ts">
   import { characterStore } from '$lib/stores/character.svelte.js';
+  import { compendiumStore } from '$lib/stores/compendium.svelte.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
   import CharacterTitleBlock from './character-title-block.svelte';
   import KeyStatPill from './key-stat-pill.svelte';
   import HpDisplay from './hp-display.svelte';
@@ -9,6 +11,7 @@
   import InspirationBadge from './inspiration-badge.svelte';
 
   const { character, passivePerception } = $derived(characterStore);
+  const { panelOpen } = $derived(compendiumStore);
 
   const isDying = $derived(character.combat.currentHitPoints === 0);
 </script>
@@ -46,6 +49,16 @@
     <div class="flex items-center gap-2">
       <InspirationBadge />
       <EditModeToggle />
+      <Separator orientation="vertical" class="h-6" />
+      <Button
+        variant={panelOpen ? 'secondary' : 'ghost'}
+        size="sm"
+        class="h-8 px-2 text-xs"
+        onclick={() => compendiumStore.togglePanel()}
+        title="Toggle compendium"
+      >
+        📖
+      </Button>
     </div>
   </div>
 </header>

@@ -284,7 +284,7 @@ async function importSpells(d: Database.Database, dirPath: string, onProgress: P
     try {
       const raw = await readFile(join(spellsDir, file), 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed.spell)) allSpells.push(...parsed.spell);
+      if (Array.isArray(parsed.spell)) allSpells.push(...parsed.spell.filter((s: { name?: string }) => s.name));
     } catch { /* skip bad files */ }
   }
 
@@ -326,9 +326,9 @@ async function importItems(d: Database.Database, dirPath: string, onProgress: Pr
     try {
       const raw = await readFile(join(dirPath, file), 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed.item)) allItems.push(...parsed.item);
-      if (Array.isArray(parsed.baseitem)) allItems.push(...parsed.baseitem);
-      if (Array.isArray(parsed.variant)) allItems.push(...parsed.variant);
+      if (Array.isArray(parsed.item)) allItems.push(...parsed.item.filter((x: { name?: string }) => x.name));
+      if (Array.isArray(parsed.baseitem)) allItems.push(...parsed.baseitem.filter((x: { name?: string }) => x.name));
+      if (Array.isArray(parsed.variant)) allItems.push(...parsed.variant.filter((x: { name?: string }) => x.name));
     } catch { /* skip missing files */ }
   }
 
@@ -365,7 +365,7 @@ async function importFeats(d: Database.Database, dirPath: string, onProgress: Pr
   let feats: any[] = [];
   try {
     const raw = await readFile(join(dirPath, 'feats.json'), 'utf-8');
-    feats = JSON.parse(raw).feat ?? [];
+    feats = (JSON.parse(raw).feat ?? []).filter((x: { name?: string }) => x.name);
   } catch { return; }
 
   onProgress({ stage: 'feats', current: 0, total: feats.length, done: false });
@@ -394,7 +394,7 @@ async function importBackgrounds(d: Database.Database, dirPath: string, onProgre
   let backgrounds: any[] = [];
   try {
     const raw = await readFile(join(dirPath, 'backgrounds.json'), 'utf-8');
-    backgrounds = JSON.parse(raw).background ?? [];
+    backgrounds = (JSON.parse(raw).background ?? []).filter((x: { name?: string }) => x.name);
   } catch { return; }
 
   onProgress({ stage: 'backgrounds', current: 0, total: backgrounds.length, done: false });
@@ -425,8 +425,8 @@ async function importRaces(d: Database.Database, dirPath: string, onProgress: Pr
   try {
     const raw = await readFile(join(dirPath, 'races.json'), 'utf-8');
     const parsed = JSON.parse(raw);
-    races = parsed.race ?? [];
-    subraces = parsed.subrace ?? [];
+    races = (parsed.race ?? []).filter((r: { name?: string }) => r.name);
+    subraces = (parsed.subrace ?? []).filter((r: { name?: string }) => r.name);
   } catch { return; }
 
   const total = races.length + subraces.length;
@@ -477,8 +477,8 @@ async function importClasses(d: Database.Database, dirPath: string, onProgress: 
     try {
       const raw = await readFile(join(classDir, file), 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed.class)) allClasses.push(...parsed.class);
-      if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass);
+      if (Array.isArray(parsed.class)) allClasses.push(...parsed.class.filter((x: { name?: string }) => x.name));
+      if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass.filter((x: { name?: string }) => x.name));
     } catch { /* skip */ }
   }
 
@@ -521,7 +521,7 @@ async function importOptionalFeatures(d: Database.Database, dirPath: string, onP
   let features: any[] = [];
   try {
     const raw = await readFile(join(dirPath, 'optionalfeatures.json'), 'utf-8');
-    features = JSON.parse(raw).optionalfeature ?? [];
+    features = (JSON.parse(raw).optionalfeature ?? []).filter((x: { name?: string }) => x.name);
   } catch { return; }
 
   onProgress({ stage: 'optional-features', current: 0, total: features.length, done: false });
@@ -551,7 +551,10 @@ async function importConditions(d: Database.Database, dirPath: string, onProgres
   try {
     const raw = await readFile(join(dirPath, 'conditionsdiseases.json'), 'utf-8');
     const parsed = JSON.parse(raw);
-    entries = [...(parsed.condition ?? []), ...(parsed.disease ?? [])];
+    entries = [
+      ...(parsed.condition ?? []).filter((x: { name?: string }) => x.name),
+      ...(parsed.disease ?? []).filter((x: { name?: string }) => x.name),
+    ];
   } catch { return; }
 
   onProgress({ stage: 'conditions', current: 0, total: entries.length, done: false });
@@ -659,10 +662,12 @@ export function searchCompendium(
   const params: (string | number)[] = [];
   const where: string[] = [];
 
-  // FTS query
+  // FTS query — use t.rowid (INTEGER) not t.id (TEXT); content_rowid is the integer rowid.
+  // Each word gets a prefix wildcard ("word"*) so typing "fire" matches "fireball", etc.
   if (query.trim()) {
-    where.push(`t.id IN (SELECT content_rowid FROM ${cfg.fts} WHERE ${cfg.fts} MATCH ?)`);
-    params.push(`"${query.trim().replace(/"/g, '')}"`);
+    const terms = query.trim().replace(/['"]/g, '').split(/\s+/).filter(Boolean);
+    where.push(`t.rowid IN (SELECT rowid FROM ${cfg.fts} WHERE ${cfg.fts} MATCH ?)`);
+    params.push(terms.map(t => `"${t}"*`).join(' '));
   }
 
   // Filters

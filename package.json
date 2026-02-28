@@ -20,6 +20,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@electron/rebuild",
       "better-sqlite3",
       "esbuild",
       "electron"

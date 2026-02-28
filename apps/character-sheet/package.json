@@ -14,7 +14,8 @@
     "preview": "electron .",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint src electron"
+    "lint": "eslint src electron",
+    "rebuild": "node scripts/rebuild-native.mjs"
   },
   "dependencies": {
     "@aplus-compendium/types": "workspace:*",
@@ -22,6 +23,7 @@
     "electron": "^36.0.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@internationalized/date": "^3.11.0",
     "@lucide/svelte": "^0.561.0",
     "@sveltejs/adapter-static": "^3.0.8",

@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# SvelteKit generated
+.svelte-kit/
+
 
 # Debug
 npm-debug.log*
