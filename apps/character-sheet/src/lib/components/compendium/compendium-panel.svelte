@@ -3,8 +3,6 @@
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-  import { Separator } from '$lib/components/ui/separator/index.js';
   import FilterBar from './filter-bar.svelte';
   import EntryListItem from './entry-list-item.svelte';
   import EntryDetail from './entry-detail.svelte';
@@ -36,9 +34,19 @@
 
   let filtersOpen = $state(false);
   const hasFilters = $derived(Object.keys(compendiumStore.filters).length > 0);
+
+  // Close filters on click outside — scoped to this panel only
+  let filterZoneEl = $state<HTMLElement | null>(null);
+
+  function handlePanelClick(e: MouseEvent) {
+    if (!filtersOpen || !filterZoneEl) return;
+    if (filterZoneEl.contains(e.target as Node)) return;
+    filtersOpen = false;
+  }
 </script>
 
-<aside class="flex h-full flex-col border-l border-border bg-card/30">
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<aside class="flex h-full flex-col border-l border-border bg-card/30" onclick={handlePanelClick}>
   <!-- Type selector tabs -->
   <div class="flex shrink-0 overflow-x-auto border-b border-border">
     {#each contentTypes as type}
@@ -63,33 +71,34 @@
       <ImportPrompt />
     </div>
   {:else}
-    <!-- Search bar -->
-    <div class="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border">
-      <Input
-        type="search"
-        placeholder="Search {TYPE_LABELS[activeType].toLowerCase()}…"
-        value={query}
-        oninput={(e: Event) => compendiumStore.setQuery((e.currentTarget as HTMLInputElement).value)}
-        class="h-7 text-xs flex-1"
-      />
-      <Button
-        variant={filtersOpen || hasFilters ? 'secondary' : 'ghost'}
-        size="sm"
-        class="h-7 px-2 text-xs shrink-0"
-        onclick={() => { filtersOpen = !filtersOpen; }}
-      >
-        {hasFilters ? '⦿' : '☰'} Filter
-      </Button>
-    </div>
+    <!-- Search + filter zone (clicks inside here don't close the filter) -->
+    <div bind:this={filterZoneEl} class="shrink-0">
+      <!-- Search bar -->
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <Input
+          type="search"
+          placeholder="Search {TYPE_LABELS[activeType].toLowerCase()}…"
+          value={query}
+          oninput={(e: Event) => compendiumStore.setQuery((e.currentTarget as HTMLInputElement).value)}
+          class="h-7 text-xs flex-1"
+        />
+        <Button
+          variant={filtersOpen || hasFilters ? 'secondary' : 'ghost'}
+          size="sm"
+          class="h-7 px-2 text-xs shrink-0"
+          onclick={() => { filtersOpen = !filtersOpen; }}
+        >
+          {hasFilters ? '⦿' : '☰'} Filter
+        </Button>
+      </div>
 
-    <!-- Filter bar (collapsible) -->
-    <Collapsible.Root open={filtersOpen} class="shrink-0">
-      <Collapsible.Content>
+      <!-- Filter bar -->
+      {#if filtersOpen}
         <div class="border-b border-border py-2 bg-muted/20">
           <FilterBar />
         </div>
-      </Collapsible.Content>
-    </Collapsible.Root>
+      {/if}
+    </div>
 
     <!-- Results + Detail -->
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
