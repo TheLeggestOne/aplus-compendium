@@ -32,6 +32,7 @@ export interface CompendiumSearchResult {
   className?: string;      // subclasses
   featureType?: string;    // optional-features (EI, FS:F, MM, ...)
   prerequisite?: string;   // feats
+  subraceOf?: string;      // races: parent race name (e.g. "Dwarf" for "Hill")
 }
 
 // Full entry including raw 5etools JSON for the detail view

@@ -16,6 +16,7 @@ import type {
   Feature,
   FeatureSourceType,
   CompendiumContentType,
+  AbilityScore,
 } from '@aplus-compendium/types';
 
 // ---------------------------------------------------------------------------
@@ -243,5 +244,140 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
     source:     entry.source,
     sourceType: FEATURE_SOURCE_TYPE[entry.contentType] ?? 'feat',
     description: '',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Race data extraction
+// ---------------------------------------------------------------------------
+
+const SIZE_MAP: Record<string, string> = {
+  T: 'Tiny', S: 'Small', M: 'Medium', L: 'Large', H: 'Huge', G: 'Gargantuan',
+};
+
+const ABILITY_ABBR_MAP: Record<string, AbilityScore> = {
+  str: 'strength', dex: 'dexterity', con: 'constitution',
+  int: 'intelligence', wis: 'wisdom', cha: 'charisma',
+};
+
+export interface RaceData {
+  name: string;
+  source: string;
+  isSubrace: boolean;
+  parentRace?: string;
+  size: string;
+  speed: number;
+  darkvision?: number;
+  languages: string[];
+  abilityBonuses: Partial<Record<AbilityScore, number>>;
+  features: Feature[];
+}
+
+function flattenEntries(entries: unknown[]): string {
+  return entries
+    .map((e) => {
+      if (typeof e === 'string') return e;
+      if (typeof e === 'object' && e !== null && 'entries' in e) {
+        return flattenEntries((e as { entries: unknown[] }).entries);
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function extractRaceData(entry: CompendiumEntry): RaceData {
+  const raw = entry.raw;
+
+  // Name & subrace
+  const isSubrace = !!raw['raceName'];
+  const parentRace = (raw['raceName'] as string) ?? undefined;
+  const displayName = isSubrace ? `${entry.name} ${parentRace}` : entry.name;
+
+  // Size
+  const sizeArr = raw['size'] as string[] | undefined;
+  const firstSize = sizeArr?.[0];
+  const size = sizeArr && sizeArr.length > 0
+    ? sizeArr.length > 1
+      ? sizeArr.map((s) => SIZE_MAP[s] ?? s).join(' or ')
+      : (firstSize ? (SIZE_MAP[firstSize] ?? firstSize) : 'Medium')
+    : 'Medium';
+
+  // Speed
+  const rawSpeed = raw['speed'];
+  const speed =
+    typeof rawSpeed === 'number'
+      ? rawSpeed
+      : typeof rawSpeed === 'object' && rawSpeed !== null
+        ? ((rawSpeed as Record<string, unknown>)['walk'] as number) ?? 30
+        : 30;
+
+  // Darkvision
+  const darkvision = (raw['darkvision'] as number) ?? undefined;
+
+  // Languages
+  const langProfs = (raw['languageProficiencies'] as Record<string, unknown>[] | undefined)?.[0];
+  const languages: string[] = [];
+  if (langProfs) {
+    for (const [key, value] of Object.entries(langProfs)) {
+      if (value === true && key !== 'anyStandard' && key !== 'other') {
+        languages.push(key.charAt(0).toUpperCase() + key.slice(1));
+      }
+    }
+  }
+
+  // Ability score bonuses
+  const abilityBonuses: Partial<Record<AbilityScore, number>> = {};
+  const abilityArr = raw['ability'] as Record<string, unknown>[] | undefined;
+  if (abilityArr?.[0]) {
+    for (const [abbr, val] of Object.entries(abilityArr[0])) {
+      if (abbr === 'choose') continue; // skip choice blocks for now
+      const fullName = ABILITY_ABBR_MAP[abbr];
+      if (fullName && typeof val === 'number') {
+        abilityBonuses[fullName] = val;
+      }
+    }
+  }
+
+  // Racial features from entries
+  const features: Feature[] = [];
+  const rawEntries = raw['entries'] as Array<Record<string, unknown>> | undefined;
+  if (rawEntries) {
+    for (const ent of rawEntries) {
+      if (ent['type'] === 'entries' && ent['name']) {
+        const desc = ent['entries'] ? flattenEntries(ent['entries'] as unknown[]) : '';
+        features.push({
+          id: `${entry.id}::${ent['name']}`,
+          name: ent['name'] as string,
+          source: entry.source,
+          sourceType: 'race',
+          description: desc,
+        });
+      }
+    }
+  }
+
+  // Add darkvision as a feature if present
+  if (darkvision) {
+    features.unshift({
+      id: `${entry.id}::darkvision`,
+      name: 'Darkvision',
+      source: entry.source,
+      sourceType: 'race',
+      description: `You can see in dim light within ${darkvision} feet of you as if it were bright light, and in darkness as if it were dim light.`,
+    });
+  }
+
+  return {
+    name: displayName,
+    source: entry.source,
+    isSubrace,
+    parentRace,
+    size,
+    speed,
+    darkvision,
+    languages,
+    abilityBonuses,
+    features,
   };
 }

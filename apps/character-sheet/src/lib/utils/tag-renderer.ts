@@ -261,6 +261,18 @@ function renderEntry(entry: Entry, depth: number): string {
       return `<p><strong>${name} attack modifier</strong> = proficiency bonus + ${attrs} modifier</p>`;
     }
 
+    case 'item': {
+      // Named list item: { type: "item", name: "Foo", entry: "..." } or { ..., entries: [...] }
+      const nameHtml = entry.name ? `<strong>${renderInline(entry.name)}.</strong> ` : '';
+      if (typeof entry.entry === 'string') {
+        return nameHtml + renderInline(entry.entry);
+      }
+      if (entry.entries) {
+        return nameHtml + renderEntries(entry.entries, depth + 1);
+      }
+      return nameHtml;
+    }
+
     case 'options':
     case 'homebrew': {
       if (entry.entries) return renderEntries(entry.entries, depth);

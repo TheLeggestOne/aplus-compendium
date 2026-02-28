@@ -1,17 +1,19 @@
 <script lang="ts">
-  import type { CompendiumEntry } from '@aplus-compendium/types';
+  import type { CompendiumEntry, CompendiumSearchResult } from '@aplus-compendium/types';
   import { Badge } from '$lib/components/ui/badge/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
   import EntryRenderer from '$lib/components/ui/entry-renderer.svelte';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import {
     entryToSpell,
     entryToWeapon,
     entryToArmor,
     entryToEquipment,
     entryToFeature,
+    extractRaceData,
   } from '$lib/utils/compendium-to-character.js';
 
   interface Props {
@@ -125,6 +127,83 @@
     return props.map(p => map[p] ?? p).join(', ');
   });
 
+  // --- Race detail helpers ---
+  const isRace = $derived(entry.contentType === 'race');
+  const raceData = $derived(isRace ? extractRaceData(entry) : null);
+
+  const asiSummary = $derived(() => {
+    if (!raceData) return '';
+    return Object.entries(raceData.abilityBonuses)
+      .map(([ability, bonus]) => `+${bonus} ${ability.slice(0, 3).toUpperCase()}`)
+      .join(', ');
+  });
+
+  // Subraces — fetched when a base race is expanded
+  let subraces = $state<CompendiumSearchResult[]>([]);
+  let subracesFetched = $state(false);
+  let expandedSubraceId = $state<string | null>(null);
+  let expandedSubraceEntry = $state<CompendiumEntry | null>(null);
+  let loadingSubraceEntry = $state(false);
+
+  $effect(() => {
+    // Reset subrace state when entry changes
+    subraces = [];
+    subracesFetched = false;
+    expandedSubraceId = null;
+    expandedSubraceEntry = null;
+
+    // Fetch subraces for base races
+    if (isRace && !entry.subraceOf) {
+      void fetchSubraces(entry.name);
+    }
+  });
+
+  async function fetchSubraces(raceName: string) {
+    const api = window.electronAPI;
+    if (!api) return;
+    try {
+      const result = await api.compendium.getSubraces(raceName);
+      if (result.ok) subraces = result.data;
+    } catch (e) {
+      console.error('[compendium] getSubraces error:', e);
+    }
+    subracesFetched = true;
+  }
+
+  async function toggleSubrace(id: string) {
+    if (expandedSubraceId === id) {
+      expandedSubraceId = null;
+      expandedSubraceEntry = null;
+      return;
+    }
+    expandedSubraceId = id;
+    expandedSubraceEntry = null;
+    loadingSubraceEntry = true;
+    const api = window.electronAPI;
+    if (!api) return;
+    try {
+      const result = await api.compendium.get(id, 'race');
+      if (result.ok && result.data) expandedSubraceEntry = result.data;
+    } catch (e) {
+      console.error('[compendium] get subrace error:', e);
+    } finally {
+      loadingSubraceEntry = false;
+    }
+  }
+
+  function setAsRace() {
+    if (!raceData) return;
+    characterStore.setRace(raceData);
+    flash('Race set!');
+  }
+
+  function setSubraceAsRace() {
+    if (!expandedSubraceEntry) return;
+    const data = extractRaceData(expandedSubraceEntry);
+    characterStore.setRace(data);
+    flash('Race set!');
+  }
+
   // Determine which section headings to show
   const isSpell = $derived(entry.contentType === 'spell');
   const isItem  = $derived(entry.contentType === 'item');
@@ -138,8 +217,19 @@
   <!-- Title row -->
   <div class="flex items-start justify-between gap-2">
     <div>
-      <h3 class="font-semibold leading-tight">{entry.name}</h3>
-      <p class="text-xs text-muted-foreground">{entry.source}</p>
+      <h3 class="font-semibold leading-tight">
+        {#if isRace && entry.subraceOf}
+          {entry.name} {entry.subraceOf}
+        {:else}
+          {entry.name}
+        {/if}
+      </h3>
+      <p class="text-xs text-muted-foreground">
+        {entry.source}
+        {#if isRace && entry.subraceOf}
+          <span class="opacity-60">· {entry.subraceOf} subrace</span>
+        {/if}
+      </p>
     </div>
     <Badge variant="secondary" class="shrink-0 text-xs">{entry.contentType}</Badge>
   </div>
@@ -206,6 +296,32 @@
     {#if itemProperties() || raw['reqAttune']}
       <Separator />
     {/if}
+  {:else if isRace && raceData}
+    <!-- Race stat block -->
+    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      <div class="text-muted-foreground">Size</div>
+      <div>{raceData.size}</div>
+
+      <div class="text-muted-foreground">Speed</div>
+      <div>{raceData.speed} ft.</div>
+
+      {#if raceData.darkvision}
+        <div class="text-muted-foreground">Darkvision</div>
+        <div>{raceData.darkvision} ft.</div>
+      {/if}
+
+      {#if raceData.languages.length > 0}
+        <div class="text-muted-foreground">Languages</div>
+        <div>{raceData.languages.join(', ')}</div>
+      {/if}
+
+      {#if asiSummary()}
+        <div class="text-muted-foreground">ASI</div>
+        <div>{asiSummary()}</div>
+      {/if}
+    </div>
+
+    <Separator />
   {/if}
 
   <!-- Main description -->
@@ -223,6 +339,74 @@
     </div>
   {/if}
 
+  <!-- Subraces section (base races only) -->
+  {#if isRace && !entry.subraceOf && subracesFetched && subraces.length > 0}
+    <Separator />
+    <div class="space-y-1">
+      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subraces</p>
+      <div class="rounded-md border border-border/50 divide-y divide-border/30 overflow-hidden">
+        {#each subraces as sr (sr.id)}
+          <div>
+            <button
+              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-muted/50 transition-colors
+                {expandedSubraceId === sr.id ? 'bg-muted/40' : ''}"
+              onclick={() => toggleSubrace(sr.id)}
+            >
+              <ChevronRightIcon class="size-3 shrink-0 transition-transform {expandedSubraceId === sr.id ? 'rotate-90' : ''}" />
+              <span class="font-medium">{sr.name} {sr.subraceOf}</span>
+              <Badge variant="outline" class="ml-auto shrink-0 text-[10px] px-1 py-0 h-4 font-normal opacity-60">
+                {sr.source}
+              </Badge>
+            </button>
+
+            {#if expandedSubraceId === sr.id}
+              <div class="border-t border-border/30 bg-muted/20">
+                {#if loadingSubraceEntry}
+                  <div class="flex items-center justify-center py-4">
+                    <p class="text-[10px] text-muted-foreground">Loading…</p>
+                  </div>
+                {:else if expandedSubraceEntry}
+                  {@const subRaceData = extractRaceData(expandedSubraceEntry)}
+                  <div class="px-3 py-2 space-y-2">
+                    <!-- Subrace stat block -->
+                    {#if subRaceData.speed !== raceData?.speed || subRaceData.darkvision || Object.keys(subRaceData.abilityBonuses).length > 0}
+                      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        {#if subRaceData.speed !== raceData?.speed}
+                          <div class="text-muted-foreground">Speed</div>
+                          <div>{subRaceData.speed} ft.</div>
+                        {/if}
+                        {#if subRaceData.darkvision}
+                          <div class="text-muted-foreground">Darkvision</div>
+                          <div>{subRaceData.darkvision} ft.</div>
+                        {/if}
+                        {#if Object.keys(subRaceData.abilityBonuses).length > 0}
+                          <div class="text-muted-foreground">ASI</div>
+                          <div>{Object.entries(subRaceData.abilityBonuses).map(([a, b]) => `+${b} ${a.slice(0, 3).toUpperCase()}`).join(', ')}</div>
+                        {/if}
+                      </div>
+                    {/if}
+
+                    <!-- Subrace entries -->
+                    {#if expandedSubraceEntry.raw['entries']}
+                      <EntryRenderer entries={expandedSubraceEntry.raw['entries'] as unknown[]} />
+                    {/if}
+
+                    <!-- Set as Race button for subrace -->
+                    <div class="flex items-center gap-2 pt-1">
+                      <Button size="sm" class="h-7 text-xs flex-1" onclick={setSubraceAsRace} disabled={!!addedLabel}>
+                        {addedLabel ?? 'Set as Race'}
+                      </Button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <!-- Add to character -->
   {#if addLabel}
     <div class="flex items-center gap-2 pt-1">
@@ -231,6 +415,18 @@
       </Button>
     </div>
     <Separator />
+  {/if}
+
+  <!-- Set as Race button (for base races without subraces, or subraces shown in search) -->
+  {#if isRace}
+    {#if entry.subraceOf || (subracesFetched && subraces.length === 0)}
+      <div class="flex items-center gap-2 pt-1">
+        <Button size="sm" class="h-7 text-xs flex-1" onclick={setAsRace} disabled={!!addedLabel}>
+          {addedLabel ?? 'Set as Race'}
+        </Button>
+      </div>
+      <Separator />
+    {/if}
   {/if}
 
   <!-- Re-import control -->

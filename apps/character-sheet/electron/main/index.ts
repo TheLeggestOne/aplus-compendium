@@ -16,6 +16,7 @@ import {
   searchCompendium,
   getCompendiumEntry,
   listSources,
+  getSubraces,
   debugSpellClasses,
   loadSpellClassesFromSources,
 } from './compendium-db.js';
@@ -87,6 +88,10 @@ function registerCompendiumHandlers(): void {
 
   ipcHandle('compendium:list-sources', async (contentType) =>
     listSources(contentType as CompendiumContentType),
+  );
+
+  ipcHandle('compendium:get-subraces', async (raceName) =>
+    getSubraces(raceName as string),
   );
 
   ipcHandle('compendium:clear', async () => {

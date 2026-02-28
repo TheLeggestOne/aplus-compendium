@@ -38,10 +38,20 @@
 >
   <div class="flex items-start justify-between gap-2">
     <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-medium leading-tight">{entry.name}</p>
+      <p class="truncate text-sm font-medium leading-tight">
+        {#if entry.contentType === 'race' && entry.subraceOf}
+          {entry.name} {entry.subraceOf}
+        {:else}
+          {entry.name}
+        {/if}
+      </p>
 
       <div class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-        {#if entry.contentType === 'spell'}
+        {#if entry.contentType === 'race'}
+          {#if entry.subraceOf}
+            <span>{entry.subraceOf} subrace</span>
+          {/if}
+        {:else if entry.contentType === 'spell'}
           <span>{spellLevelLabel(entry.level)}</span>
           {#if entry.school}
             <span class="opacity-50">·</span>

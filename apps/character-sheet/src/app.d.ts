@@ -42,6 +42,7 @@ declare global {
         ) => Promise<IpcResult<CompendiumSearchResult[]>>;
         get: (id: string, contentType: CompendiumContentType) => Promise<IpcResult<CompendiumEntry | null>>;
         listSources: (contentType: CompendiumContentType) => Promise<IpcResult<string[]>>;
+        getSubraces: (raceName: string) => Promise<IpcResult<CompendiumSearchResult[]>>;
         onProgress: (callback: (progress: ImportProgress) => void) => void;
         offProgress: () => void;
         clear: () => Promise<IpcResult<void>>;

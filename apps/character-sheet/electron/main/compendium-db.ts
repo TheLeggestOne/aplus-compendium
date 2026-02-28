@@ -94,7 +94,7 @@ function initSchema(d: Database.Database): void {
       raw_json   TEXT NOT NULL
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS races_fts USING fts5(
-      name, source, content='races', content_rowid='rowid'
+      name, source, subrace_of, content='races', content_rowid='rowid'
     );
 
     CREATE TABLE IF NOT EXISTS classes (
@@ -687,7 +687,9 @@ const TABLE_CONFIG: Record<CompendiumContentType, {
   race: {
     table: 'races', fts: 'races_fts',
     extraCols: ', subrace_of',
-    toResult: () => ({}),
+    toResult: (r) => ({
+      subraceOf: (r['subrace_of'] as string) || undefined,
+    }),
     dropTarget: () => null,
   },
   class: {
@@ -783,6 +785,12 @@ export function searchCompendium(
     params.push(...filters.featureType);
   }
 
+  // Races: when browsing (no query), only show base races — subraces are nested in the detail view.
+  // When searching, allow subraces to appear so users can find them by name.
+  if (contentType === 'race' && !query.trim()) {
+    where.push('t.subrace_of IS NULL');
+  }
+
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const sql = `
     SELECT t.id, t.name, t.source ${cfg.extraCols}
@@ -829,6 +837,22 @@ export function listSources(contentType: CompendiumContentType): string[] {
   const cfg = TABLE_CONFIG[contentType];
   const rows = d.prepare(`SELECT DISTINCT source FROM ${cfg.table} ORDER BY source`).all() as { source: string }[];
   return rows.map(r => r.source);
+}
+
+// Fetch all subraces for a given base race name
+export function getSubraces(raceName: string): CompendiumSearchResult[] {
+  const d = db();
+  const rows = d.prepare(
+    'SELECT id, name, source, subrace_of FROM races WHERE subrace_of = ? ORDER BY name',
+  ).all(raceName) as Record<string, unknown>[];
+  return rows.map((row) => ({
+    id: row['id'] as string,
+    name: row['name'] as string,
+    source: row['source'] as string,
+    contentType: 'race' as CompendiumContentType,
+    dropTarget: null,
+    subraceOf: row['subrace_of'] as string,
+  }));
 }
 
 // Diagnostic: show what class data is actually stored

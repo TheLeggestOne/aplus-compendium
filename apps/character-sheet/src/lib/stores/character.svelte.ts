@@ -1,5 +1,6 @@
 import type { Character, Spell, Weapon, Armor, EquipmentItem, Feature, AbilityScore, AbilityScoreSet, SkillName, SkillEntry } from '@aplus-compendium/types';
 import { abilityModifier, SKILL_ABILITY_MAP } from '@aplus-compendium/types';
+import type { RaceData } from '$lib/utils/compendium-to-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 function createCharacterStore(initial: Character) {
@@ -272,6 +273,25 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  function setRace(data: RaceData): void {
+    // Replace old racial features with new ones
+    const features = [
+      ...character.features.filter((f) => f.sourceType !== 'race'),
+      ...data.features,
+    ];
+
+    character = {
+      ...character,
+      race: data.isSubrace ? (data.parentRace ?? data.name) : data.name,
+      subrace: data.isSubrace ? data.name : undefined,
+      size: data.size,
+      combat: { ...character.combat, speed: data.speed },
+      languages: data.languages.length > 0 ? data.languages : character.languages,
+      features,
+    };
+    queueSave();
+  }
+
   function longRest(): void {
     const features = character.features.map((f) =>
       f.uses ? { ...f, uses: { ...f.uses, current: f.uses.maximum } } : f,
@@ -313,6 +333,7 @@ function createCharacterStore(initial: Character) {
     },
     reinit,
     setAbilityScores,
+    setRace,
     addSpell,
     addWeapon,
     addArmor,

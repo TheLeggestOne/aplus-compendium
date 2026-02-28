@@ -6,6 +6,7 @@ export const seedCharacter: Character = {
   classes: [{ class: 'paladin', level: 5, subclass: 'Oath of Devotion', hitDie: 'd10' }],
   race: 'Aasimar',
   subrace: 'Protector',
+  size: 'Medium',
   background: 'Soldier',
   alignment: 'lawful-good',
   experience: 6500,

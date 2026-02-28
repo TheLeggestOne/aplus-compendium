@@ -34,6 +34,7 @@ export interface Character {
   classes: CharacterClass[];
   race: string;
   subrace?: string;
+  size: string;
   background: string;
   alignment: Alignment;
 

@@ -23,6 +23,7 @@ export function createDefaultCharacter(name: string): Character {
 
     classes: [{ class: 'fighter', level: 1, subclass: '', hitDie: 'd8' }],
     race: '',
+    size: 'Medium',
     background: '',
     alignment: 'true-neutral',
 
