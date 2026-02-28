@@ -43,6 +43,7 @@ declare global {
         listSources: (contentType: CompendiumContentType) => Promise<IpcResult<string[]>>;
         onProgress: (callback: (progress: ImportProgress) => void) => void;
         offProgress: () => void;
+        clear: () => Promise<IpcResult<void>>;
       };
     };
   }

@@ -29,5 +29,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     offProgress: () => {
       ipcRenderer.removeAllListeners('compendium:progress');
     },
+    clear: () => ipcRenderer.invoke('compendium:clear'),
   },
 });

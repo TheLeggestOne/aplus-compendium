@@ -28,7 +28,7 @@
   const { panelOpen } = $derived(compendiumStore);
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+<div class="flex h-full flex-col overflow-hidden bg-background text-foreground">
   <!-- Sticky header -->
   <CharacterHeader />
 

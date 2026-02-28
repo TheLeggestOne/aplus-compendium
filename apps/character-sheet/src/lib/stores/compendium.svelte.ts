@@ -55,10 +55,11 @@ function createCompendiumStore() {
     isSearching = true;
 
     try {
-      // Spread filters to a plain POJO — Svelte 5 $state proxies contain
-      // internal Symbol-keyed properties that the structured clone algorithm
-      // can't serialize, so we must strip the proxy before passing over IPC.
-      const result = await api.compendium.search(query.trim(), activeType, { ...filters }, 100);
+      // JSON round-trip strips all Svelte 5 reactive proxy layers (shallow spread
+      // only removes the top-level proxy; nested arrays like filters.level remain
+      // reactive and can't be structured-cloned by Electron IPC).
+      const plainFilters = JSON.parse(JSON.stringify(filters)) as typeof filters;
+      const result = await api.compendium.search(query.trim(), activeType, plainFilters, 100);
       if (token !== _searchToken) return; // stale
       if (result.ok) {
         results = result.data;
@@ -195,6 +196,26 @@ function createCompendiumStore() {
         console.error('[compendium] get IPC error:', e);
       } finally {
         isLoadingEntry = false;
+      }
+    },
+
+    // --- Clear ---
+    async clearData(): Promise<void> {
+      const api = window.electronAPI;
+      if (!api) return;
+      try {
+        const result = await api.compendium.clear();
+        if (result.ok) {
+          status = null;
+          results = [];
+          selectedId = null;
+          selectedEntry = null;
+          availableSources = [];
+        } else {
+          console.error('[compendium] clear failed:', result.error);
+        }
+      } catch (e) {
+        console.error('[compendium] clear IPC error:', e);
       }
     },
 

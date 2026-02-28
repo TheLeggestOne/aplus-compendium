@@ -216,12 +216,17 @@ function extractPrerequisite(feat: any): string | undefined {
 // Extract class names from spell data
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractSpellClasses(spell: any): string[] {
+  const seen = new Set<string>();
   const classes: string[] = [];
+  const push = (name: string) => { if (name && !seen.has(name)) { seen.add(name); classes.push(name); } };
   if (spell.classes?.fromClassList) {
-    for (const c of spell.classes.fromClassList) classes.push(c.name);
+    for (const c of spell.classes.fromClassList) push(c.name);
+  }
+  if (spell.classes?.fromClassListVariant) {
+    for (const c of spell.classes.fromClassListVariant) push(c.name);
   }
   if (spell.classes?.fromSubclass) {
-    for (const s of spell.classes.fromSubclass) classes.push(s.class.name);
+    for (const s of spell.classes.fromSubclass) push(s.class.name);
   }
   return [...new Set(classes)];
 }
@@ -235,6 +240,17 @@ function extractCastingTime(spell: any): string | undefined {
 }
 
 export type ProgressCallback = (progress: ImportProgress) => void;
+
+export function clearCompendium(): void {
+  const d = db();
+  const tables = ['spells', 'items', 'feats', 'backgrounds', 'races', 'classes', 'subclasses', 'optional_features', 'conditions'];
+  d.transaction(() => {
+    for (const t of [...tables, ...tables.map(t => `${t}_fts`)]) {
+      d.prepare(`DELETE FROM ${t}`).run();
+    }
+    d.prepare("DELETE FROM meta WHERE key = 'imported_at'").run();
+  })();
+}
 
 export async function importCompendium(dirPath: string, onProgress: ProgressCallback): Promise<void> {
   const d = db();

@@ -3,7 +3,7 @@
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
 
-  const SCHOOLS = ['abjuration','conjuration','divination','enchantment','evocation','illusion','necromancy','transmutation'];
+  const SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation'];
   const SPELL_CLASSES = ['Artificer','Bard','Cleric','Druid','Paladin','Ranger','Sorcerer','Warlock','Wizard'];
   const RARITIES = ['none','common','uncommon','rare','very rare','legendary','artifact'];
 

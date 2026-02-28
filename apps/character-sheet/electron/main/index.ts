@@ -11,6 +11,7 @@ import {
 } from './character-store.js';
 import {
   getCompendiumStatus,
+  clearCompendium,
   importCompendium,
   searchCompendium,
   getCompendiumEntry,
@@ -84,6 +85,10 @@ function registerCompendiumHandlers(): void {
   ipcHandle('compendium:list-sources', async (contentType) =>
     listSources(contentType as CompendiumContentType),
   );
+
+  ipcHandle('compendium:clear', async () => {
+    clearCompendium();
+  });
 }
 
 function createWindow(): void {
