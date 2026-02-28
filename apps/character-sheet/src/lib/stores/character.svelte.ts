@@ -1,7 +1,62 @@
-import type { Character, Spell, Weapon, Armor, EquipmentItem, Feature, AbilityScore, AbilityScoreSet, SkillName, SkillEntry } from '@aplus-compendium/types';
-import { abilityModifier, SKILL_ABILITY_MAP } from '@aplus-compendium/types';
+import type {
+  Character, Spell, Weapon, Armor, EquipmentItem, Feature,
+  AbilityScore, AbilityScoreSet, SkillName, SkillEntry,
+  CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
+} from '@aplus-compendium/types';
+import {
+  abilityModifier, SKILL_ABILITY_MAP,
+  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL,
+  proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
+} from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
+
+// ---------------------------------------------------------------------------
+// Level stack helpers (pure functions, used by store and migration)
+// ---------------------------------------------------------------------------
+
+/** Derive the CharacterClass[] summary from a level stack */
+function deriveClassesSummary(stack: ClassLevel[]): CharacterClass[] {
+  const map = new Map<DndClass, CharacterClass>();
+  for (const lv of stack) {
+    const existing = map.get(lv.class);
+    if (existing) {
+      existing.level = lv.classLevel;
+      if (lv.subclassChoice) existing.subclass = lv.subclassChoice;
+    } else {
+      map.set(lv.class, {
+        class: lv.class,
+        level: lv.classLevel,
+        subclass: lv.subclassChoice,
+        hitDie: lv.hitDie,
+      });
+    }
+  }
+  // Inherit subclass from earlier levels for classes where it was set
+  for (const lv of stack) {
+    if (lv.subclassChoice) {
+      const entry = map.get(lv.class);
+      if (entry) entry.subclass = lv.subclassChoice;
+    }
+  }
+  return [...map.values()];
+}
+
+/** Derive hit dice pools from a level stack, preserving used counts */
+function deriveHitDicePools(stack: ClassLevel[], existingPools: HitDicePool[]): HitDicePool[] {
+  const poolMap = new Map<DieType, number>();
+  for (const lv of stack) {
+    poolMap.set(lv.hitDie, (poolMap.get(lv.hitDie) ?? 0) + 1);
+  }
+  return [...poolMap.entries()].map(([dieType, total]) => {
+    const existing = existingPools.find((p) => p.dieType === dieType);
+    return { dieType, total, used: Math.min(existing?.used ?? 0, total) };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
 
 function createCharacterStore(initial: Character) {
   let character = $state<Character>(structuredClone(initial));
@@ -17,6 +72,11 @@ function createCharacterStore(initial: Character) {
         // JSON round-trip strips Svelte 5 reactive proxies — passing a proxy directly
         // to Electron IPC causes a silent structured-clone failure.
         const plain = JSON.parse(JSON.stringify(character)) as Character;
+        // Keep classes summary synced from level stack for backward compatibility
+        if (plain.levelStack && plain.levelStack.length > 0) {
+          plain.classes = deriveClassesSummary(plain.levelStack);
+          plain.proficiencyBonus = proficiencyBonusForLevel(plain.levelStack.length);
+        }
         const result = await window.electronAPI.characters.save(plain);
         if (!result.ok) console.error('[character] save failed:', result.error);
       } catch (e) {
@@ -88,6 +148,79 @@ function createCharacterStore(initial: Character) {
     if (!isFinite(currentMax)) return 100;
     return Math.round(((character.experience - currentMin) / (currentMax - currentMin)) * 100);
   });
+
+  // --- Level stack derived values ---
+
+  const hasLevelStack = $derived(
+    !!character.levelStack && character.levelStack.length > 0,
+  );
+
+  const derivedProficiencyBonus = $derived(
+    proficiencyBonusForLevel(totalLevel),
+  );
+
+  const derivedSpellSlots = $derived(() => {
+    if (!character.classSpellcasting || character.classSpellcasting.length === 0) {
+      return character.spellcasting?.slots ?? [];
+    }
+    const summary = character.levelStack
+      ? deriveClassesSummary(character.levelStack)
+      : character.classes;
+    const classLevels = character.classSpellcasting
+      .filter((cs) => cs.casterProgression !== 'none' && cs.casterProgression !== 'pact')
+      .map((cs) => ({
+        level: summary.find((c) => c.class === cs.class)?.level ?? 0,
+        progression: cs.casterProgression,
+      }));
+    const casterLvl = combinedCasterLevel(classLevels);
+    const slots = multiclassSpellSlots(casterLvl);
+    // Preserve used counts from existing slots
+    const existingSlots = character.spellcasting?.slots ?? [];
+    for (const slot of slots) {
+      const existing = existingSlots.find((s) => s.level === slot.level);
+      if (existing) slot.used = existing.used;
+    }
+    return slots;
+  });
+
+  const derivedMaxHp = $derived(() => {
+    const stack = character.levelStack;
+    if (!stack || stack.length === 0) return character.combat.maxHitPoints;
+    return stack.reduce((sum, lv) => sum + lv.hpGained, 0);
+  });
+
+  // --- Level stack helper (needs access to character state) ---
+
+  function recalculateSkillsAndSaves(profBonus: number, scores: AbilityScoreSet): void {
+    const skills = {} as Record<SkillName, SkillEntry>;
+    for (const [name, entry] of Object.entries(character.skills) as [SkillName, SkillEntry][]) {
+      const ability = SKILL_ABILITY_MAP[name];
+      const mod = abilityModifier(scores[ability]);
+      const prof =
+        entry.proficiency === 'expertise'
+          ? profBonus * 2
+          : entry.proficiency === 'proficient'
+            ? profBonus
+            : 0;
+      skills[name] = { ...entry, modifier: mod + prof };
+    }
+
+    const savingThrows = { ...character.savingThrows };
+    for (const ability of [
+      'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
+    ] as AbilityScore[]) {
+      const entry = savingThrows[ability];
+      const mod = abilityModifier(scores[ability]);
+      savingThrows[ability] = { ...entry, modifier: mod + (entry.proficient ? profBonus : 0) };
+    }
+
+    character = {
+      ...character,
+      skills,
+      savingThrows,
+      combat: { ...character.combat, initiative: abilityModifier(scores.dexterity) },
+    };
+  }
 
   // --- View Mode mutations ---
 
@@ -319,6 +452,192 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  // --- Class stack mutations ---
+
+  function addClassLevel(params: {
+    class: DndClass;
+    hpGained: number;
+    subclassChoice?: string;
+    asiChoice?: AsiChoice;
+    features?: Feature[];
+  }): void {
+    const stack = character.levelStack ?? [];
+    const classLevelCount = stack.filter((lv) => lv.class === params.class).length;
+    const newClassLevel = classLevelCount + 1;
+    const hitDie = CLASS_HIT_DICE[params.class];
+
+    const newLevel: ClassLevel = {
+      class: params.class,
+      hitDie,
+      classLevel: newClassLevel,
+      hpGained: params.hpGained,
+      featureIds: (params.features ?? []).map((f) => f.id),
+      subclassChoice: params.subclassChoice,
+      asiChoice: params.asiChoice,
+    };
+
+    // If first level in a caster class, initialize ClassSpellcasting
+    const spellAbility = CLASS_SPELLCASTING_ABILITY[params.class];
+    let classSpellcasting = character.classSpellcasting
+      ? [...character.classSpellcasting]
+      : [];
+    if (spellAbility && newClassLevel === 1) {
+      classSpellcasting.push({
+        class: params.class,
+        abilityScore: spellAbility,
+        casterProgression: CLASS_CASTER_PROGRESSION[params.class],
+        cantrips: [],
+        spellsKnown: [],
+      });
+    }
+
+    // Tag features with class source info
+    const newFeatures = (params.features ?? []).map((f) => ({
+      ...f,
+      sourceClass: params.class,
+      sourceClassLevel: newClassLevel,
+    }));
+
+    // Apply ASI if chosen
+    let abilityScores = character.abilityScores;
+    if (params.asiChoice?.type === 'asi') {
+      abilityScores = { ...abilityScores };
+      for (const [ability, increase] of Object.entries(params.asiChoice.increases)) {
+        const key = ability as AbilityScore;
+        abilityScores[key] = Math.min(20, abilityScores[key] + (increase ?? 0));
+      }
+    }
+
+    const updatedStack = [...stack, newLevel];
+    const updatedClasses = deriveClassesSummary(updatedStack);
+    const newProfBonus = proficiencyBonusForLevel(updatedStack.length);
+
+    character = {
+      ...character,
+      levelStack: updatedStack,
+      classes: updatedClasses,
+      classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
+      proficiencyBonus: newProfBonus,
+      abilityScores,
+      features: [...character.features, ...newFeatures],
+      combat: {
+        ...character.combat,
+        maxHitPoints: updatedStack.reduce((sum, lv) => sum + lv.hpGained, 0),
+        hitDicePools: deriveHitDicePools(updatedStack, character.combat.hitDicePools),
+      },
+    };
+
+    recalculateSkillsAndSaves(newProfBonus, abilityScores);
+    queueSave();
+  }
+
+  function removeLastLevel(): void {
+    const stack = character.levelStack;
+    if (!stack || stack.length <= 1) return;
+
+    const removed = stack[stack.length - 1]!;
+    const newStack = stack.slice(0, -1);
+
+    // Remove features gained at this level
+    const removedFeatureIds = new Set(removed.featureIds);
+    const features = character.features.filter((f) => !removedFeatureIds.has(f.id));
+
+    // Revert ASI if one was chosen
+    let abilityScores = character.abilityScores;
+    if (removed.asiChoice?.type === 'asi') {
+      abilityScores = { ...abilityScores };
+      for (const [ability, increase] of Object.entries(removed.asiChoice.increases)) {
+        const key = ability as AbilityScore;
+        abilityScores[key] = abilityScores[key] - (increase ?? 0);
+      }
+    }
+
+    // If we removed the last level of a caster class, remove its ClassSpellcasting entry
+    const remainingClassLevels = newStack.filter((lv) => lv.class === removed.class).length;
+    let classSpellcasting = character.classSpellcasting
+      ? [...character.classSpellcasting]
+      : [];
+    if (remainingClassLevels === 0) {
+      classSpellcasting = classSpellcasting.filter((cs) => cs.class !== removed.class);
+    }
+
+    const newProfBonus = proficiencyBonusForLevel(newStack.length);
+    const updatedClasses = deriveClassesSummary(newStack);
+
+    character = {
+      ...character,
+      levelStack: newStack,
+      classes: updatedClasses,
+      classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
+      proficiencyBonus: newProfBonus,
+      abilityScores,
+      features,
+      combat: {
+        ...character.combat,
+        maxHitPoints: newStack.reduce((sum, lv) => sum + lv.hpGained, 0),
+        hitDicePools: deriveHitDicePools(newStack, character.combat.hitDicePools),
+      },
+    };
+
+    recalculateSkillsAndSaves(newProfBonus, abilityScores);
+    queueSave();
+  }
+
+  function setSubclass(dndClass: DndClass, subclass: string): void {
+    const stack = character.levelStack;
+    if (!stack) return;
+
+    const subclassLevel = CLASS_SUBCLASS_LEVEL[dndClass];
+    const idx = stack.findLastIndex(
+      (lv) => lv.class === dndClass && lv.classLevel === subclassLevel,
+    );
+    if (idx === -1) return;
+
+    const newStack = [...stack];
+    newStack[idx] = { ...newStack[idx]!, subclassChoice: subclass };
+
+    character = {
+      ...character,
+      levelStack: newStack,
+      classes: deriveClassesSummary(newStack),
+    };
+    queueSave();
+  }
+
+  function addClassSpell(dndClass: DndClass, spell: Spell): void {
+    if (!character.classSpellcasting) return;
+
+    const classSpellcasting = character.classSpellcasting.map((cs) => {
+      if (cs.class !== dndClass) return cs;
+      if (spell.level === 0) {
+        if (cs.cantrips.some((s) => s.id === spell.id)) return cs;
+        return { ...cs, cantrips: [...cs.cantrips, spell] };
+      } else {
+        if (cs.spellsKnown.some((s) => s.id === spell.id)) return cs;
+        return { ...cs, spellsKnown: [...cs.spellsKnown, spell] };
+      }
+    });
+
+    character = { ...character, classSpellcasting };
+    queueSave();
+  }
+
+  function removeClassSpell(dndClass: DndClass, spellId: string): void {
+    if (!character.classSpellcasting) return;
+
+    const classSpellcasting = character.classSpellcasting.map((cs) => {
+      if (cs.class !== dndClass) return cs;
+      return {
+        ...cs,
+        cantrips: cs.cantrips.filter((s) => s.id !== spellId),
+        spellsKnown: cs.spellsKnown.filter((s) => s.id !== spellId),
+      };
+    });
+
+    character = { ...character, classSpellcasting };
+    queueSave();
+  }
+
   return {
     get character() { return character; },
     get totalLevel() { return totalLevel; },
@@ -331,6 +650,12 @@ function createCharacterStore(initial: Character) {
     get xpForNextLevel() {
       return xpForNextLevel[totalLevel] ?? Infinity;
     },
+    // Level stack derived values
+    get hasLevelStack() { return hasLevelStack; },
+    get derivedProficiencyBonus() { return derivedProficiencyBonus; },
+    get derivedSpellSlots() { return derivedSpellSlots(); },
+    get derivedMaxHp() { return derivedMaxHp(); },
+    // Existing mutations
     reinit,
     setAbilityScores,
     setRace,
@@ -352,6 +677,12 @@ function createCharacterStore(initial: Character) {
     toggleInspiration,
     shortRest,
     longRest,
+    // Class stack mutations
+    addClassLevel,
+    removeLastLevel,
+    setSubclass,
+    addClassSpell,
+    removeClassSpell,
   };
 }
 

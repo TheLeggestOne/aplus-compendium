@@ -1,5 +1,6 @@
 import type { AbilityScoreSet } from './dnd5e/ability-scores.js';
 import type { Alignment } from './dnd5e/alignment.js';
+import type { ClassLevel, ClassSpellcasting } from './dnd5e/class-stack.js';
 import type { CharacterClass } from './dnd5e/classes.js';
 import type { CombatStats } from './dnd5e/combat.js';
 import type { Currency } from './dnd5e/currency.js';
@@ -53,6 +54,10 @@ export interface Character {
 
   // Spellcasting — optional (non-casters omit this)
   spellcasting?: CharacterSpellcasting;
+
+  // Class stack — optional (missing = legacy character without level history)
+  levelStack?: ClassLevel[];
+  classSpellcasting?: ClassSpellcasting[];
 
   // Gear
   weapons: Weapon[];

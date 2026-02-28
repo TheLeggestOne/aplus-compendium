@@ -21,7 +21,7 @@ export function createDefaultCharacter(name: string): Character {
     id: slugify(name),
     name,
 
-    classes: [{ class: 'fighter', level: 1, subclass: '', hitDie: 'd8' }],
+    classes: [{ class: 'fighter', level: 1, subclass: '', hitDie: 'd10' }],
     race: '',
     size: 'Medium',
     background: '',
@@ -58,7 +58,7 @@ export function createDefaultCharacter(name: string): Character {
       armorClass: 10,
       initiative: 0,
       speed: 30,
-      hitDicePools: [{ dieType: 'd8', total: 1, used: 0 }],
+      hitDicePools: [{ dieType: 'd10', total: 1, used: 0 }],
       deathSaves: { successes: 0, failures: 0 },
     },
 
