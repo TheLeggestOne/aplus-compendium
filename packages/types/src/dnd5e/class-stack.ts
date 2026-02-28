@@ -51,8 +51,9 @@ export interface ClassLevel {
    *  Prepared casters (Cleric/Druid/Paladin) don't use this — their prep list is derived. */
   spellsGained?: string[];
 
-  /** Spell ID swapped out at this level (some classes can swap one spell on level-up) */
-  spellSwapped?: { removed: string; added: string };
+  /** Spell swapped at this level (some classes can swap one known spell on level-up).
+   *  Full Spell objects are stored so the swap is fully reversible on level pop. */
+  spellSwapped?: { removed: Spell; added: Spell };
 }
 
 /**

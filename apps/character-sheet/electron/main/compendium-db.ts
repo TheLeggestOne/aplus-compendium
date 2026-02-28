@@ -537,6 +537,10 @@ async function importClasses(d: Database.Database, dirPath: string, onProgress: 
   const allClasses: any[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allSubclasses: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allClassFeatures: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allSubclassFeatures: any[] = [];
 
   for (const file of classFiles) {
     try {
@@ -544,7 +548,27 @@ async function importClasses(d: Database.Database, dirPath: string, onProgress: 
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.class)) allClasses.push(...parsed.class.filter((x: { name?: string }) => x.name));
       if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass.filter((x: { name?: string }) => x.name));
+      if (Array.isArray(parsed.classFeature)) allClassFeatures.push(...parsed.classFeature);
+      if (Array.isArray(parsed.subclassFeature)) allSubclassFeatures.push(...parsed.subclassFeature);
     } catch { /* skip */ }
+  }
+
+  // Embed feature descriptions into class/subclass JSON for single-query retrieval
+  for (const cls of allClasses) {
+    cls._classFeatureEntries = allClassFeatures.filter(
+      (f: { className?: string; classSource?: string }) =>
+        f.className === cls.name && f.classSource === cls.source,
+    );
+  }
+  for (const sc of allSubclasses) {
+    // Match on className + shortName + subclassSource only — skip classSource because
+    // INSERT OR REPLACE can overwrite the entry with a cross-reference variant that has
+    // a different classSource (e.g. PHB subclass cross-ref'd to XPHB class).
+    sc._subclassFeatureEntries = allSubclassFeatures.filter(
+      (f: { className?: string; subclassShortName?: string; subclassSource?: string }) =>
+        f.className === sc.className
+        && f.subclassShortName === sc.shortName && f.subclassSource === sc.source,
+    );
   }
 
   const total = allClasses.length + allSubclasses.length;
@@ -852,6 +876,22 @@ export function getSubraces(raceName: string): CompendiumSearchResult[] {
     contentType: 'race' as CompendiumContentType,
     dropTarget: null,
     subraceOf: row['subrace_of'] as string,
+  }));
+}
+
+// Fetch all subclasses for a given class name
+export function getSubclasses(className: string): CompendiumSearchResult[] {
+  const d = db();
+  const rows = d.prepare(
+    'SELECT id, name, source, class_name FROM subclasses WHERE class_name = ? ORDER BY source, name',
+  ).all(className) as Record<string, unknown>[];
+  return rows.map((row) => ({
+    id: row['id'] as string,
+    name: row['name'] as string,
+    source: row['source'] as string,
+    contentType: 'subclass' as CompendiumContentType,
+    dropTarget: null,
+    className: row['class_name'] as string,
   }));
 }
 

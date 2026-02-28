@@ -15,6 +15,12 @@
     entryToFeature,
     extractRaceData,
   } from '$lib/utils/compendium-to-character.js';
+  import {
+    extractHitDie,
+    extractSavingThrows,
+    extractStartingProficiencies,
+  } from '$lib/utils/class-page-helpers.js';
+  import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 
   interface Props {
     entry: CompendiumEntry;
@@ -207,6 +213,20 @@
   // Determine which section headings to show
   const isSpell = $derived(entry.contentType === 'spell');
   const isItem  = $derived(entry.contentType === 'item');
+  const isClass = $derived(entry.contentType === 'class');
+  const isSubclass = $derived(entry.contentType === 'subclass');
+
+  // Class-specific data
+  const classHitDie = $derived(isClass ? extractHitDie(raw) : '');
+  const classSaves = $derived(isClass ? extractSavingThrows(raw) : '');
+  const classProfs = $derived(isClass ? extractStartingProficiencies(raw) : { armor: '', weapons: '', skills: '' });
+  const classPageUrl = $derived(
+    isClass
+      ? `/compendium/class/${encodeURIComponent(entry.id)}`
+      : isSubclass && entry.className
+        ? `/compendium/class/${encodeURIComponent(`${entry.className}|${(raw['classSource'] as string) ?? entry.source}`)}`
+        : null,
+  );
 
   const entries = $derived(raw['entries'] as unknown[] | undefined);
   const entriesHigherLevel = $derived(raw['entriesHigherLevel'] as unknown[] | undefined);
@@ -321,6 +341,49 @@
       {/if}
     </div>
 
+    <Separator />
+  {:else if isClass}
+    <!-- Class stat block -->
+    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      {#if classHitDie}
+        <div class="text-muted-foreground">Hit Die</div>
+        <div>{classHitDie}</div>
+      {/if}
+
+      {#if classSaves}
+        <div class="text-muted-foreground">Saving Throws</div>
+        <div>{classSaves}</div>
+      {/if}
+
+      {#if classProfs.armor}
+        <div class="text-muted-foreground">Armor</div>
+        <div class="capitalize">{classProfs.armor}</div>
+      {/if}
+
+      {#if classProfs.weapons}
+        <div class="text-muted-foreground">Weapons</div>
+        <div class="capitalize">{classProfs.weapons}</div>
+      {/if}
+    </div>
+
+    <Separator />
+  {:else if isSubclass && entry.className}
+    <div class="text-xs text-muted-foreground">
+      Subclass of <span class="font-medium text-foreground">{entry.className}</span>
+    </div>
+
+    <Separator />
+  {/if}
+
+  <!-- View full class page link -->
+  {#if classPageUrl}
+    <a
+      href={classPageUrl}
+      class="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+    >
+      <ExternalLinkIcon class="size-3" />
+      {isClass ? 'View Full Class Details' : `View ${entry.className} Class`}
+    </a>
     <Separator />
   {/if}
 

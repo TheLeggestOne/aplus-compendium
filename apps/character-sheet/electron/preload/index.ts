@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('compendium:list-sources', contentType),
     getSubraces: (raceName: string) =>
       ipcRenderer.invoke('compendium:get-subraces', raceName),
+    getSubclasses: (className: string) =>
+      ipcRenderer.invoke('compendium:get-subclasses', className),
     onProgress: (callback: (progress: unknown) => void) => {
       ipcRenderer.on('compendium:progress', (_event, progress) => callback(progress));
     },

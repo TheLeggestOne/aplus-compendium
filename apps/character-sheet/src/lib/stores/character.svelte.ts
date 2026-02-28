@@ -460,6 +460,9 @@ function createCharacterStore(initial: Character) {
     subclassChoice?: string;
     asiChoice?: AsiChoice;
     features?: Feature[];
+    cantripsGained?: Spell[];
+    spellsGained?: Spell[];
+    spellSwapped?: { removed: Spell; added: Spell };
   }): void {
     const stack = character.levelStack ?? [];
     const classLevelCount = stack.filter((lv) => lv.class === params.class).length;
@@ -474,6 +477,9 @@ function createCharacterStore(initial: Character) {
       featureIds: (params.features ?? []).map((f) => f.id),
       subclassChoice: params.subclassChoice,
       asiChoice: params.asiChoice,
+      cantripsGained: params.cantripsGained?.map((s) => s.id),
+      spellsGained: params.spellsGained?.map((s) => s.id),
+      spellSwapped: params.spellSwapped,
     };
 
     // If first level in a caster class, initialize ClassSpellcasting
@@ -490,6 +496,32 @@ function createCharacterStore(initial: Character) {
         spellsKnown: [],
       });
     }
+
+    // Apply spell selections to ClassSpellcasting
+    classSpellcasting = classSpellcasting.map((cs) => {
+      if (cs.class !== params.class) return cs;
+      let cantrips = [...cs.cantrips];
+      let spellsKnown = [...cs.spellsKnown];
+
+      if (params.cantripsGained) {
+        for (const spell of params.cantripsGained) {
+          if (!cantrips.some((s) => s.id === spell.id)) cantrips.push(spell);
+        }
+      }
+      if (params.spellsGained) {
+        for (const spell of params.spellsGained) {
+          if (!spellsKnown.some((s) => s.id === spell.id)) spellsKnown.push(spell);
+        }
+      }
+      if (params.spellSwapped) {
+        spellsKnown = spellsKnown.filter((s) => s.id !== params.spellSwapped!.removed.id);
+        if (!spellsKnown.some((s) => s.id === params.spellSwapped!.added.id)) {
+          spellsKnown.push(params.spellSwapped!.added);
+        }
+      }
+
+      return { ...cs, cantrips, spellsKnown };
+    });
 
     // Tag features with class source info
     const newFeatures = (params.features ?? []).map((f) => ({
@@ -559,6 +591,35 @@ function createCharacterStore(initial: Character) {
       : [];
     if (remainingClassLevels === 0) {
       classSpellcasting = classSpellcasting.filter((cs) => cs.class !== removed.class);
+    } else {
+      // Revert spell selections from the removed level
+      classSpellcasting = classSpellcasting.map((cs) => {
+        if (cs.class !== removed.class) return cs;
+        let cantrips = [...cs.cantrips];
+        let spellsKnown = [...cs.spellsKnown];
+
+        // Revert spell swap first (re-add removed, remove added)
+        if (removed.spellSwapped) {
+          spellsKnown = spellsKnown.filter((s) => s.id !== removed.spellSwapped!.added.id);
+          if (!spellsKnown.some((s) => s.id === removed.spellSwapped!.removed.id)) {
+            spellsKnown.push(removed.spellSwapped!.removed);
+          }
+        }
+
+        // Remove cantrips gained at this level
+        if (removed.cantripsGained) {
+          const ids = new Set(removed.cantripsGained);
+          cantrips = cantrips.filter((s) => !ids.has(s.id));
+        }
+
+        // Remove spells gained at this level
+        if (removed.spellsGained) {
+          const ids = new Set(removed.spellsGained);
+          spellsKnown = spellsKnown.filter((s) => !ids.has(s.id));
+        }
+
+        return { ...cs, cantrips, spellsKnown };
+      });
     }
 
     const newProfBonus = proficiencyBonusForLevel(newStack.length);
