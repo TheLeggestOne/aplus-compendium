@@ -90,7 +90,7 @@
               {character.race}{character.subrace ? ` (${character.subrace})` : ''}
               {' — '}
             {/if}
-            {classString(character)}
+            {classString(character) || 'No class'}
           </p>
           <div class="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
             <span>Level {totalLevel(character)}</span>

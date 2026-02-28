@@ -260,6 +260,22 @@ const ABILITY_ABBR_MAP: Record<string, AbilityScore> = {
   int: 'intelligence', wis: 'wisdom', cha: 'charisma',
 };
 
+/** A "choose N from these abilities" option from race data. */
+export interface AbilityBonusChoice {
+  from: AbilityScore[];
+  count: number;
+  amount: number;
+}
+
+/**
+ * A weighted choice — "distribute these weights among abilities".
+ * e.g. Tasha's Custom Origin: pick one ability +2 and another +1.
+ */
+export interface AbilityBonusWeightedChoice {
+  from: AbilityScore[];
+  weights: number[];
+}
+
 export interface RaceData {
   name: string;
   source: string;
@@ -270,6 +286,8 @@ export interface RaceData {
   darkvision?: number;
   languages: string[];
   abilityBonuses: Partial<Record<AbilityScore, number>>;
+  abilityBonusChoices?: AbilityBonusChoice[];
+  abilityBonusWeightedChoices?: AbilityBonusWeightedChoice[];
   features: Feature[];
 }
 
@@ -328,10 +346,38 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
 
   // Ability score bonuses
   const abilityBonuses: Partial<Record<AbilityScore, number>> = {};
+  const abilityBonusChoices: AbilityBonusChoice[] = [];
+  const abilityBonusWeightedChoices: AbilityBonusWeightedChoice[] = [];
   const abilityArr = raw['ability'] as Record<string, unknown>[] | undefined;
   if (abilityArr?.[0]) {
     for (const [abbr, val] of Object.entries(abilityArr[0])) {
-      if (abbr === 'choose') continue; // skip choice blocks for now
+      if (abbr === 'choose') {
+        // Parse choice blocks: { from: string[], count: number, amount: number }
+        // or weighted: { from: string[], weights: number[] }
+        const choice = val as Record<string, unknown>;
+        if (choice['weighted']) {
+          const w = choice['weighted'] as Record<string, unknown>;
+          const fromRaw = (w['from'] as string[]) ?? [];
+          const from = fromRaw
+            .map((a) => ABILITY_ABBR_MAP[a])
+            .filter((a): a is AbilityScore => !!a);
+          const weights = (w['weights'] as number[]) ?? [];
+          if (from.length > 0 && weights.length > 0) {
+            abilityBonusWeightedChoices.push({ from, weights });
+          }
+        } else {
+          const fromRaw = (choice['from'] as string[]) ?? [];
+          const from = fromRaw
+            .map((a) => ABILITY_ABBR_MAP[a])
+            .filter((a): a is AbilityScore => !!a);
+          const count = (choice['count'] as number) ?? 1;
+          const amount = (choice['amount'] as number) ?? 1;
+          if (from.length > 0) {
+            abilityBonusChoices.push({ from, count, amount });
+          }
+        }
+        continue;
+      }
       const fullName = ABILITY_ABBR_MAP[abbr];
       if (fullName && typeof val === 'number') {
         abilityBonuses[fullName] = val;
@@ -378,6 +424,8 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
     darkvision,
     languages,
     abilityBonuses,
+    abilityBonusChoices: abilityBonusChoices.length > 0 ? abilityBonusChoices : undefined,
+    abilityBonusWeightedChoices: abilityBonusWeightedChoices.length > 0 ? abilityBonusWeightedChoices : undefined,
     features,
   };
 }

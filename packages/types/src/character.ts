@@ -1,4 +1,4 @@
-import type { AbilityScoreSet } from './dnd5e/ability-scores.js';
+import type { AbilityScore, AbilityScoreSet } from './dnd5e/ability-scores.js';
 import type { Alignment } from './dnd5e/alignment.js';
 import type { ClassLevel, ClassSpellcasting } from './dnd5e/class-stack.js';
 import type { CharacterClass } from './dnd5e/classes.js';
@@ -44,8 +44,12 @@ export interface Character {
   proficiencyBonus: number;
   inspiration: boolean;
 
-  // Stats
+  // Stats — abilityScores is the BASE (point buy), effective scores are derived
   abilityScores: AbilityScoreSet;
+  raceAbilityBonuses?: Partial<Record<AbilityScore, number>>;
+  abilityScoreOverrides?: Partial<Record<AbilityScore, number>>;
+  /** Set to true once ability scores have been migrated to the layered system */
+  _abilityScoreLayered?: boolean;
   savingThrows: SavingThrows;
   skills: Record<SkillName, SkillEntry>;
 

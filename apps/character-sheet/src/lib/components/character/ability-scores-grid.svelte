@@ -11,7 +11,7 @@
     'intelligence', 'wisdom', 'charisma',
   ];
 
-  const { character } = $derived(characterStore);
+  const { character, effectiveAbilityScores } = $derived(characterStore);
 
   let assigning = $state(false);
 
@@ -41,7 +41,7 @@
   {:else}
     <div class="grid grid-cols-3 gap-2">
       {#each ABILITY_ORDER as ability}
-        <AbilityScoreCard {ability} scores={character.abilityScores} />
+        <AbilityScoreCard {ability} scores={effectiveAbilityScores} baseScores={character.abilityScores} />
       {/each}
     </div>
   {/if}

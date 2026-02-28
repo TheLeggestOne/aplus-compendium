@@ -1,4 +1,4 @@
-import type { Character, ClassLevel, ClassSpellcasting } from '@aplus-compendium/types';
+import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet } from '@aplus-compendium/types';
 import {
   abilityModifier,
   CLASS_HIT_DICE,
@@ -104,5 +104,46 @@ export function migrateToLevelStack(char: Character): Character {
     classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
     features,
     proficiencyBonus: proficiencyBonusForLevel(levelStack.length),
+  };
+}
+
+/**
+ * Migrates a character from the flat ability score system to the layered system.
+ *
+ * Previously, racial bonuses and ASI increases were applied directly to
+ * `abilityScores`. Now `abilityScores` stores only the BASE scores, and
+ * effective scores are derived from base + racial + ASIs + overrides.
+ *
+ * This migration subtracts known bonuses from the stored scores to recover
+ * the true base values.
+ */
+export function migrateAbilityScoreLayers(char: Character): Character {
+  if (char._abilityScoreLayered) return char;
+
+  const scores: AbilityScoreSet = { ...char.abilityScores };
+
+  // Subtract racial bonuses that were baked in
+  if (char.raceAbilityBonuses) {
+    for (const [ability, bonus] of Object.entries(char.raceAbilityBonuses) as [AbilityScore, number][]) {
+      scores[ability] -= bonus;
+    }
+  }
+
+  // Subtract ASI increases that were baked in from the level stack
+  if (char.levelStack) {
+    for (const lv of char.levelStack) {
+      if (lv.asiChoice?.type === 'asi') {
+        for (const [ability, increase] of Object.entries(lv.asiChoice.increases)) {
+          const key = ability as AbilityScore;
+          scores[key] -= increase ?? 0;
+        }
+      }
+    }
+  }
+
+  return {
+    ...char,
+    abilityScores: scores,
+    _abilityScoreLayered: true,
   };
 }

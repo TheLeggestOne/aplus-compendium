@@ -7,6 +7,7 @@
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+  import type { AbilityScore } from '@aplus-compendium/types';
   import {
     entryToSpell,
     entryToWeapon,
@@ -15,6 +16,8 @@
     entryToFeature,
     extractRaceData,
   } from '$lib/utils/compendium-to-character.js';
+  import type { RaceData } from '$lib/utils/compendium-to-character.js';
+  import RaceAsiChooser from './race-asi-chooser.svelte';
   import {
     extractHitDie,
     extractSavingThrows,
@@ -137,11 +140,32 @@
   const isRace = $derived(entry.contentType === 'race');
   const raceData = $derived(isRace ? extractRaceData(entry) : null);
 
+  const raceHasChoices = $derived(
+    raceData
+      ? (raceData.abilityBonusChoices && raceData.abilityBonusChoices.length > 0) ||
+        (raceData.abilityBonusWeightedChoices && raceData.abilityBonusWeightedChoices.length > 0)
+      : false,
+  );
+
+  // Whether the ASI chooser is visible (for base race or subrace)
+  let showAsiChooser = $state(false);
+  let asiChooserTarget = $state<'base' | 'subrace'>('base');
+
   const asiSummary = $derived(() => {
     if (!raceData) return '';
-    return Object.entries(raceData.abilityBonuses)
-      .map(([ability, bonus]) => `+${bonus} ${ability.slice(0, 3).toUpperCase()}`)
-      .join(', ');
+    const parts = Object.entries(raceData.abilityBonuses)
+      .map(([ability, bonus]) => `+${bonus} ${ability.slice(0, 3).toUpperCase()}`);
+    if (raceData.abilityBonusChoices) {
+      for (const choice of raceData.abilityBonusChoices) {
+        parts.push(`choose ${choice.count} for +${choice.amount}`);
+      }
+    }
+    if (raceData.abilityBonusWeightedChoices) {
+      for (const wc of raceData.abilityBonusWeightedChoices) {
+        parts.push(`choose ${wc.weights.map(w => `+${w}`).join('/')}`);
+      }
+    }
+    return parts.join(', ');
   });
 
   // Subraces — fetched when a base race is expanded
@@ -152,11 +176,12 @@
   let loadingSubraceEntry = $state(false);
 
   $effect(() => {
-    // Reset subrace state when entry changes
+    // Reset subrace & chooser state when entry changes
     subraces = [];
     subracesFetched = false;
     expandedSubraceId = null;
     expandedSubraceEntry = null;
+    showAsiChooser = false;
 
     // Fetch subraces for base races
     if (isRace && !entry.subraceOf) {
@@ -199,6 +224,11 @@
 
   function setAsRace() {
     if (!raceData) return;
+    if (raceHasChoices) {
+      asiChooserTarget = 'base';
+      showAsiChooser = true;
+      return;
+    }
     characterStore.setRace(raceData);
     flash('Race set!');
   }
@@ -206,7 +236,25 @@
   function setSubraceAsRace() {
     if (!expandedSubraceEntry) return;
     const data = extractRaceData(expandedSubraceEntry);
+    const hasChoices =
+      (data.abilityBonusChoices && data.abilityBonusChoices.length > 0) ||
+      (data.abilityBonusWeightedChoices && data.abilityBonusWeightedChoices.length > 0);
+    if (hasChoices) {
+      asiChooserTarget = 'subrace';
+      showAsiChooser = true;
+      return;
+    }
     characterStore.setRace(data);
+    flash('Race set!');
+  }
+
+  function confirmRaceWithBonuses(resolved: Partial<Record<AbilityScore, number>>) {
+    const data = asiChooserTarget === 'subrace' && expandedSubraceEntry
+      ? extractRaceData(expandedSubraceEntry)
+      : raceData;
+    if (!data) return;
+    characterStore.setRace(data, resolved);
+    showAsiChooser = false;
     flash('Race set!');
   }
 
@@ -430,9 +478,10 @@
                   </div>
                 {:else if expandedSubraceEntry}
                   {@const subRaceData = extractRaceData(expandedSubraceEntry)}
+                  {@const subHasAsi = Object.keys(subRaceData.abilityBonuses).length > 0 || !!subRaceData.abilityBonusChoices || !!subRaceData.abilityBonusWeightedChoices}
                   <div class="px-3 py-2 space-y-2">
                     <!-- Subrace stat block -->
-                    {#if subRaceData.speed !== raceData?.speed || subRaceData.darkvision || Object.keys(subRaceData.abilityBonuses).length > 0}
+                    {#if subRaceData.speed !== raceData?.speed || subRaceData.darkvision || subHasAsi}
                       <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                         {#if subRaceData.speed !== raceData?.speed}
                           <div class="text-muted-foreground">Speed</div>
@@ -442,9 +491,17 @@
                           <div class="text-muted-foreground">Darkvision</div>
                           <div>{subRaceData.darkvision} ft.</div>
                         {/if}
-                        {#if Object.keys(subRaceData.abilityBonuses).length > 0}
+                        {#if subHasAsi}
                           <div class="text-muted-foreground">ASI</div>
-                          <div>{Object.entries(subRaceData.abilityBonuses).map(([a, b]) => `+${b} ${a.slice(0, 3).toUpperCase()}`).join(', ')}</div>
+                          <div>
+                            {Object.entries(subRaceData.abilityBonuses).map(([a, b]) => `+${b} ${a.slice(0, 3).toUpperCase()}`).join(', ')}
+                            {#if subRaceData.abilityBonusChoices}
+                              {Object.keys(subRaceData.abilityBonuses).length > 0 ? ', ' : ''}{subRaceData.abilityBonusChoices.map(c => `choose ${c.count} for +${c.amount}`).join(', ')}
+                            {/if}
+                            {#if subRaceData.abilityBonusWeightedChoices}
+                              {Object.keys(subRaceData.abilityBonuses).length > 0 || subRaceData.abilityBonusChoices ? ', ' : ''}{subRaceData.abilityBonusWeightedChoices.map(wc => `choose ${wc.weights.map(w => `+${w}`).join('/')}`).join(', ')}
+                            {/if}
+                          </div>
                         {/if}
                       </div>
                     {/if}
@@ -454,12 +511,22 @@
                       <EntryRenderer entries={expandedSubraceEntry.raw['entries'] as unknown[]} />
                     {/if}
 
-                    <!-- Set as Race button for subrace -->
-                    <div class="flex items-center gap-2 pt-1">
-                      <Button size="sm" class="h-7 text-xs flex-1" onclick={setSubraceAsRace} disabled={!!addedLabel}>
-                        {addedLabel ?? 'Set as Race'}
-                      </Button>
-                    </div>
+                    <!-- Set as Race for subrace -->
+                    {#if showAsiChooser && asiChooserTarget === 'subrace'}
+                      <RaceAsiChooser
+                        fixedBonuses={subRaceData.abilityBonuses}
+                        choices={subRaceData.abilityBonusChoices}
+                        weightedChoices={subRaceData.abilityBonusWeightedChoices}
+                        onconfirm={confirmRaceWithBonuses}
+                        oncancel={() => { showAsiChooser = false; }}
+                      />
+                    {:else}
+                      <div class="flex items-center gap-2 pt-1">
+                        <Button size="sm" class="h-7 text-xs flex-1" onclick={setSubraceAsRace} disabled={!!addedLabel}>
+                          {addedLabel ?? 'Set as Race'}
+                        </Button>
+                      </div>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -480,15 +547,26 @@
     <Separator />
   {/if}
 
-  <!-- Set as Race button (for base races without subraces, or subraces shown in search) -->
+  <!-- Set as Race (for base races without subraces, or subraces shown in search) -->
   {#if isRace}
     {#if entry.subraceOf || (subracesFetched && subraces.length === 0)}
-      <div class="flex items-center gap-2 pt-1">
-        <Button size="sm" class="h-7 text-xs flex-1" onclick={setAsRace} disabled={!!addedLabel}>
-          {addedLabel ?? 'Set as Race'}
-        </Button>
-      </div>
-      <Separator />
+      {#if showAsiChooser && asiChooserTarget === 'base' && raceData}
+        <RaceAsiChooser
+          fixedBonuses={raceData.abilityBonuses}
+          choices={raceData.abilityBonusChoices}
+          weightedChoices={raceData.abilityBonusWeightedChoices}
+          onconfirm={confirmRaceWithBonuses}
+          oncancel={() => { showAsiChooser = false; }}
+        />
+        <Separator />
+      {:else}
+        <div class="flex items-center gap-2 pt-1">
+          <Button size="sm" class="h-7 text-xs flex-1" onclick={setAsRace} disabled={!!addedLabel}>
+            {addedLabel ?? 'Set as Race'}
+          </Button>
+        </div>
+        <Separator />
+      {/if}
     {/if}
   {/if}
 

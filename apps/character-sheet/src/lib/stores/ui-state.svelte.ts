@@ -3,6 +3,7 @@ export type CharacterSheetTab =
   | 'combat'
   | 'spellcasting'
   | 'features-equipment'
+  | 'progression'
   | 'details';
 
 const ACTIVE_CHAR_KEY = 'aplus:activeCharacterId';

@@ -15,6 +15,7 @@
   import EquipmentList from '$lib/components/character/equipment-list.svelte';
   import CurrencyDisplay from '$lib/components/character/currency-display.svelte';
   import CharacterDetails from '$lib/components/character/character-details.svelte';
+  import ProgressionTab from '$lib/components/character/progression-tab.svelte';
   import CompendiumPanel from '$lib/components/compendium/compendium-panel.svelte';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { uiStore } from '$lib/stores/ui-state.svelte.js';
@@ -79,6 +80,7 @@
         Spellcasting{character.spellcasting ? '' : ' ✕'}
       </Tabs.Trigger>
       <Tabs.Trigger value="features-equipment">Features</Tabs.Trigger>
+      <Tabs.Trigger value="progression">Progression</Tabs.Trigger>
       <Tabs.Trigger value="details">Details</Tabs.Trigger>
     </Tabs.List>
 
@@ -134,6 +136,11 @@
             <CurrencyDisplay currency={character.currency} />
           </div>
         </div>
+      </Tabs.Content>
+
+      <!-- Progression -->
+      <Tabs.Content value="progression" class="p-4">
+        <ProgressionTab />
       </Tabs.Content>
 
       <!-- Details -->

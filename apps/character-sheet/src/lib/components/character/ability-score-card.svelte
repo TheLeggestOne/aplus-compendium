@@ -16,15 +16,21 @@
   interface Props {
     ability: AbilityScore;
     scores: AbilityScoreSet;
+    baseScores?: AbilityScoreSet;
   }
 
-  let { ability, scores }: Props = $props();
+  let { ability, scores, baseScores }: Props = $props();
 
   const score = $derived(scores[ability]);
+  const base = $derived(baseScores ? baseScores[ability] : score);
   const mod = $derived(abilityModifier(score));
+  const hasBonuses = $derived(score !== base);
 </script>
 
-<div class="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-3 gap-1 min-w-[76px]">
+<div class={cn(
+  "flex flex-col items-center justify-center rounded-lg border bg-card p-3 gap-1 min-w-[76px]",
+  hasBonuses ? 'border-primary/40' : 'border-border',
+)}>
   <span class="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
     {ABILITY_LABELS[ability]}
   </span>
@@ -38,5 +44,7 @@
       'text-destructive'
     )}
   />
-  <span class="text-xs text-muted-foreground tabular-nums">{score}</span>
+  <span class="text-xs tabular-nums {hasBonuses ? 'text-primary/80' : 'text-muted-foreground'}">
+    {score}{#if hasBonuses}<span class="text-muted-foreground/50 text-[10px] ml-0.5">({base})</span>{/if}
+  </span>
 </div>

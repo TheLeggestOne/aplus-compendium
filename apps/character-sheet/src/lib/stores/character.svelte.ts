@@ -9,6 +9,7 @@ import {
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
+import { migrateAbilityScoreLayers } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,14 @@ function deriveHitDicePools(stack: ClassLevel[], existingPools: HitDicePool[]): 
 }
 
 // ---------------------------------------------------------------------------
+// Ability score layer constants
+// ---------------------------------------------------------------------------
+
+const ABILITY_KEYS: AbilityScore[] = [
+  'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
+];
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -90,7 +99,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = structuredClone(newChar);
+    character = migrateAbilityScoreLayers(structuredClone(newChar));
   }
 
   // --- Derived values ---
@@ -99,13 +108,42 @@ function createCharacterStore(initial: Character) {
     character.classes.reduce((sum, c) => sum + c.level, 0),
   );
 
+  // --- Layered ability scores ---
+  // Base (point buy) + racial bonuses + ASI increases, with item overrides
+  const effectiveAbilityScores = $derived.by((): AbilityScoreSet => {
+    const base = character.abilityScores;
+    const racial = character.raceAbilityBonuses ?? {};
+    const overrides = character.abilityScoreOverrides ?? {};
+
+    // Sum ASI increases from level stack
+    const asiTotals: Partial<Record<AbilityScore, number>> = {};
+    if (character.levelStack) {
+      for (const lv of character.levelStack) {
+        if (lv.asiChoice?.type === 'asi') {
+          for (const [ability, increase] of Object.entries(lv.asiChoice.increases)) {
+            const key = ability as AbilityScore;
+            asiTotals[key] = (asiTotals[key] ?? 0) + (increase ?? 0);
+          }
+        }
+      }
+    }
+
+    // Build effective scores
+    const result = { ...base };
+    for (const ability of ABILITY_KEYS) {
+      const computed = base[ability] + (racial[ability] ?? 0) + (asiTotals[ability] ?? 0);
+      result[ability] = overrides[ability] ?? computed;
+    }
+    return result;
+  });
+
   const abilityModifiers = $derived({
-    strength:     abilityModifier(character.abilityScores.strength),
-    dexterity:    abilityModifier(character.abilityScores.dexterity),
-    constitution: abilityModifier(character.abilityScores.constitution),
-    intelligence: abilityModifier(character.abilityScores.intelligence),
-    wisdom:       abilityModifier(character.abilityScores.wisdom),
-    charisma:     abilityModifier(character.abilityScores.charisma),
+    strength:     abilityModifier(effectiveAbilityScores.strength),
+    dexterity:    abilityModifier(effectiveAbilityScores.dexterity),
+    constitution: abilityModifier(effectiveAbilityScores.constitution),
+    intelligence: abilityModifier(effectiveAbilityScores.intelligence),
+    wisdom:       abilityModifier(effectiveAbilityScores.wisdom),
+    charisma:     abilityModifier(effectiveAbilityScores.charisma),
   });
 
   const passivePerception = $derived(
@@ -118,7 +156,7 @@ function createCharacterStore(initial: Character) {
       .join(' / '),
   );
 
-  const carryCapacity = $derived(character.abilityScores.strength * 15);
+  const carryCapacity = $derived(effectiveAbilityScores.strength * 15);
 
   const currentCarryWeight = $derived(() => {
     const weaponWeight = character.weapons.reduce((sum, w) => sum + w.weight * w.quantity, 0);
@@ -189,9 +227,12 @@ function createCharacterStore(initial: Character) {
     return stack.reduce((sum, lv) => sum + lv.hpGained, 0);
   });
 
-  // --- Level stack helper (needs access to character state) ---
+  // --- Recalculate skills/saves from effective scores ---
 
-  function recalculateSkillsAndSaves(profBonus: number, scores: AbilityScoreSet): void {
+  function recalculateSkillsAndSaves(): void {
+    const scores = effectiveAbilityScores;
+    const profBonus = character.proficiencyBonus;
+
     const skills = {} as Record<SkillName, SkillEntry>;
     for (const [name, entry] of Object.entries(character.skills) as [SkillName, SkillEntry][]) {
       const ability = SKILL_ABILITY_MAP[name];
@@ -206,9 +247,7 @@ function createCharacterStore(initial: Character) {
     }
 
     const savingThrows = { ...character.savingThrows };
-    for (const ability of [
-      'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
-    ] as AbilityScore[]) {
+    for (const ability of ABILITY_KEYS) {
       const entry = savingThrows[ability];
       const mod = abilityModifier(scores[ability]);
       savingThrows[ability] = { ...entry, modifier: mod + (entry.proficient ? profBonus : 0) };
@@ -376,43 +415,28 @@ function createCharacterStore(initial: Character) {
   }
 
   function setAbilityScores(scores: AbilityScoreSet): void {
-    const profBonus = character.proficiencyBonus;
-
-    // Recalculate skill modifiers
-    const skills = {} as Record<SkillName, SkillEntry>;
-    for (const [name, entry] of Object.entries(character.skills) as [SkillName, SkillEntry][]) {
-      const ability = SKILL_ABILITY_MAP[name];
-      const mod = abilityModifier(scores[ability]);
-      const prof = entry.proficiency === 'expertise' ? profBonus * 2
-                 : entry.proficiency === 'proficient' ? profBonus : 0;
-      skills[name] = { ...entry, modifier: mod + prof };
-    }
-
-    // Recalculate saving throw modifiers
-    const savingThrows = { ...character.savingThrows };
-    for (const ability of ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as AbilityScore[]) {
-      const entry = savingThrows[ability];
-      const mod = abilityModifier(scores[ability]);
-      savingThrows[ability] = { ...entry, modifier: mod + (entry.proficient ? profBonus : 0) };
-    }
-
-    character = {
-      ...character,
-      abilityScores: { ...scores },
-      skills,
-      savingThrows,
-      combat: { ...character.combat, initiative: abilityModifier(scores.dexterity) },
-    };
+    character = { ...character, abilityScores: { ...scores } };
+    // effectiveAbilityScores updates reactively, then recalculate downstream
+    recalculateSkillsAndSaves();
     queueSave();
   }
 
-  function setRace(data: RaceData): void {
+  function setRace(data: RaceData, resolvedBonuses?: Partial<Record<AbilityScore, number>>): void {
     // Replace old racial features with new ones
     const features = [
       ...character.features.filter((f) => f.sourceType !== 'race'),
       ...data.features,
     ];
 
+    // Combine fixed bonuses with any resolved choices
+    const newBonuses: Partial<Record<AbilityScore, number>> = { ...data.abilityBonuses };
+    if (resolvedBonuses) {
+      for (const [ability, bonus] of Object.entries(resolvedBonuses) as [AbilityScore, number][]) {
+        newBonuses[ability] = (newBonuses[ability] ?? 0) + bonus;
+      }
+    }
+
+    // Store racial bonuses — effectiveAbilityScores derives the total
     character = {
       ...character,
       race: data.isSubrace ? (data.parentRace ?? data.name) : data.name,
@@ -421,7 +445,10 @@ function createCharacterStore(initial: Character) {
       combat: { ...character.combat, speed: data.speed },
       languages: data.languages.length > 0 ? data.languages : character.languages,
       features,
+      raceAbilityBonuses: Object.keys(newBonuses).length > 0 ? newBonuses : undefined,
     };
+
+    recalculateSkillsAndSaves();
     queueSave();
   }
 
@@ -530,15 +557,7 @@ function createCharacterStore(initial: Character) {
       sourceClassLevel: newClassLevel,
     }));
 
-    // Apply ASI if chosen
-    let abilityScores = character.abilityScores;
-    if (params.asiChoice?.type === 'asi') {
-      abilityScores = { ...abilityScores };
-      for (const [ability, increase] of Object.entries(params.asiChoice.increases)) {
-        const key = ability as AbilityScore;
-        abilityScores[key] = Math.min(20, abilityScores[key] + (increase ?? 0));
-      }
-    }
+    // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
 
     const updatedStack = [...stack, newLevel];
     const updatedClasses = deriveClassesSummary(updatedStack);
@@ -550,7 +569,6 @@ function createCharacterStore(initial: Character) {
       classes: updatedClasses,
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
-      abilityScores,
       features: [...character.features, ...newFeatures],
       combat: {
         ...character.combat,
@@ -559,7 +577,7 @@ function createCharacterStore(initial: Character) {
       },
     };
 
-    recalculateSkillsAndSaves(newProfBonus, abilityScores);
+    recalculateSkillsAndSaves();
     queueSave();
   }
 
@@ -574,15 +592,7 @@ function createCharacterStore(initial: Character) {
     const removedFeatureIds = new Set(removed.featureIds);
     const features = character.features.filter((f) => !removedFeatureIds.has(f.id));
 
-    // Revert ASI if one was chosen
-    let abilityScores = character.abilityScores;
-    if (removed.asiChoice?.type === 'asi') {
-      abilityScores = { ...abilityScores };
-      for (const [ability, increase] of Object.entries(removed.asiChoice.increases)) {
-        const key = ability as AbilityScore;
-        abilityScores[key] = abilityScores[key] - (increase ?? 0);
-      }
-    }
+    // ASI revert is automatic — effectiveAbilityScores derives from the remaining stack
 
     // If we removed the last level of a caster class, remove its ClassSpellcasting entry
     const remainingClassLevels = newStack.filter((lv) => lv.class === removed.class).length;
@@ -631,7 +641,6 @@ function createCharacterStore(initial: Character) {
       classes: updatedClasses,
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
-      abilityScores,
       features,
       combat: {
         ...character.combat,
@@ -640,7 +649,7 @@ function createCharacterStore(initial: Character) {
       },
     };
 
-    recalculateSkillsAndSaves(newProfBonus, abilityScores);
+    recalculateSkillsAndSaves();
     queueSave();
   }
 
@@ -705,6 +714,7 @@ function createCharacterStore(initial: Character) {
     get abilityModifiers() { return abilityModifiers; },
     get passivePerception() { return passivePerception; },
     get classString() { return classString; },
+    get effectiveAbilityScores() { return effectiveAbilityScores; },
     get carryCapacity() { return carryCapacity; },
     get currentCarryWeight() { return currentCarryWeight(); },
     get xpProgress() { return xpProgress(); },
