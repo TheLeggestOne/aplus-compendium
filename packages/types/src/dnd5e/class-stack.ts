@@ -38,8 +38,9 @@ export interface ClassLevel {
   /** ASI or feat choice, if this class level grants one (typically 4, 8, 12, 16, 19) */
   asiChoice?: AsiChoice;
 
-  /** HP gained at this level. Level 1 = hit die max + CON mod. Later = rolled/average + CON mod. */
-  hpGained: number;
+  /** Raw die result (no CON mod). Level 1 = hit die max. Later = rolled or average value.
+   *  Effective HP per level = max(1, hpRoll + CON mod), computed at display/total time. */
+  hpRoll: number;
 
   /** Feature IDs gained at this level (references character.features[].id) */
   featureIds: string[];

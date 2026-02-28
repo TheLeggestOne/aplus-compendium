@@ -5,9 +5,7 @@
   const { character, classString } = $derived(characterStore);
 
   const raceDisplay = $derived(
-    character.race
-      ? (character.subrace ? `${character.subrace} ${character.race}` : character.race)
-      : '',
+    character.subrace ?? character.race ?? '',
   );
 </script>
 

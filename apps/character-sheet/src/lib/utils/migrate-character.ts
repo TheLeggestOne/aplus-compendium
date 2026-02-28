@@ -20,7 +20,6 @@ export function migrateToLevelStack(char: Character): Character {
 
   const levelStack: ClassLevel[] = [];
   const classSpellcasting: ClassSpellcasting[] = [];
-  const conMod = abilityModifier(char.abilityScores.constitution);
 
   for (const cls of char.classes) {
     const hitDie = CLASS_HIT_DICE[cls.class];
@@ -28,11 +27,11 @@ export function migrateToLevelStack(char: Character): Character {
     const subclassLevel = CLASS_SUBCLASS_LEVEL[cls.class];
 
     for (let lvl = 1; lvl <= cls.level; lvl++) {
-      // Level 1 = max die + CON mod, later levels = average + CON mod
-      const hpGained =
+      // Level 1 = max die, later levels = average (CON mod applied at compute time)
+      const hpRoll =
         lvl === 1
-          ? hitDieMax + conMod
-          : Math.floor(hitDieMax / 2) + 1 + conMod;
+          ? hitDieMax
+          : Math.floor(hitDieMax / 2) + 1;
 
       // Match existing features to this class level using the source string
       // Features follow the pattern "Paladin 1", "Oath of Devotion 3", etc.
@@ -52,7 +51,7 @@ export function migrateToLevelStack(char: Character): Character {
         class: cls.class,
         hitDie,
         classLevel: lvl,
-        hpGained,
+        hpRoll,
         featureIds,
         subclassChoice:
           lvl === subclassLevel && cls.subclass ? cls.subclass : undefined,
@@ -146,4 +145,35 @@ export function migrateAbilityScoreLayers(char: Character): Character {
     abilityScores: scores,
     _abilityScoreLayered: true,
   };
+}
+
+/**
+ * Migrates level stack entries from `hpGained` (die + CON) to `hpRoll` (die only).
+ *
+ * Old format stored `hpGained = dieRoll + conMod` as a baked-in value.
+ * New format stores only the die result; CON mod is applied at compute time
+ * so HP adjusts retroactively when CON changes (5e rule).
+ *
+ * Detection: if a level entry has `hpGained` but no `hpRoll`, it's legacy.
+ */
+export function migrateHpRoll(char: Character): Character {
+  if (!char.levelStack || char.levelStack.length === 0) return char;
+
+  // Check if migration is needed — look for legacy `hpGained` field
+  const first = char.levelStack[0] as unknown as Record<string, unknown>;
+  if (first.hpRoll !== undefined) return char; // already migrated
+
+  const conMod = abilityModifier(char.abilityScores.constitution);
+
+  const levelStack = char.levelStack.map((lv) => {
+    const legacy = lv as unknown as Record<string, unknown>;
+    const hpGained = (legacy.hpGained as number) ?? 0;
+    const hpRoll = hpGained - conMod;
+
+    // Build clean entry without the old hpGained field
+    const { hpGained: _removed, ...rest } = legacy;
+    return { ...rest, hpRoll } as unknown as ClassLevel;
+  });
+
+  return { ...char, levelStack };
 }

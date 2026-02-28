@@ -87,7 +87,7 @@
           <h2 class="text-sm font-semibold">{character.name}</h2>
           <p class="mt-0.5 text-xs text-muted-foreground">
             {#if character.race}
-              {character.race}{character.subrace ? ` (${character.subrace})` : ''}
+              {character.subrace ?? character.race}
               {' — '}
             {/if}
             {classString(character) || 'No class'}

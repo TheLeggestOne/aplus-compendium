@@ -9,7 +9,7 @@ import {
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
-import { migrateAbilityScoreLayers } from '$lib/utils/migrate-character.js';
+import { migrateAbilityScoreLayers, migrateHpRoll } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = migrateAbilityScoreLayers(structuredClone(newChar));
+    character = migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar)));
   }
 
   // --- Derived values ---
@@ -221,10 +221,11 @@ function createCharacterStore(initial: Character) {
     return slots;
   });
 
-  const derivedMaxHp = $derived(() => {
+  const derivedMaxHp = $derived.by(() => {
     const stack = character.levelStack;
     if (!stack || stack.length === 0) return character.combat.maxHitPoints;
-    return stack.reduce((sum, lv) => sum + lv.hpGained, 0);
+    const conMod = abilityModifier(effectiveAbilityScores.constitution);
+    return stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
   });
 
   // --- Recalculate skills/saves from effective scores ---
@@ -258,6 +259,27 @@ function createCharacterStore(initial: Character) {
       skills,
       savingThrows,
       combat: { ...character.combat, initiative: abilityModifier(scores.dexterity) },
+    };
+  }
+
+  /**
+   * Recompute max HP from the level stack using current effective CON mod.
+   * Adjusts current HP by the same delta (5e rule: CON changes are retroactive).
+   */
+  function recomputeHp(): void {
+    const stack = character.levelStack;
+    if (!stack || stack.length === 0) return;
+    const conMod = abilityModifier(effectiveAbilityScores.constitution);
+    const newMax = stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+    const oldMax = character.combat.maxHitPoints;
+    const delta = newMax - oldMax;
+    character = {
+      ...character,
+      combat: {
+        ...character.combat,
+        maxHitPoints: newMax,
+        currentHitPoints: Math.max(0, Math.min(newMax, character.combat.currentHitPoints + delta)),
+      },
     };
   }
 
@@ -418,6 +440,7 @@ function createCharacterStore(initial: Character) {
     character = { ...character, abilityScores: { ...scores } };
     // effectiveAbilityScores updates reactively, then recalculate downstream
     recalculateSkillsAndSaves();
+    recomputeHp();
     queueSave();
   }
 
@@ -449,6 +472,7 @@ function createCharacterStore(initial: Character) {
     };
 
     recalculateSkillsAndSaves();
+    recomputeHp();
     queueSave();
   }
 
@@ -459,7 +483,7 @@ function createCharacterStore(initial: Character) {
     const slots = character.spellcasting?.slots.map((s) => ({ ...s, used: 0 }));
     const hitDicePools = character.combat.hitDicePools.map((p) => ({
       ...p,
-      used: Math.max(0, p.used - Math.floor(p.total / 2)),
+      used: Math.max(0, p.used - Math.max(1, Math.floor(p.total / 2))),
     }));
     character = {
       ...character,
@@ -483,7 +507,7 @@ function createCharacterStore(initial: Character) {
 
   function addClassLevel(params: {
     class: DndClass;
-    hpGained: number;
+    hpRoll: number;
     subclassChoice?: string;
     asiChoice?: AsiChoice;
     features?: Feature[];
@@ -500,7 +524,7 @@ function createCharacterStore(initial: Character) {
       class: params.class,
       hitDie,
       classLevel: newClassLevel,
-      hpGained: params.hpGained,
+      hpRoll: params.hpRoll,
       featureIds: (params.features ?? []).map((f) => f.id),
       subclassChoice: params.subclassChoice,
       asiChoice: params.asiChoice,
@@ -572,12 +596,12 @@ function createCharacterStore(initial: Character) {
       features: [...character.features, ...newFeatures],
       combat: {
         ...character.combat,
-        maxHitPoints: updatedStack.reduce((sum, lv) => sum + lv.hpGained, 0),
         hitDicePools: deriveHitDicePools(updatedStack, character.combat.hitDicePools),
       },
     };
 
     recalculateSkillsAndSaves();
+    recomputeHp();
     queueSave();
   }
 
@@ -644,12 +668,12 @@ function createCharacterStore(initial: Character) {
       features,
       combat: {
         ...character.combat,
-        maxHitPoints: newStack.reduce((sum, lv) => sum + lv.hpGained, 0),
         hitDicePools: deriveHitDicePools(newStack, character.combat.hitDicePools),
       },
     };
 
     recalculateSkillsAndSaves();
+    recomputeHp();
     queueSave();
   }
 
@@ -725,7 +749,7 @@ function createCharacterStore(initial: Character) {
     get hasLevelStack() { return hasLevelStack; },
     get derivedProficiencyBonus() { return derivedProficiencyBonus; },
     get derivedSpellSlots() { return derivedSpellSlots(); },
-    get derivedMaxHp() { return derivedMaxHp(); },
+    get derivedMaxHp() { return derivedMaxHp; },
     // Existing mutations
     reinit,
     setAbilityScores,

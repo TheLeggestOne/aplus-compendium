@@ -49,7 +49,7 @@
   // Collected data
   let selectedClass = $state<DndClass | null>(null);
   let newClassLevel = $state(0);
-  let hpGained = $state(0);
+  let hpRoll = $state(0);
   let hpMethod = $state<'max' | 'average' | 'roll' | 'custom'>('average');
   let subclassChoice = $state<string | undefined>(undefined);
   let asiChoice = $state<AsiChoice | undefined>(undefined);
@@ -85,6 +85,7 @@
   const { character, totalLevel, abilityModifiers } = $derived(characterStore);
   const stack = $derived(character.levelStack ?? []);
   const conMod = $derived(abilityModifiers.constitution);
+  const hpGained = $derived(Math.max(1, hpRoll + conMod));
 
   const currentClasses = $derived.by(() => {
     const map = new Map<DndClass, number>();
@@ -133,7 +134,7 @@
   const canAdvance = $derived.by(() => {
     switch (currentStep) {
       case 'class': return selectedClass !== null;
-      case 'hp': return hpGained > 0;
+      case 'hp': return hpRoll > 0;
       case 'subclass': return !!subclassChoice;
       case 'asi': return !!asiChoice;
       case 'spells': return true; // spells are optional
@@ -150,7 +151,7 @@
     currentStep = 'class';
     selectedClass = null;
     newClassLevel = 0;
-    hpGained = 0;
+    hpRoll = 0;
     hpMethod = 'average';
     subclassChoice = undefined;
     asiChoice = undefined;
@@ -216,18 +217,16 @@
     const die = CLASS_HIT_DICE[selectedClass];
     const max = DIE_MAX[die] ?? 8;
 
-    // First ever level = max + CON mod
+    // First ever level = max die
     if (stack.length === 0 && newClassLevel === 1) {
       hpMethod = 'max';
-      hpGained = max + conMod;
+      hpRoll = max;
       return;
     }
 
-    // Default to average
+    // Default to average: (die_max / 2) + 1 for d6=4, d8=5, d10=6, d12=7
     hpMethod = 'average';
-    hpGained = Math.ceil(max / 2) + 1 + conMod; // 5e average = ceil(die/2) + 1? No, average = (max/2)+1 for even dice
-    // Actually 5e average is (die_max / 2) + 1 for d6=4, d8=5, d10=6, d12=7
-    hpGained = Math.floor(max / 2) + 1 + conMod;
+    hpRoll = Math.floor(max / 2) + 1;
   }
 
   function rollHp() {
@@ -236,7 +235,7 @@
     const max = DIE_MAX[die] ?? 8;
     const roll = Math.floor(Math.random() * max) + 1;
     hpMethod = 'roll';
-    hpGained = roll + conMod;
+    hpRoll = roll;
   }
 
   // ---- Step: Subclass ----
@@ -389,7 +388,7 @@
 
     characterStore.addClassLevel({
       class: selectedClass,
-      hpGained,
+      hpRoll,
       subclassChoice,
       asiChoice,
       cantripsGained: cantripsGained.length > 0 ? cantripsGained : undefined,
@@ -476,8 +475,8 @@
 
           {#if isFirstLevel}
             <div class="rounded-md border border-border p-3 bg-muted/20">
-              <p class="text-sm">First level: maximum hit die ({dieMax}) + CON modifier ({conMod})</p>
-              <p class="text-lg font-bold mt-1">HP: {dieMax + conMod}</p>
+              <p class="text-sm">First level: maximum hit die ({dieMax}) + CON modifier ({conMod >= 0 ? `+${conMod}` : conMod})</p>
+              <p class="text-lg font-bold mt-1">HP: {hpGained}</p>
             </div>
           {:else}
             <div class="flex gap-2">
@@ -485,9 +484,9 @@
                 variant={hpMethod === 'average' ? 'default' : 'outline'}
                 size="sm"
                 class="flex-1 text-xs"
-                onclick={() => { hpMethod = 'average'; hpGained = avg + conMod; }}
+                onclick={() => { hpMethod = 'average'; hpRoll = avg; }}
               >
-                Average ({avg} + {conMod} = {avg + conMod})
+                Average ({avg} + {conMod >= 0 ? `+${conMod}` : conMod} = {Math.max(1, avg + conMod)})
               </Button>
               <Button
                 variant={hpMethod === 'roll' ? 'default' : 'outline'}
@@ -501,13 +500,14 @@
             </div>
 
             <div class="flex items-center gap-3">
-              <span class="text-xs text-muted-foreground">Custom:</span>
+              <span class="text-xs text-muted-foreground">Custom roll:</span>
               <Input
                 type="number"
                 class="w-20 h-8 text-sm"
-                value={hpGained}
-                oninput={(e: Event) => { hpGained = parseInt((e.target as HTMLInputElement).value) || 0; hpMethod = 'custom'; }}
+                value={hpRoll}
+                oninput={(e: Event) => { hpRoll = parseInt((e.target as HTMLInputElement).value) || 0; hpMethod = 'custom'; }}
               />
+              <span class="text-xs text-muted-foreground">+ {conMod >= 0 ? `+${conMod}` : conMod} CON = {hpGained}</span>
             </div>
           {/if}
 

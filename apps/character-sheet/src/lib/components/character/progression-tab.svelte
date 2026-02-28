@@ -7,7 +7,8 @@
   import Undo2Icon from '@lucide/svelte/icons/undo-2';
   import LevelUpDialog from './level-up-dialog.svelte';
 
-  const { character, totalLevel } = $derived(characterStore);
+  const { character, totalLevel, abilityModifiers } = $derived(characterStore);
+  const conMod = $derived(abilityModifiers.constitution);
   const stack = $derived(character.levelStack ?? []);
 
   let levelUpOpen = $state(false);
@@ -92,7 +93,7 @@
               </span>
               <span class="text-sm font-medium capitalize">{level.class}</span>
               <span class="text-xs text-muted-foreground">{level.classLevel}</span>
-              <span class="text-xs text-muted-foreground/60">+{level.hpGained} HP</span>
+              <span class="text-xs text-muted-foreground/60">+{Math.max(1, level.hpRoll + conMod)} HP</span>
             </div>
 
             <!-- Badges for notable events -->

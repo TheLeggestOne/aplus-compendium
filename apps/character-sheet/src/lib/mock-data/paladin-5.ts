@@ -330,21 +330,21 @@ export const mockPaladinAerindel: Character = {
       class: 'paladin',
       hitDie: 'd10',
       classLevel: 1,
-      hpGained: 12, // 10 (max d10) + 2 (CON mod)
+      hpRoll: 10, // max d10 (CON mod added at compute time)
       featureIds: ['divine-sense', 'lay-on-hands'],
     },
     {
       class: 'paladin',
       hitDie: 'd10',
       classLevel: 2,
-      hpGained: 8, // 6 (avg d10) + 2 (CON mod)
+      hpRoll: 6, // avg d10 (CON mod added at compute time)
       featureIds: ['divine-smite'],
     },
     {
       class: 'paladin',
       hitDie: 'd10',
       classLevel: 3,
-      hpGained: 8,
+      hpRoll: 6,
       featureIds: ['channel-divinity-sacred-weapon', 'channel-divinity-turn-unholy'],
       subclassChoice: 'Oath of Devotion',
     },
@@ -352,7 +352,7 @@ export const mockPaladinAerindel: Character = {
       class: 'paladin',
       hitDie: 'd10',
       classLevel: 4,
-      hpGained: 8,
+      hpRoll: 6,
       featureIds: [],
       asiChoice: { type: 'asi', increases: { strength: 2 } },
     },
@@ -360,7 +360,7 @@ export const mockPaladinAerindel: Character = {
       class: 'paladin',
       hitDie: 'd10',
       classLevel: 5,
-      hpGained: 8,
+      hpRoll: 6,
       featureIds: ['extra-attack'],
     },
   ],
