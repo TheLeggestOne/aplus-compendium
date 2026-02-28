@@ -720,7 +720,8 @@ export function searchCompendium(
   query: string,
   contentType: CompendiumContentType,
   filters: CompendiumSearchFilters,
-  limit = 100,
+  limit = 50,
+  offset = 0,
 ): CompendiumSearchResult[] {
   const d = db();
   const cfg = TABLE_CONFIG[contentType];
@@ -788,9 +789,9 @@ export function searchCompendium(
     FROM ${cfg.table} t
     ${whereClause}
     ORDER BY t.name
-    LIMIT ?
+    LIMIT ? OFFSET ?
   `;
-  params.push(limit);
+  params.push(limit, offset);
 
   const rows = d.prepare(sql).all(...params) as Record<string, unknown>[];
 

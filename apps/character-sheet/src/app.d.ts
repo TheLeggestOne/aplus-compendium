@@ -38,6 +38,7 @@ declare global {
           contentType: CompendiumContentType,
           filters: CompendiumSearchFilters,
           limit?: number,
+          offset?: number,
         ) => Promise<IpcResult<CompendiumSearchResult[]>>;
         get: (id: string, contentType: CompendiumContentType) => Promise<IpcResult<CompendiumEntry | null>>;
         listSources: (contentType: CompendiumContentType) => Promise<IpcResult<string[]>>;

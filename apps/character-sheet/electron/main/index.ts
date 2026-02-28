@@ -71,12 +71,13 @@ function registerCompendiumHandlers(): void {
     }
   });
 
-  ipcHandle('compendium:search', async (query, contentType, filters, limit) =>
+  ipcHandle('compendium:search', async (query, contentType, filters, limit, offset) =>
     searchCompendium(
       query as string,
       contentType as CompendiumContentType,
       (filters ?? {}) as CompendiumSearchFilters,
-      (limit as number | undefined) ?? 100,
+      (limit as number | undefined) ?? 50,
+      (offset as number | undefined) ?? 0,
     ),
   );
 

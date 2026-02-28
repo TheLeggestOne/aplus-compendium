@@ -29,6 +29,9 @@ function createCompendiumStore() {
   let filters = $state<CompendiumSearchFilters>({});
   let results = $state<CompendiumSearchResult[]>([]);
   let isSearching = $state(false);
+  let hasMore = $state(false);
+  let isLoadingMore = $state(false);
+  const PAGE_SIZE = 50;
 
   // Selected entry detail
   let selectedId = $state<string | null>(null);
@@ -55,14 +58,12 @@ function createCompendiumStore() {
     isSearching = true;
 
     try {
-      // JSON round-trip strips all Svelte 5 reactive proxy layers (shallow spread
-      // only removes the top-level proxy; nested arrays like filters.level remain
-      // reactive and can't be structured-cloned by Electron IPC).
       const plainFilters = JSON.parse(JSON.stringify(filters)) as typeof filters;
-      const result = await api.compendium.search(query.trim(), activeType, plainFilters, 100);
+      const result = await api.compendium.search(query.trim(), activeType, plainFilters, PAGE_SIZE, 0);
       if (token !== _searchToken) return; // stale
       if (result.ok) {
         results = result.data;
+        hasMore = result.data.length >= PAGE_SIZE;
       } else {
         console.error('[compendium] search failed:', result.error);
       }
@@ -70,6 +71,28 @@ function createCompendiumStore() {
       console.error('[compendium] search IPC error:', e);
     } finally {
       if (token === _searchToken) isSearching = false;
+    }
+  }
+
+  async function _loadMore() {
+    const api = window.electronAPI;
+    if (!api || isLoadingMore || !hasMore) return;
+
+    const token = _searchToken; // don't increment — not a new search
+    isLoadingMore = true;
+
+    try {
+      const plainFilters = JSON.parse(JSON.stringify(filters)) as typeof filters;
+      const result = await api.compendium.search(query.trim(), activeType, plainFilters, PAGE_SIZE, results.length);
+      if (token !== _searchToken) return; // search changed while loading
+      if (result.ok) {
+        results = [...results, ...result.data];
+        hasMore = result.data.length >= PAGE_SIZE;
+      }
+    } catch (e) {
+      console.error('[compendium] loadMore IPC error:', e);
+    } finally {
+      isLoadingMore = false;
     }
   }
 
@@ -93,6 +116,8 @@ function createCompendiumStore() {
     get filters() { return filters; },
     get results() { return results; },
     get isSearching() { return isSearching; },
+    get hasMore() { return hasMore; },
+    get isLoadingMore() { return isLoadingMore; },
     get selectedId() { return selectedId; },
     get selectedEntry() { return selectedEntry; },
     get isLoadingEntry() { return isLoadingEntry; },
@@ -163,6 +188,10 @@ function createCompendiumStore() {
     clearFilters(): void {
       filters = {};
       queueSearch();
+    },
+
+    loadMore(): void {
+      void _loadMore();
     },
 
     // --- Entry selection ---

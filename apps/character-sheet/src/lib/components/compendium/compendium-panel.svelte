@@ -26,6 +26,8 @@
     query,
     results,
     isSearching,
+    hasMore,
+    isLoadingMore,
     selectedId,
     selectedEntry,
     isLoadingEntry,
@@ -37,6 +39,21 @@
 
   // Close filters on click outside — scoped to this panel only
   let filterZoneEl = $state<HTMLElement | null>(null);
+
+  // Infinite scroll — trigger loadMore when sentinel enters viewport
+  let sentinelEl = $state<HTMLElement | null>(null);
+  let observer: IntersectionObserver | null = null;
+
+  $effect(() => {
+    if (!sentinelEl) return;
+    observer?.disconnect();
+    observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) compendiumStore.loadMore(); },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinelEl);
+    return () => observer?.disconnect();
+  });
 
   function handlePanelClick(e: MouseEvent) {
     if (!filtersOpen || !filterZoneEl) return;
@@ -136,15 +153,16 @@
               </div>
             {/each}
           </div>
-        </div>
 
-        {#if results.length >= 100}
-          <div class="shrink-0 border-t border-border px-3 py-1.5">
-            <p class="text-[10px] text-muted-foreground text-center">
-              Showing first 100 results — refine your search
-            </p>
-          </div>
-        {/if}
+          {#if hasMore}
+            <!-- Sentinel triggers loadMore when scrolled into view -->
+            <div bind:this={sentinelEl} class="shrink-0 px-3 py-2 text-center">
+              {#if isLoadingMore}
+                <p class="text-[10px] text-muted-foreground">Loading more…</p>
+              {/if}
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
   {/if}

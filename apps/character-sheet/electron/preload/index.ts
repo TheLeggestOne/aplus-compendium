@@ -17,8 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('compendium:select-dir'),
     import: (dirPath: string) =>
       ipcRenderer.invoke('compendium:import', dirPath),
-    search: (query: string, contentType: string, filters: unknown, limit?: number) =>
-      ipcRenderer.invoke('compendium:search', query, contentType, filters, limit),
+    search: (query: string, contentType: string, filters: unknown, limit?: number, offset?: number) =>
+      ipcRenderer.invoke('compendium:search', query, contentType, filters, limit, offset),
     get: (id: string, contentType: string) =>
       ipcRenderer.invoke('compendium:get', id, contentType),
     listSources: (contentType: string) =>
