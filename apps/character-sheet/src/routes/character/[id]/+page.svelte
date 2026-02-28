@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as Tabs from '$lib/components/ui/tabs/index.js';
+  import * as Resizable from '$lib/components/ui/resizable/index.js';
   import CharacterHeader from '$lib/components/character/character-header.svelte';
   import AbilityScoresGrid from '$lib/components/character/ability-scores-grid.svelte';
   import SavingThrowsList from '$lib/components/character/saving-throws-list.svelte';
@@ -31,89 +32,105 @@
   <!-- Sticky header -->
   <CharacterHeader />
 
-  <!-- Horizontal split: character sheet | compendium panel -->
-  <div class="flex min-h-0 flex-1 overflow-hidden">
+  <!-- Body: resizable split when panel is open, plain column otherwise -->
+  {#if panelOpen}
+    <Resizable.PaneGroup direction="horizontal" class="min-h-0 flex-1">
 
-    <!-- Character sheet (fills remaining width) -->
-    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <Tabs.Root
-        value={uiStore.activeTab}
-        onValueChange={(v) => uiStore.setActiveTab(v as typeof uiStore.activeTab)}
-        class="flex h-full flex-col"
-      >
-        <Tabs.List class="mx-4 mt-3 shrink-0">
-          <Tabs.Trigger value="core-stats">Core Stats</Tabs.Trigger>
-          <Tabs.Trigger value="combat">Combat</Tabs.Trigger>
-          <Tabs.Trigger value="spellcasting">
-            Spellcasting{character.spellcasting ? '' : ' ✕'}
-          </Tabs.Trigger>
-          <Tabs.Trigger value="features-equipment">Features</Tabs.Trigger>
-        </Tabs.List>
+      <Resizable.Pane defaultSize={68} minSize={35}>
+        {#snippet children()}
+          <div class="flex h-full flex-col overflow-hidden">
+            {@render sheet()}
+          </div>
+        {/snippet}
+      </Resizable.Pane>
 
-        <!-- Scrollable tab content -->
-        <div class="min-h-0 flex-1 overflow-auto">
+      <Resizable.Handle withHandle />
 
-          <!-- Core Stats -->
-          <Tabs.Content value="core-stats" class="p-4 h-full">
-            <div class="flex gap-6 h-full">
-              <div class="flex flex-col gap-4 shrink-0">
-                <AbilityScoresGrid />
-                <SavingThrowsList />
-              </div>
-              <div class="flex flex-col flex-1 min-h-0">
-                <SkillsList />
-              </div>
-            </div>
-          </Tabs.Content>
+      <Resizable.Pane defaultSize={32} minSize={18} maxSize={55}>
+        {#snippet children()}
+          <div class="h-full overflow-hidden">
+            <CompendiumPanel />
+          </div>
+        {/snippet}
+      </Resizable.Pane>
 
-          <!-- Combat -->
-          <Tabs.Content value="combat" class="p-4">
-            <div class="flex flex-col gap-6 max-w-2xl">
-              <CombatStatsBlock />
-              <HpBlock />
-              <WeaponsList />
-            </div>
-          </Tabs.Content>
-
-          <!-- Spellcasting -->
-          <Tabs.Content value="spellcasting" class="p-4">
-            {#if character.spellcasting}
-              <div class="flex flex-col gap-6 max-w-2xl">
-                <SpellcastingHeader ability={character.spellcasting.ability} />
-                <SpellSlotsGrid slots={character.spellcasting.slots} />
-                <SpellList
-                  spells={character.spellcasting.spellsKnown}
-                  cantrips={character.spellcasting.cantrips}
-                />
-              </div>
-            {:else}
-              <div class="flex items-center justify-center h-40">
-                <p class="text-muted-foreground">This character does not have spellcasting.</p>
-              </div>
-            {/if}
-          </Tabs.Content>
-
-          <!-- Features & Equipment -->
-          <Tabs.Content value="features-equipment" class="p-4">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FeaturesList />
-              <div class="flex flex-col gap-4">
-                <EquipmentList />
-                <CurrencyDisplay currency={character.currency} />
-              </div>
-            </div>
-          </Tabs.Content>
-
-        </div>
-      </Tabs.Root>
+    </Resizable.PaneGroup>
+  {:else}
+    <div class="min-h-0 flex-1 overflow-hidden">
+      {@render sheet()}
     </div>
-
-    <!-- Compendium panel (fixed width, toggleable) -->
-    {#if panelOpen}
-      <div class="w-[420px] shrink-0 overflow-hidden">
-        <CompendiumPanel />
-      </div>
-    {/if}
-
-  </div>
+  {/if}
 </div>
+
+{#snippet sheet()}
+  <Tabs.Root
+    value={uiStore.activeTab}
+    onValueChange={(v) => uiStore.setActiveTab(v as typeof uiStore.activeTab)}
+    class="flex h-full flex-col"
+  >
+    <Tabs.List class="mx-4 mt-3 shrink-0">
+      <Tabs.Trigger value="core-stats">Core Stats</Tabs.Trigger>
+      <Tabs.Trigger value="combat">Combat</Tabs.Trigger>
+      <Tabs.Trigger value="spellcasting">
+        Spellcasting{character.spellcasting ? '' : ' ✕'}
+      </Tabs.Trigger>
+      <Tabs.Trigger value="features-equipment">Features</Tabs.Trigger>
+    </Tabs.List>
+
+    <!-- Scrollable tab content -->
+    <div class="min-h-0 flex-1 overflow-auto">
+
+      <!-- Core Stats -->
+      <Tabs.Content value="core-stats" class="p-4 h-full">
+        <div class="flex gap-6 h-full">
+          <div class="flex flex-col gap-4 shrink-0">
+            <AbilityScoresGrid />
+            <SavingThrowsList />
+          </div>
+          <div class="flex flex-col flex-1 min-h-0">
+            <SkillsList />
+          </div>
+        </div>
+      </Tabs.Content>
+
+      <!-- Combat -->
+      <Tabs.Content value="combat" class="p-4">
+        <div class="flex flex-col gap-6 max-w-2xl">
+          <CombatStatsBlock />
+          <HpBlock />
+          <WeaponsList />
+        </div>
+      </Tabs.Content>
+
+      <!-- Spellcasting -->
+      <Tabs.Content value="spellcasting" class="p-4">
+        {#if character.spellcasting}
+          <div class="flex flex-col gap-6 max-w-2xl">
+            <SpellcastingHeader ability={character.spellcasting.ability} />
+            <SpellSlotsGrid slots={character.spellcasting.slots} />
+            <SpellList
+              spells={character.spellcasting.spellsKnown}
+              cantrips={character.spellcasting.cantrips}
+            />
+          </div>
+        {:else}
+          <div class="flex items-center justify-center h-40">
+            <p class="text-muted-foreground">This character does not have spellcasting.</p>
+          </div>
+        {/if}
+      </Tabs.Content>
+
+      <!-- Features & Equipment -->
+      <Tabs.Content value="features-equipment" class="p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <FeaturesList />
+          <div class="flex flex-col gap-4">
+            <EquipmentList />
+            <CurrencyDisplay currency={character.currency} />
+          </div>
+        </div>
+      </Tabs.Content>
+
+    </div>
+  </Tabs.Root>
+{/snippet}

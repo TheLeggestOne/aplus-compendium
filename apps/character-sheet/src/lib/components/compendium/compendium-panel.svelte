@@ -4,7 +4,6 @@
   import { Input } from '$lib/components/ui/input/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-  import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
   import FilterBar from './filter-bar.svelte';
   import EntryListItem from './entry-list-item.svelte';
@@ -103,7 +102,7 @@
           <p class="text-xs text-muted-foreground">No results</p>
         </div>
       {:else}
-        <ScrollArea class="flex-1">
+        <div class="min-h-0 flex-1 overflow-y-auto">
           <div class="divide-y divide-border/40">
             {#each results as entry (entry.id)}
               <div>
@@ -128,7 +127,7 @@
               </div>
             {/each}
           </div>
-        </ScrollArea>
+        </div>
 
         {#if results.length >= 100}
           <div class="shrink-0 border-t border-border px-3 py-1.5">
