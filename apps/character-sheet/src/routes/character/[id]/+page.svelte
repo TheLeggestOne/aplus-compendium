@@ -22,7 +22,10 @@
   import type { PageData } from './$types.js';
 
   const { data } = $props<{ data: PageData }>();
-  $effect(() => { characterStore.reinit(data.character); });
+  $effect(() => {
+    characterStore.reinit(data.character);
+    uiStore.setActiveCharacter(data.character.id);
+  });
   $effect(() => { void compendiumStore.initialize(); });
 
   const { character } = $derived(characterStore);

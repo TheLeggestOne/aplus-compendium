@@ -61,3 +61,5 @@ export const SKILL_ABILITY_MAP: Record<SkillName, AbilityScore> = {
   stealth: 'dexterity',
   survival: 'wisdom',
 } as const;
+
+export const SKILL_NAMES: SkillName[] = Object.keys(SKILL_ABILITY_MAP) as SkillName[];

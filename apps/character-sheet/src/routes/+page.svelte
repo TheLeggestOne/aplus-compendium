@@ -3,6 +3,8 @@
   import { onMount } from 'svelte';
 
   onMount(() => {
-    goto('/character/aerindel', { replaceState: true });
+    const lastId = localStorage.getItem('aplus:activeCharacterId');
+    const target = lastId ? `/character/${lastId}` : '/characters';
+    goto(target, { replaceState: true });
   });
 </script>
