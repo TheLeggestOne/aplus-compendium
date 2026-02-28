@@ -16,6 +16,8 @@ import {
   searchCompendium,
   getCompendiumEntry,
   listSources,
+  debugSpellClasses,
+  loadSpellClassesFromSources,
 } from './compendium-db.js';
 
 const isDev = process.env['NODE_ENV'] === 'development';
@@ -88,6 +90,21 @@ function registerCompendiumHandlers(): void {
 
   ipcHandle('compendium:clear', async () => {
     clearCompendium();
+  });
+
+  ipcHandle('compendium:debug-classes', async () => debugSpellClasses());
+
+  // Repair classes_json by reading spells/sources.json from user-selected dir.
+  // Use this after an import done without sources.json in the expected location.
+  ipcHandle('compendium:repair-classes', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win ?? BrowserWindow.getAllWindows()[0], {
+      properties: ['openDirectory'],
+      title: 'Select 5etools data directory',
+    });
+    if (result.canceled || !result.filePaths[0]) return { updated: 0, cancelled: true };
+    const updated = await loadSpellClassesFromSources(result.filePaths[0]);
+    return { updated, cancelled: false };
   });
 }
 

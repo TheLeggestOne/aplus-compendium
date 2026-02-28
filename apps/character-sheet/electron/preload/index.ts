@@ -30,5 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeAllListeners('compendium:progress');
     },
     clear: () => ipcRenderer.invoke('compendium:clear'),
+    debugClasses: () => ipcRenderer.invoke('compendium:debug-classes'),
+    repairClasses: () => ipcRenderer.invoke('compendium:repair-classes'),
   },
 });

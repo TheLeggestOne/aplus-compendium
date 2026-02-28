@@ -239,6 +239,51 @@ function extractCastingTime(spell: any): string | undefined {
   return `${t.number} ${t.unit}`;
 }
 
+// ---------------------------------------------------------------------------
+// sources.json class repair
+// ---------------------------------------------------------------------------
+// Format: sources.json[SOURCE_CODE][Spell Name].class = [{name: string, source: string}[]]
+
+export async function loadSpellClassesFromSources(dirPath: string): Promise<number> {
+  const d = db();
+  let raw: string;
+  try {
+    raw = await readFile(join(dirPath, 'spells', 'sources.json'), 'utf-8');
+  } catch {
+    return 0; // file not present — silently skip
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sources = JSON.parse(raw) as Record<string, Record<string, { class?: { name: string; source: string }[] }>>;
+
+  // Build a map: "SpellName|SOURCE" → Set<className>
+  const classMap = new Map<string, Set<string>>();
+  for (const [sourceCode, spells] of Object.entries(sources)) {
+    for (const [spellName, data] of Object.entries(spells)) {
+      if (!data.class?.length) continue;
+      const id = `${spellName}|${sourceCode}`;
+      const set = classMap.get(id) ?? new Set<string>();
+      for (const c of data.class) {
+        if (c.name) set.add(c.name);
+      }
+      classMap.set(id, set);
+    }
+  }
+
+  if (classMap.size === 0) return 0;
+
+  const update = d.prepare('UPDATE spells SET classes_json = ? WHERE id = ?');
+  let updated = 0;
+  d.transaction(() => {
+    for (const [id, classSet] of classMap) {
+      const classes = [...classSet];
+      const r = update.run(JSON.stringify(classes), id);
+      if (r.changes > 0) updated++;
+    }
+  })();
+  return updated;
+}
+
 export type ProgressCallback = (progress: ImportProgress) => void;
 
 export function clearCompendium(): void {
@@ -271,6 +316,10 @@ export async function importCompendium(dirPath: string, onProgress: ProgressCall
   await importClasses(d, dirPath, onProgress);
   await importOptionalFeatures(d, dirPath, onProgress);
   await importConditions(d, dirPath, onProgress);
+
+  // Patch classes_json from spells/sources.json if present (takes priority over
+  // inline fromClassList in the spell JSON, and covers sources that don't embed it)
+  await loadSpellClassesFromSources(dirPath);
 
   // Rebuild FTS indexes
   for (const t of tables) {
@@ -779,6 +828,38 @@ export function listSources(contentType: CompendiumContentType): string[] {
   const cfg = TABLE_CONFIG[contentType];
   const rows = d.prepare(`SELECT DISTINCT source FROM ${cfg.table} ORDER BY source`).all() as { source: string }[];
   return rows.map(r => r.source);
+}
+
+// Diagnostic: show what class data is actually stored
+export function debugSpellClasses(): { total: number; withClasses: number; sample: { name: string; classes_json: string }[] } {
+  const d = db();
+  const total = (d.prepare('SELECT COUNT(*) as n FROM spells').get() as { n: number }).n;
+  const withClasses = (d.prepare("SELECT COUNT(*) as n FROM spells WHERE classes_json != '[]' AND classes_json IS NOT NULL").get() as { n: number }).n;
+  const sample = d.prepare('SELECT name, classes_json FROM spells ORDER BY name LIMIT 5').all() as { name: string; classes_json: string }[];
+  return { total, withClasses, sample };
+}
+
+// Post-import fix: re-extract classes_json from raw_json for spells that had no class data
+// This handles 5etools data builds that embed class lists in the spell JSON
+export function repairSpellClasses(): number {
+  const d = db();
+  const rows = d.prepare("SELECT id, raw_json FROM spells WHERE classes_json = '[]' OR classes_json IS NULL").all() as { id: string; raw_json: string }[];
+  if (rows.length === 0) return 0;
+
+  const update = d.prepare('UPDATE spells SET classes_json = ? WHERE id = ?');
+  let fixed = 0;
+  d.transaction(() => {
+    for (const row of rows) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const spell = JSON.parse(row.raw_json) as any;
+      const classes = extractSpellClasses(spell);
+      if (classes.length > 0) {
+        update.run(JSON.stringify(classes), row.id);
+        fixed++;
+      }
+    }
+  })();
+  return fixed;
 }
 
 // unused import suppression

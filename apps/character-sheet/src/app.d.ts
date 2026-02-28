@@ -44,6 +44,8 @@ declare global {
         onProgress: (callback: (progress: ImportProgress) => void) => void;
         offProgress: () => void;
         clear: () => Promise<IpcResult<void>>;
+        debugClasses: () => Promise<IpcResult<{ total: number; withClasses: number; sample: { name: string; classes_json: string }[] }>>;
+        repairClasses: () => Promise<IpcResult<{ updated: number; cancelled: boolean }>>;
       };
     };
   }
