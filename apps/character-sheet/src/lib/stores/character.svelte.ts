@@ -1,5 +1,5 @@
-import type { Character, Spell, Weapon, Armor, EquipmentItem, Feature } from '@aplus-compendium/types';
-import { abilityModifier } from '@aplus-compendium/types';
+import type { Character, Spell, Weapon, Armor, EquipmentItem, Feature, AbilityScore, AbilityScoreSet, SkillName, SkillEntry } from '@aplus-compendium/types';
+import { abilityModifier, SKILL_ABILITY_MAP } from '@aplus-compendium/types';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 function createCharacterStore(initial: Character) {
@@ -241,6 +241,37 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  function setAbilityScores(scores: AbilityScoreSet): void {
+    const profBonus = character.proficiencyBonus;
+
+    // Recalculate skill modifiers
+    const skills = {} as Record<SkillName, SkillEntry>;
+    for (const [name, entry] of Object.entries(character.skills) as [SkillName, SkillEntry][]) {
+      const ability = SKILL_ABILITY_MAP[name];
+      const mod = abilityModifier(scores[ability]);
+      const prof = entry.proficiency === 'expertise' ? profBonus * 2
+                 : entry.proficiency === 'proficient' ? profBonus : 0;
+      skills[name] = { ...entry, modifier: mod + prof };
+    }
+
+    // Recalculate saving throw modifiers
+    const savingThrows = { ...character.savingThrows };
+    for (const ability of ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as AbilityScore[]) {
+      const entry = savingThrows[ability];
+      const mod = abilityModifier(scores[ability]);
+      savingThrows[ability] = { ...entry, modifier: mod + (entry.proficient ? profBonus : 0) };
+    }
+
+    character = {
+      ...character,
+      abilityScores: { ...scores },
+      skills,
+      savingThrows,
+      combat: { ...character.combat, initiative: abilityModifier(scores.dexterity) },
+    };
+    queueSave();
+  }
+
   function longRest(): void {
     const features = character.features.map((f) =>
       f.uses ? { ...f, uses: { ...f.uses, current: f.uses.maximum } } : f,
@@ -281,6 +312,7 @@ function createCharacterStore(initial: Character) {
       return xpForNextLevel[totalLevel] ?? Infinity;
     },
     reinit,
+    setAbilityScores,
     addSpell,
     addWeapon,
     addArmor,
