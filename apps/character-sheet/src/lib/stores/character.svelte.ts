@@ -1,4 +1,4 @@
-import type { Character } from '@aplus-compendium/types';
+import type { Character, Spell, Weapon, Armor, EquipmentItem, Feature } from '@aplus-compendium/types';
 import { abilityModifier } from '@aplus-compendium/types';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
@@ -192,6 +192,47 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  // --- Compendium add mutations ---
+
+  function addSpell(spell: Spell): void {
+    if (!character.spellcasting) return;
+    if (spell.level === 0) {
+      if (character.spellcasting.cantrips.some(s => s.id === spell.id)) return;
+      character = {
+        ...character,
+        spellcasting: { ...character.spellcasting, cantrips: [...character.spellcasting.cantrips, spell] },
+      };
+    } else {
+      if (character.spellcasting.spellsKnown.some(s => s.id === spell.id)) return;
+      character = {
+        ...character,
+        spellcasting: { ...character.spellcasting, spellsKnown: [...character.spellcasting.spellsKnown, spell] },
+      };
+    }
+    queueSave();
+  }
+
+  function addWeapon(weapon: Weapon): void {
+    character = { ...character, weapons: [...character.weapons, weapon] };
+    queueSave();
+  }
+
+  function addArmor(armor: Armor): void {
+    character = { ...character, armor: [...character.armor, armor] };
+    queueSave();
+  }
+
+  function addEquipment(item: EquipmentItem): void {
+    character = { ...character, equipment: [...character.equipment, item] };
+    queueSave();
+  }
+
+  function addFeature(feature: Feature): void {
+    if (character.features.some(f => f.id === feature.id)) return;
+    character = { ...character, features: [...character.features, feature] };
+    queueSave();
+  }
+
   function longRest(): void {
     const features = character.features.map((f) =>
       f.uses ? { ...f, uses: { ...f.uses, current: f.uses.maximum } } : f,
@@ -232,6 +273,11 @@ function createCharacterStore(initial: Character) {
       return xpForNextLevel[totalLevel] ?? Infinity;
     },
     reinit,
+    addSpell,
+    addWeapon,
+    addArmor,
+    addEquipment,
+    addFeature,
     adjustHp,
     setCurrentHp,
     setTempHp,

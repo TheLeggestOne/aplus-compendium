@@ -4,6 +4,15 @@
   import { Separator } from '$lib/components/ui/separator/index.js';
   import EntryRenderer from '$lib/components/ui/entry-renderer.svelte';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { characterStore } from '$lib/stores/character.svelte.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import {
+    entryToSpell,
+    entryToWeapon,
+    entryToArmor,
+    entryToEquipment,
+    entryToFeature,
+  } from '$lib/utils/compendium-to-character.js';
 
   interface Props {
     entry: CompendiumEntry;
@@ -12,6 +21,51 @@
   const { entry }: Props = $props();
 
   const raw = $derived(entry.raw);
+
+  // --- Add to character ---
+  let addedLabel = $state<string | null>(null);
+  let _addedTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function flash(label: string) {
+    if (_addedTimer) clearTimeout(_addedTimer);
+    addedLabel = label;
+    _addedTimer = setTimeout(() => { addedLabel = null; }, 2000);
+  }
+
+  function addToCharacter() {
+    switch (entry.dropTarget) {
+      case 'spell':
+        characterStore.addSpell(entryToSpell(entry));
+        flash(entry.level === 0 ? 'Cantrip added!' : 'Spell added!');
+        break;
+      case 'weapon':
+        characterStore.addWeapon(entryToWeapon(entry));
+        flash('Added to weapons!');
+        break;
+      case 'armor':
+        characterStore.addArmor(entryToArmor(entry));
+        flash('Added to armor!');
+        break;
+      case 'equipment':
+        characterStore.addEquipment(entryToEquipment(entry));
+        flash('Added to equipment!');
+        break;
+      case 'feature':
+        characterStore.addFeature(entryToFeature(entry));
+        flash('Feature added!');
+        break;
+    }
+  }
+
+  const addLabel = $derived(
+    entry.dropTarget === 'spell'
+      ? (entry.level === 0 ? 'Add Cantrip' : 'Add Spell')
+      : entry.dropTarget === 'weapon'   ? 'Add to Weapons'
+      : entry.dropTarget === 'armor'    ? 'Add to Armor'
+      : entry.dropTarget === 'equipment'? 'Add to Equipment'
+      : entry.dropTarget === 'feature'  ? 'Add Feature'
+      : null,
+  );
 
   // --- Spell detail helpers ---
   const castingTime = $derived(raw['time']
@@ -167,6 +221,16 @@
       <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">At Higher Levels</p>
       <EntryRenderer entries={entriesHigherLevel} />
     </div>
+  {/if}
+
+  <!-- Add to character -->
+  {#if addLabel}
+    <div class="flex items-center gap-2 pt-1">
+      <Button size="sm" class="h-7 text-xs flex-1" onclick={addToCharacter} disabled={!!addedLabel}>
+        {addedLabel ?? addLabel}
+      </Button>
+    </div>
+    <Separator />
   {/if}
 
   <!-- Re-import control -->
