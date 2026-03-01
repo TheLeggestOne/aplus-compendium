@@ -5,6 +5,7 @@
   import { cn } from '$lib/utils.js';
   import { ChevronRight } from '@lucide/svelte';
   import { characterStore } from '$lib/stores/character.svelte.js';
+  import EntryRenderer from '$lib/components/ui/entry-renderer.svelte';
 
   interface Props {
     feature: Feature;
@@ -72,8 +73,12 @@
     </Collapsible.Trigger>
 
     <Collapsible.Content>
-      <div class="px-3 pb-3 pt-1 border-t border-border">
-        <p class="text-xs text-muted-foreground leading-relaxed selectable">{feature.description}</p>
+      <div class="px-3 pb-3 pt-1 border-t border-border text-xs text-muted-foreground">
+        {#if feature.rawEntries && feature.rawEntries.length > 0}
+          <EntryRenderer entries={feature.rawEntries} />
+        {:else if feature.description}
+          <p class="leading-relaxed selectable">{feature.description}</p>
+        {/if}
       </div>
     </Collapsible.Content>
   </div>

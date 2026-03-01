@@ -21,6 +21,7 @@ export interface Feature {
   source: string;
   sourceType: FeatureSourceType;
   description: string;
+  rawEntries?: unknown[];
   uses?: FeatureUses;
 
   /** Which class granted this feature (for class/subclass source types) */

@@ -898,6 +898,71 @@ export function getSubclasses(className: string): CompendiumSearchResult[] {
   }));
 }
 
+export interface ClassFeatureRaw {
+  name: string;
+  entries: unknown[];
+  source: string;
+  isSubclass: boolean;
+}
+
+// Fetch class (and optionally subclass) features for a specific class level
+export function getClassFeaturesByLevel(
+  className: string,
+  classLevel: number,
+  subclassName?: string,
+): ClassFeatureRaw[] {
+  const d = db();
+  const results: ClassFeatureRaw[] = [];
+
+  // Class features
+  const classRow = d.prepare(
+    'SELECT raw_json FROM classes WHERE name = ? ORDER BY source LIMIT 1',
+  ).get(className) as { raw_json: string } | undefined;
+
+  if (classRow) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cls = JSON.parse(classRow.raw_json) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entries: any[] = cls._classFeatureEntries ?? [];
+    for (const f of entries) {
+      if (f.level === classLevel) {
+        results.push({
+          name: f.name as string,
+          entries: Array.isArray(f.entries) ? (f.entries as unknown[]) : [],
+          source: (f.source as string) ?? '',
+          isSubclass: false,
+        });
+      }
+    }
+  }
+
+  // Subclass features
+  if (subclassName) {
+    const scRow = d.prepare(
+      'SELECT raw_json FROM subclasses WHERE name = ? AND class_name = ? ORDER BY source LIMIT 1',
+    ).get(subclassName, className) as { raw_json: string } | undefined;
+
+    if (scRow) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sc = JSON.parse(scRow.raw_json) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const entries: any[] = sc._subclassFeatureEntries ?? [];
+      for (const f of entries) {
+        if (f.level === classLevel) {
+          results.push({
+            name: f.name as string,
+            entries: Array.isArray(f.entries) ? (f.entries as unknown[]) : [],
+            source: (f.source as string) ?? '',
+            isSubclass: true,
+          });
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
 // Diagnostic: show what class data is actually stored
 export function debugSpellClasses(): { total: number; withClasses: number; sample: { name: string; classes_json: string }[] } {
   const d = db();

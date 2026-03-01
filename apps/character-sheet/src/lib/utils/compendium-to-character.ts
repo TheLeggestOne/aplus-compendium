@@ -322,6 +322,22 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
   };
 }
 
+/** Convert a raw class/subclass feature entry (from IPC getClassFeatures) to a Feature. */
+export function classFeatureEntryToFeature(
+  entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean },
+  dndClass: string,
+  classLevel: number,
+): Feature {
+  return {
+    id: `class-feat::${dndClass}::${classLevel}::${entry.name.toLowerCase().replace(/\s+/g, '-')}`,
+    name: entry.name,
+    source: entry.source,
+    sourceType: entry.isSubclass ? 'subclass' : 'class',
+    description: '',
+    rawEntries: entry.entries.length > 0 ? entry.entries : undefined,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Race data extraction
 // ---------------------------------------------------------------------------

@@ -1,8 +1,9 @@
 <script lang="ts">
   import type {
     DndClass, AsiChoice, AbilityScore,
-    CompendiumSearchResult,
+    CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
+  import { classFeatureEntryToFeature } from '$lib/utils/compendium-to-character.js';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL,
   } from '@aplus-compendium/types';
@@ -274,17 +275,46 @@
   }
 
   // ---- Confirm ----
-  function confirmLevelUp() {
-    if (!selectedClass) return;
+  let confirming = $state(false);
 
-    characterStore.addClassLevel({
-      class: selectedClass,
-      hpRoll,
-      subclassChoice,
-      asiChoice,
-    });
+  async function confirmLevelUp() {
+    const cls = selectedClass;
+    if (!cls || confirming) return;
 
-    open = false;
+    confirming = true;
+    try {
+      const api = window.electronAPI;
+      let features: Feature[] = [];
+
+      if (api) {
+        const existingSubclass = stack
+          .filter(lv => lv.class === cls)
+          .find(lv => lv.subclassChoice)?.subclassChoice;
+        const effectiveSubclass = subclassChoice ?? existingSubclass;
+        const className = capitalize(cls);
+
+        try {
+          const result = await api.compendium.getClassFeatures(className, newClassLevel, effectiveSubclass);
+          if (result.ok) {
+            features = result.data.map(f => classFeatureEntryToFeature(f, cls, newClassLevel));
+          }
+        } catch (e) {
+          console.warn('[level-up] Failed to fetch class features:', e);
+        }
+      }
+
+      characterStore.addClassLevel({
+        class: cls,
+        hpRoll,
+        subclassChoice,
+        asiChoice,
+        features,
+      });
+
+      open = false;
+    } finally {
+      confirming = false;
+    }
   }
 
   // ---- Helpers ----
@@ -615,9 +645,9 @@
           <Button variant="outline" size="sm" class="text-xs">Cancel</Button>
         </Dialog.Close>
         {#if currentStep === 'summary'}
-          <Button size="sm" class="text-xs gap-1" onclick={confirmLevelUp}>
+          <Button size="sm" class="text-xs gap-1" onclick={confirmLevelUp} disabled={confirming}>
             <CheckIcon class="size-3.5" />
-            Confirm Level Up
+            {confirming ? 'Leveling up…' : 'Confirm Level Up'}
           </Button>
         {:else}
           <Button size="sm" class="text-xs gap-1" onclick={goNext} disabled={!canAdvance}>

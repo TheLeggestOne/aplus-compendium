@@ -18,6 +18,7 @@ import {
   listSources,
   getSubraces,
   getSubclasses,
+  getClassFeaturesByLevel,
   debugSpellClasses,
   loadSpellClassesFromSources,
 } from './compendium-db.js';
@@ -97,6 +98,14 @@ function registerCompendiumHandlers(): void {
 
   ipcHandle('compendium:get-subclasses', async (className) =>
     getSubclasses(className as string),
+  );
+
+  ipcHandle('compendium:get-class-features', async (className, classLevel, subclassName) =>
+    getClassFeaturesByLevel(
+      className as string,
+      classLevel as number,
+      (subclassName as string | undefined) || undefined,
+    ),
   );
 
   ipcHandle('compendium:clear', async () => {
