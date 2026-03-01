@@ -17,9 +17,9 @@
     }
   }
 
-  function adjustAndClose(delta: number) {
+  function adjust(delta: number) {
     characterStore.adjustHp(delta);
-    uiStore.setHpDialogOpen(false);
+    hpInput = String(character.combat.currentHitPoints);
   }
 
   function setAndClose() {
@@ -76,17 +76,31 @@
 
     <div class="flex flex-col gap-4 py-2">
       <!-- Quick adjust buttons -->
-      <div class="grid grid-cols-4 gap-2">
-        {#each [-10, -5, -1, 1, 5, 10] as delta}
-          <Button
-            variant={delta < 0 ? 'destructive' : 'default'}
-            size="sm"
-            onclick={() => adjustAndClose(delta)}
-            class="tabular-nums"
-          >
-            {delta > 0 ? '+' : ''}{delta}
-          </Button>
-        {/each}
+      <div class="flex flex-col gap-1.5">
+        <div class="grid grid-cols-3 gap-2">
+          {#each [-10, -5, -1] as delta}
+            <Button
+              variant="destructive"
+              size="sm"
+              onclick={() => adjust(delta)}
+              class="tabular-nums"
+            >
+              {delta}
+            </Button>
+          {/each}
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          {#each [1, 5, 10] as delta}
+            <Button
+              variant="default"
+              size="sm"
+              onclick={() => adjust(delta)}
+              class="tabular-nums"
+            >
+              +{delta}
+            </Button>
+          {/each}
+        </div>
       </div>
 
       <!-- Set exact value -->
