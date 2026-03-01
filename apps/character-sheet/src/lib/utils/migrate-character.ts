@@ -1,4 +1,4 @@
-import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet } from '@aplus-compendium/types';
+import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant } from '@aplus-compendium/types';
 import {
   abilityModifier,
   CLASS_HIT_DICE,
@@ -176,6 +176,50 @@ export function migrateHpRoll(char: Character): Character {
   });
 
   return { ...char, levelStack };
+}
+
+/**
+ * Migrates a character that has no skillProficiencyGrants by scanning existing
+ * skill proficiency values and creating a "migrated" grant that preserves them.
+ * Characters created after this system is introduced will already have grants.
+ */
+export function migrateSkillGrants(char: Character): Character {
+  if (char.skillProficiencyGrants !== undefined) return char;
+
+  const proficientSkills: SkillName[] = [];
+  const expertiseSkills: SkillName[] = [];
+
+  for (const [skill, entry] of Object.entries(char.skills) as [SkillName, SkillEntry][]) {
+    if (entry.proficiency === 'expertise') expertiseSkills.push(skill);
+    else if (entry.proficiency === 'proficient') proficientSkills.push(skill);
+  }
+
+  const grants: SkillProficiencyGrant[] = [];
+
+  if (proficientSkills.length > 0) {
+    grants.push({
+      id: 'migrated-proficient',
+      source: 'migrated',
+      sourceLabel: 'Existing Proficiencies',
+      count: proficientSkills.length,
+      choices: [],
+      selected: proficientSkills,
+    });
+  }
+
+  if (expertiseSkills.length > 0) {
+    grants.push({
+      id: 'migrated-expertise',
+      source: 'migrated',
+      sourceLabel: 'Existing Expertise',
+      count: expertiseSkills.length,
+      choices: [],
+      selected: expertiseSkills,
+      level: 'expertise',
+    });
+  }
+
+  return { ...char, skillProficiencyGrants: grants };
 }
 
 /**

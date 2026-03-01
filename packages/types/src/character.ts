@@ -6,7 +6,7 @@ import type { CombatStats } from './dnd5e/combat.js';
 import type { Currency } from './dnd5e/currency.js';
 import type { Armor, EquipmentItem, Weapon } from './dnd5e/equipment.js';
 import type { Feature } from './dnd5e/features.js';
-import type { SavingThrows, SkillEntry, SkillName } from './dnd5e/skills.js';
+import type { SavingThrows, SkillEntry, SkillName, SkillProficiencyGrant } from './dnd5e/skills.js';
 import type { CharacterSpellcasting } from './dnd5e/spellcasting.js';
 
 export interface CharacterAppearance {
@@ -52,6 +52,7 @@ export interface Character {
   _abilityScoreLayered?: boolean;
   savingThrows: SavingThrows;
   skills: Record<SkillName, SkillEntry>;
+  skillProficiencyGrants?: SkillProficiencyGrant[];
 
   // Combat
   combat: CombatStats;

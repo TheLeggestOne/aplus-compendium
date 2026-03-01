@@ -1,3 +1,5 @@
+import type { SkillName } from './skills.js';
+
 export type DndClass =
   | 'artificer'
   | 'barbarian'
@@ -114,6 +116,23 @@ export const CLASS_SAVING_THROWS: Record<DndClass, [AbilityScore, AbilityScore]>
   sorcerer: ['constitution', 'charisma'],
   warlock: ['wisdom', 'charisma'],
   wizard: ['intelligence', 'wisdom'],
+};
+
+/** Skill proficiency choices granted at 1st level of each class */
+export const CLASS_SKILL_CHOICES: Record<DndClass, { count: number; choices: SkillName[] }> = {
+  artificer: { count: 2, choices: ['arcana', 'history', 'investigation', 'medicine', 'nature', 'perception', 'sleight-of-hand'] },
+  barbarian: { count: 2, choices: ['animal-handling', 'athletics', 'intimidation', 'nature', 'perception', 'survival'] },
+  bard: { count: 3, choices: [] },
+  cleric: { count: 2, choices: ['history', 'insight', 'medicine', 'persuasion', 'religion'] },
+  druid: { count: 2, choices: ['arcana', 'animal-handling', 'insight', 'medicine', 'nature', 'perception', 'religion', 'survival'] },
+  fighter: { count: 2, choices: ['acrobatics', 'animal-handling', 'athletics', 'history', 'insight', 'perception', 'stealth', 'survival'] },
+  monk: { count: 2, choices: ['acrobatics', 'athletics', 'history', 'insight', 'religion', 'stealth'] },
+  paladin: { count: 2, choices: ['athletics', 'insight', 'intimidation', 'medicine', 'persuasion', 'religion'] },
+  ranger: { count: 3, choices: ['animal-handling', 'athletics', 'insight', 'investigation', 'nature', 'perception', 'stealth', 'survival'] },
+  rogue: { count: 4, choices: ['acrobatics', 'athletics', 'deception', 'insight', 'intimidation', 'investigation', 'perception', 'performance', 'persuasion', 'sleight-of-hand', 'stealth'] },
+  sorcerer: { count: 2, choices: ['arcana', 'deception', 'insight', 'intimidation', 'persuasion', 'religion'] },
+  warlock: { count: 2, choices: ['arcana', 'deception', 'history', 'intimidation', 'investigation', 'nature', 'religion'] },
+  wizard: { count: 2, choices: ['arcana', 'history', 'insight', 'investigation', 'medicine', 'religion'] },
 };
 
 /** Class levels at which each class gains an ASI (or feat) */

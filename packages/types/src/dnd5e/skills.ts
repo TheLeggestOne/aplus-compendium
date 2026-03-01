@@ -63,3 +63,13 @@ export const SKILL_ABILITY_MAP: Record<SkillName, AbilityScore> = {
 } as const;
 
 export const SKILL_NAMES: SkillName[] = Object.keys(SKILL_ABILITY_MAP) as SkillName[];
+
+export interface SkillProficiencyGrant {
+  id: string;
+  source: 'class' | 'background' | 'race' | 'manual' | 'migrated';
+  sourceLabel: string;
+  count: number;
+  choices: SkillName[];
+  selected: SkillName[];
+  level?: 'proficient' | 'expertise';
+}

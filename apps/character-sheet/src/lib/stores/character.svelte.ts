@@ -1,16 +1,16 @@
 import type {
   Character, Spell, Weapon, Armor, EquipmentItem, Feature,
-  AbilityScore, AbilityScoreSet, SkillName, SkillEntry,
+  AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, ProficiencyLevel,
   CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
 } from '@aplus-compendium/types';
 import {
   abilityModifier, SKILL_ABILITY_MAP,
-  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS,
+  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS, CLASS_SKILL_CHOICES,
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
   cantripCapacity, spellCapacity,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
-import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity } from '$lib/utils/migrate-character.js';
+import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity, migrateSkillGrants } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar))));
+    character = migrateSkillGrants(migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar)))));
   }
 
   // --- Derived values ---
@@ -251,6 +251,19 @@ function createCharacterStore(initial: Character) {
 
   // --- Recalculate skills/saves from effective scores ---
 
+  function getProfFromGrants(skill: SkillName, entry: SkillEntry): ProficiencyLevel {
+    const grants = character.skillProficiencyGrants;
+    if (!grants?.length) return entry.proficiency;
+    let best: ProficiencyLevel = 'none';
+    for (const grant of grants) {
+      if (grant.selected.includes(skill)) {
+        if ((grant.level ?? 'proficient') === 'expertise') return 'expertise';
+        best = 'proficient';
+      }
+    }
+    return best;
+  }
+
   function recalculateSkillsAndSaves(): void {
     const scores = effectiveAbilityScores;
     const profBonus = character.proficiencyBonus;
@@ -259,13 +272,14 @@ function createCharacterStore(initial: Character) {
     for (const [name, entry] of Object.entries(character.skills) as [SkillName, SkillEntry][]) {
       const ability = SKILL_ABILITY_MAP[name];
       const mod = abilityModifier(scores[ability]);
+      const proficiency = getProfFromGrants(name, entry);
       const prof =
-        entry.proficiency === 'expertise'
+        proficiency === 'expertise'
           ? profBonus * 2
-          : entry.proficiency === 'proficient'
+          : proficiency === 'proficient'
             ? profBonus
             : 0;
-      skills[name] = { ...entry, modifier: mod + prof };
+      skills[name] = { ...entry, proficiency, modifier: mod + prof };
     }
 
     const savingThrows = { ...character.savingThrows };
@@ -554,7 +568,7 @@ function createCharacterStore(initial: Character) {
 
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
 
-    // First class ever → set saving throw proficiencies
+    // First class ever → set saving throw proficiencies + add skill grant
     if (stack.length === 0) {
       const [save1, save2] = CLASS_SAVING_THROWS[params.class];
       const savingThrows = { ...character.savingThrows };
@@ -564,7 +578,22 @@ function createCharacterStore(initial: Character) {
           proficient: ability === save1 || ability === save2,
         };
       }
-      character = { ...character, savingThrows };
+      const { count, choices } = CLASS_SKILL_CHOICES[params.class];
+      const classGrant: SkillProficiencyGrant = {
+        id: `class-${params.class}`,
+        source: 'class',
+        sourceLabel: params.class.charAt(0).toUpperCase() + params.class.slice(1),
+        count,
+        choices,
+        // Auto-select when only one choice is available
+        selected: choices.length === 1 ? [...choices] : [],
+      };
+      const existingGrants = character.skillProficiencyGrants ?? [];
+      character = {
+        ...character,
+        savingThrows,
+        skillProficiencyGrants: [...existingGrants, classGrant],
+      };
     }
 
     const updatedStack = [...stack, newLevel];
@@ -627,6 +656,11 @@ function createCharacterStore(initial: Character) {
     }
 
     // Removing last level → clear saving throw proficiencies from the first class
+    // Also remove the class skill grant if this was the last level of that class
+    let skillProficiencyGrants = character.skillProficiencyGrants ? [...character.skillProficiencyGrants] : [];
+    if (remainingClassLevels === 0) {
+      skillProficiencyGrants = skillProficiencyGrants.filter((g) => g.id !== `class-${removed.class}`);
+    }
     if (newStack.length === 0) {
       const savingThrows = { ...character.savingThrows };
       for (const ability of ABILITY_KEYS) {
@@ -645,6 +679,7 @@ function createCharacterStore(initial: Character) {
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
       features,
+      skillProficiencyGrants: skillProficiencyGrants.length > 0 ? skillProficiencyGrants : [],
       combat: {
         ...character.combat,
         hitDicePools: deriveHitDicePools(newStack, character.combat.hitDicePools),
@@ -717,6 +752,40 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  // --- Skill grant mutations ---
+
+  function setSkillGrantSelections(grantId: string, selected: SkillName[]): void {
+    const grants = (character.skillProficiencyGrants ?? []).map((g) =>
+      g.id === grantId ? { ...g, selected } : g,
+    );
+    character = { ...character, skillProficiencyGrants: grants };
+    recalculateSkillsAndSaves();
+    queueSave();
+  }
+
+  function addManualSkillGrant(label: string, count: number): void {
+    const grant: SkillProficiencyGrant = {
+      id: `manual-${Date.now()}`,
+      source: 'manual',
+      sourceLabel: label,
+      count,
+      choices: [],
+      selected: [],
+    };
+    character = {
+      ...character,
+      skillProficiencyGrants: [...(character.skillProficiencyGrants ?? []), grant],
+    };
+    queueSave();
+  }
+
+  function removeSkillGrant(grantId: string): void {
+    const grants = (character.skillProficiencyGrants ?? []).filter((g) => g.id !== grantId);
+    character = { ...character, skillProficiencyGrants: grants };
+    recalculateSkillsAndSaves();
+    queueSave();
+  }
+
   return {
     get character() { return character; },
     get totalLevel() { return totalLevel; },
@@ -763,6 +832,10 @@ function createCharacterStore(initial: Character) {
     setSubclass,
     addClassSpell,
     removeClassSpell,
+    // Skill grant mutations
+    setSkillGrantSelections,
+    addManualSkillGrant,
+    removeSkillGrant,
   };
 }
 
