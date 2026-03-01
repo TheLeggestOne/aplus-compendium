@@ -153,7 +153,14 @@ function createCompendiumStore() {
 
     // --- Panel control ---
     openPanel(type?: CompendiumContentType): void {
-      if (type) activeType = type;
+      if (type && type !== activeType) {
+        activeType = type;
+        query = '';
+        filters = {};
+        results = [];
+        selectedId = null;
+        selectedEntry = null;
+      }
       panelOpen = true;
       void _loadSources();
       queueSearch();
