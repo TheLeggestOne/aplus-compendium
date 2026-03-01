@@ -31,6 +31,7 @@ export interface Spell {
   concentration: boolean;
   ritual: boolean;
   description: string;
+  rawEntries?: unknown[];
   prepared?: boolean;
 }
 

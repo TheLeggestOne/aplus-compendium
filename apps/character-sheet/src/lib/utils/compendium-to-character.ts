@@ -100,6 +100,7 @@ export function entryToSpell(entry: CompendiumEntry): Spell {
     concentration: durs?.some(d => d['concentration']) ?? false,
     ritual: (raw['meta'] as Record<string, unknown> | undefined)?.['ritual'] === true,
     description: '',
+    rawEntries: Array.isArray(raw['entries']) ? (raw['entries'] as unknown[]) : undefined,
     prepared: false,
   };
 }

@@ -172,7 +172,7 @@
             {#each cs.cantrips as spell (spell.id)}
               <div class="flex items-center group">
                 <div class="flex-1 min-w-0">
-                  <SpellEntry {spell} />
+                  <SpellEntry {spell} dndClass={cs.class} />
                 </div>
                 <button
                   class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-destructive transition-colors"
@@ -233,7 +233,7 @@
                     </button>
                   {/if}
                   <div class="flex-1 min-w-0">
-                    <SpellEntry {spell} />
+                    <SpellEntry {spell} dndClass={cs.class} />
                   </div>
                   {#if !isPrepareMode}
                     <button

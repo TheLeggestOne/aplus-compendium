@@ -15,9 +15,11 @@
   import CharacterDetails from '$lib/components/character/character-details.svelte';
   import ProgressionTab from '$lib/components/character/progression-tab.svelte';
   import CompendiumPanel from '$lib/components/compendium/compendium-panel.svelte';
+  import ContentViewer from '$lib/components/character/content-viewer.svelte';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { uiStore } from '$lib/stores/ui-state.svelte.js';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
   import type { PageData } from './$types.js';
 
   const { data } = $props<{ data: PageData }>();
@@ -29,14 +31,15 @@
 
   const { character } = $derived(characterStore);
   const { panelOpen } = $derived(compendiumStore);
+  const viewerContent = $derived(contentViewerStore.content);
 </script>
 
 <div class="flex h-full flex-col overflow-hidden bg-background text-foreground">
   <!-- Sticky header -->
   <CharacterHeader />
 
-  <!-- Body: resizable split when panel is open, plain column otherwise -->
-  {#if panelOpen}
+  <!-- Body: resizable split when panel or viewer is open, plain column otherwise -->
+  {#if panelOpen || viewerContent != null}
     <Resizable.PaneGroup direction="horizontal" class="min-h-0 flex-1">
 
       <Resizable.Pane defaultSize={68} minSize={35}>
@@ -52,7 +55,11 @@
       <Resizable.Pane defaultSize={32} minSize={18} maxSize={55}>
         {#snippet children()}
           <div class="h-full overflow-hidden">
-            <CompendiumPanel />
+            {#if viewerContent != null}
+              <ContentViewer />
+            {:else}
+              <CompendiumPanel />
+            {/if}
           </div>
         {/snippet}
       </Resizable.Pane>

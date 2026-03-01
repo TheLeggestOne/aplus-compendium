@@ -1,14 +1,15 @@
 <script lang="ts">
-  import type { Spell } from '@aplus-compendium/types';
+  import type { Spell, DndClass } from '@aplus-compendium/types';
   import { Badge } from '$lib/components/ui/badge/index.js';
-  import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
   import { cn } from '$lib/utils.js';
 
   interface Props {
     spell: Spell;
+    dndClass?: DndClass;
   }
 
-  let { spell }: Props = $props();
+  let { spell, dndClass }: Props = $props();
 
   const LEVEL_LABELS = ['Cantrip', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
 
@@ -26,7 +27,7 @@
 
 <button
   class="w-full text-left flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 transition-colors cursor-pointer"
-  onclick={() => compendiumStore.showSpell(spell.id, spell.name)}
+  onclick={() => contentViewerStore.open({ type: 'spell', data: spell, context: dndClass ? { dndClass } : undefined })}
   title="View spell details"
 >
   <Badge

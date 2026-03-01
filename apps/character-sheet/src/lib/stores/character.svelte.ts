@@ -827,6 +827,20 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  function updateClassSpell(dndClass: DndClass, spell: Spell): void {
+    if (!character.classSpellcasting) return;
+    const classSpellcasting = character.classSpellcasting.map((cs) => {
+      if (cs.class !== dndClass) return cs;
+      return {
+        ...cs,
+        cantrips: cs.cantrips.map((s) => (s.id === spell.id ? spell : s)),
+        spellsKnown: cs.spellsKnown.map((s) => (s.id === spell.id ? spell : s)),
+      };
+    });
+    character = { ...character, classSpellcasting };
+    queueSave();
+  }
+
   // --- Spell prepared mutations ---
 
   function setSpellPrepared(dndClass: DndClass, spellId: string, prepared: boolean): void {
@@ -1113,6 +1127,7 @@ function createCharacterStore(initial: Character) {
     setSubclass,
     addClassSpell,
     removeClassSpell,
+    updateClassSpell,
     setSpellPrepared,
     // Skill grant mutations
     setSkillGrantSelections,
