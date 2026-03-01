@@ -242,7 +242,8 @@ function extractCastingTime(spell: any): string | undefined {
 // ---------------------------------------------------------------------------
 // sources.json class repair
 // ---------------------------------------------------------------------------
-// Format: sources.json[SOURCE_CODE][Spell Name].class = [{name: string, source: string}[]]
+// Format: sources.json[SOURCE_CODE][Spell Name].class / .classVariant = [{name: string, source: string}[]]
+// Note: XGE and later sources use "classVariant" instead of (or in addition to) "class".
 
 export async function loadSpellClassesFromSources(dirPath: string): Promise<number> {
   const d = db();
@@ -253,17 +254,19 @@ export async function loadSpellClassesFromSources(dirPath: string): Promise<numb
     return 0; // file not present — silently skip
   }
 
+  type ClassEntry = { name: string; source: string };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sources = JSON.parse(raw) as Record<string, Record<string, { class?: { name: string; source: string }[] }>>;
+  const sources = JSON.parse(raw) as Record<string, Record<string, { class?: ClassEntry[]; classVariant?: ClassEntry[] }>>;
 
   // Build a map: "SpellName|SOURCE" → Set<className>
   const classMap = new Map<string, Set<string>>();
   for (const [sourceCode, spells] of Object.entries(sources)) {
     for (const [spellName, data] of Object.entries(spells)) {
-      if (!data.class?.length) continue;
+      const allEntries = [...(data.class ?? []), ...(data.classVariant ?? [])];
+      if (allEntries.length === 0) continue;
       const id = `${spellName}|${sourceCode}`;
       const set = classMap.get(id) ?? new Set<string>();
-      for (const c of data.class) {
+      for (const c of allEntries) {
         if (c.name) set.add(c.name);
       }
       classMap.set(id, set);
