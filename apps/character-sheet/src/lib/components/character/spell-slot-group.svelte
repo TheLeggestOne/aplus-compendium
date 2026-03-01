@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { SpellSlot } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
-  import { cn } from '$lib/utils.js';
 
   interface Props {
     slot: SpellSlot;
@@ -10,37 +9,30 @@
   let { slot }: Props = $props();
 
   const LEVEL_LABELS = ['—', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+
+  const available = $derived(slot.total - slot.used);
 </script>
 
-<div class="flex flex-col items-center gap-2 rounded-md border border-border bg-card p-3">
-  <span class="text-xs font-semibold text-muted-foreground uppercase">
+<div class="flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1.5">
+  <span class="text-[10px] font-semibold uppercase text-muted-foreground w-7 shrink-0">
     {LEVEL_LABELS[slot.level] ?? `${slot.level}th`}
   </span>
 
-  <div class="flex gap-1.5">
-    {#each Array(slot.total) as _, i}
-      {@const isAvailable = i >= slot.used}
-      <button
-        class={cn(
-          'size-5 rounded-full border-2 transition-all',
-          isAvailable
-            ? 'border-primary bg-primary hover:bg-primary/80 cursor-pointer'
-            : 'border-muted-foreground/30 bg-transparent cursor-pointer hover:border-primary',
-        )}
-        onclick={() => {
-          if (isAvailable) {
-            characterStore.useSpellSlot(slot.level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9);
-          } else {
-            characterStore.restoreSpellSlot(slot.level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9);
-          }
-        }}
-        aria-label={isAvailable ? 'Use spell slot' : 'Restore spell slot'}
-        title={isAvailable ? 'Click to expend slot' : 'Click to restore slot'}
-      ></button>
-    {/each}
-  </div>
+  <button
+    class="size-5 flex items-center justify-center rounded text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+    onclick={() => characterStore.useSpellSlot(slot.level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9)}
+    disabled={slot.used >= slot.total}
+    title="Use slot"
+  >−</button>
 
-  <span class="text-[10px] text-muted-foreground tabular-nums">
-    {slot.total - slot.used}/{slot.total}
+  <span class="text-sm tabular-nums font-medium w-8 text-center">
+    {available}/{slot.total}
   </span>
+
+  <button
+    class="size-5 flex items-center justify-center rounded text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+    onclick={() => characterStore.restoreSpellSlot(slot.level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9)}
+    disabled={slot.used <= 0}
+    title="Restore slot"
+  >+</button>
 </div>

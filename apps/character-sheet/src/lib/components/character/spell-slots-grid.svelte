@@ -12,7 +12,7 @@
 
 <div>
   <SectionHeader title="Spell Slots" />
-  <div class="flex flex-wrap gap-3">
+  <div class="flex flex-wrap gap-1.5 mt-1">
     {#each slots as slot}
       <SpellSlotGroup {slot} />
     {/each}

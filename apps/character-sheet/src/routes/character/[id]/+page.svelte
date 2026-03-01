@@ -8,7 +8,6 @@
   import HpBlock from '$lib/components/character/hp-block.svelte';
   import CombatStatsBlock from '$lib/components/character/combat-stats-block.svelte';
   import WeaponsList from '$lib/components/character/weapons-list.svelte';
-  import SpellcastingHeader from '$lib/components/character/spellcasting-header.svelte';
   import SpellSlotsGrid from '$lib/components/character/spell-slots-grid.svelte';
   import SpellList from '$lib/components/character/spell-list.svelte';
   import FeaturesList from '$lib/components/character/features-list.svelte';
@@ -113,9 +112,6 @@
       <Tabs.Content value="spellcasting" class="p-4">
         {#if character.classSpellcasting && character.classSpellcasting.length > 0}
           <div class="flex flex-col gap-6 max-w-2xl">
-            {#if character.spellcasting}
-              <SpellcastingHeader ability={character.spellcasting.ability} />
-            {/if}
             <SpellSlotsGrid slots={characterStore.derivedSpellSlots} />
             <SpellList
               classSpellcasting={character.classSpellcasting}
@@ -125,7 +121,6 @@
         {:else if character.spellcasting}
           <!-- Legacy fallback for characters without classSpellcasting -->
           <div class="flex flex-col gap-6 max-w-2xl">
-            <SpellcastingHeader ability={character.spellcasting.ability} />
             <SpellSlotsGrid slots={character.spellcasting.slots} />
           </div>
         {:else}

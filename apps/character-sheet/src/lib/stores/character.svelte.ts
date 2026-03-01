@@ -231,6 +231,21 @@ function createCharacterStore(initial: Character) {
 
   // --- Per-class spell capacity ---
 
+  // Per-class spellcasting stats: ability, save DC, attack bonus
+  const classSpellcastingAbilities = $derived.by(() => {
+    if (!character.classSpellcasting) return [];
+    const profBonus = derivedProficiencyBonus;
+    return character.classSpellcasting.map((cs) => {
+      const mod = abilityModifier(effectiveAbilityScores[cs.abilityScore]);
+      return {
+        class: cs.class,
+        abilityScore: cs.abilityScore,
+        spellSaveDC: 8 + profBonus + mod,
+        spellAttackBonus: profBonus + mod,
+      };
+    });
+  });
+
   const classSpellCapacities = $derived.by(() => {
     if (!character.classSpellcasting) return [];
     const summary = character.levelStack
@@ -347,28 +362,44 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
-  function useSpellSlot(level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9): void {
-    if (!character.spellcasting) return;
-    const slots = character.spellcasting.slots.map((s) =>
-      s.level === level && s.used < s.total ? { ...s, used: s.used + 1 } : s,
-    );
+  /**
+   * Upsert spell slot usage into character.spellcasting.slots.
+   * Works for both legacy characters (with existing spellcasting) and
+   * classSpellcasting characters (which may have no legacy spellcasting field).
+   */
+  function _upsertSpellSlotUsed(level: number, delta: 1 | -1): void {
+    // Use derivedSpellSlots to know the valid total for this level
+    const derivedSlot = derivedSpellSlots().find((s) => s.level === level);
+    if (!derivedSlot) return;
+
+    const existingSlots = character.spellcasting?.slots ?? [];
+    const existing = existingSlots.find((s) => s.level === level);
+    const currentUsed = existing?.used ?? 0;
+
+    if (delta === 1 && currentUsed >= derivedSlot.total) return;
+    if (delta === -1 && currentUsed <= 0) return;
+
+    const newUsed = currentUsed + delta;
+    const newSlots = existing
+      ? existingSlots.map((s) => (s.level === level ? { ...s, used: newUsed } : s))
+      : [...existingSlots, { level: level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, total: derivedSlot.total, used: newUsed }];
+
     character = {
       ...character,
-      spellcasting: { ...character.spellcasting, slots },
+      spellcasting: character.spellcasting
+        ? { ...character.spellcasting, slots: newSlots }
+        // Create minimal spellcasting stub just to hold slot tracking
+        : { ability: { abilityScore: 'intelligence' as AbilityScore, spellSaveDC: 0, spellAttackBonus: 0 }, slots: newSlots, cantrips: [], spellsKnown: [] },
     };
     queueSave();
   }
 
+  function useSpellSlot(level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9): void {
+    _upsertSpellSlotUsed(level, 1);
+  }
+
   function restoreSpellSlot(level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9): void {
-    if (!character.spellcasting) return;
-    const slots = character.spellcasting.slots.map((s) =>
-      s.level === level && s.used > 0 ? { ...s, used: s.used - 1 } : s,
-    );
-    character = {
-      ...character,
-      spellcasting: { ...character.spellcasting, slots },
-    };
-    queueSave();
+    _upsertSpellSlotUsed(level, -1);
   }
 
   function useFeature(featureId: string): void {
@@ -752,6 +783,23 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  // --- Spell prepared mutations ---
+
+  function setSpellPrepared(dndClass: DndClass, spellId: string, prepared: boolean): void {
+    if (!character.classSpellcasting) return;
+    const classSpellcasting = character.classSpellcasting.map((cs) => {
+      if (cs.class !== dndClass) return cs;
+      return {
+        ...cs,
+        spellsKnown: cs.spellsKnown.map((s) =>
+          s.id === spellId ? { ...s, prepared } : s,
+        ),
+      };
+    });
+    character = { ...character, classSpellcasting };
+    queueSave();
+  }
+
   // --- Skill grant mutations ---
 
   function setSkillGrantSelections(grantId: string, selected: SkillName[]): void {
@@ -805,6 +853,7 @@ function createCharacterStore(initial: Character) {
     get derivedSpellSlots() { return derivedSpellSlots(); },
     get derivedMaxHp() { return derivedMaxHp; },
     get classSpellCapacities() { return classSpellCapacities; },
+    get classSpellcastingAbilities() { return classSpellcastingAbilities; },
     // Existing mutations
     reinit,
     setAbilityScores,
@@ -832,6 +881,7 @@ function createCharacterStore(initial: Character) {
     setSubclass,
     addClassSpell,
     removeClassSpell,
+    setSpellPrepared,
     // Skill grant mutations
     setSkillGrantSelections,
     addManualSkillGrant,

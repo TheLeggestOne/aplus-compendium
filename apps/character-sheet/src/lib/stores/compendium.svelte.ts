@@ -183,6 +183,18 @@ function createCompendiumStore() {
       pickMode = null;
     },
 
+    // --- Spell detail view ---
+    showSpell(id: string, name: string): void {
+      activeType = 'spell';
+      query = name;
+      filters = {};
+      panelOpen = true;
+      pickMode = null;
+      void this.selectEntry(id);
+      void _loadSources();
+      queueSearch();
+    },
+
     togglePanel(): void {
       if (panelOpen) {
         panelOpen = false;
