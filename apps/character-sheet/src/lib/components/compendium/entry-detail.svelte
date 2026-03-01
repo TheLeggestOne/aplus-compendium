@@ -10,11 +10,11 @@
   import type { AbilityScore } from '@aplus-compendium/types';
   import {
     entryToSpell,
-    entryToWeapon,
-    entryToArmor,
-    entryToEquipment,
     entryToFeature,
     extractRaceData,
+    entryToInventoryWeapon,
+    entryToInventoryArmor,
+    entryToInventoryEquipment,
   } from '$lib/utils/compendium-to-character.js';
   import type { RaceData } from '$lib/utils/compendium-to-character.js';
   import RaceAsiChooser from './race-asi-chooser.svelte';
@@ -55,16 +55,16 @@
   function addToCharacter() {
     switch (entry.dropTarget) {
       case 'weapon':
-        characterStore.addWeapon(entryToWeapon(entry));
-        flash('Added to weapons!');
+        characterStore.addInventoryItem(entryToInventoryWeapon(entry));
+        flash('Added to inventory!');
         break;
       case 'armor':
-        characterStore.addArmor(entryToArmor(entry));
-        flash('Added to armor!');
+        characterStore.addInventoryItem(entryToInventoryArmor(entry));
+        flash('Added to inventory!');
         break;
       case 'equipment':
-        characterStore.addEquipment(entryToEquipment(entry));
-        flash('Added to equipment!');
+        characterStore.addInventoryItem(entryToInventoryEquipment(entry));
+        flash('Added to inventory!');
         break;
       case 'feature':
         characterStore.addFeature(entryToFeature(entry));
@@ -74,9 +74,9 @@
   }
 
   const addLabel = $derived(
-    entry.dropTarget === 'weapon'   ? 'Add to Weapons'
-    : entry.dropTarget === 'armor'    ? 'Add to Armor'
-    : entry.dropTarget === 'equipment'? 'Add to Equipment'
+    entry.dropTarget === 'weapon'   ? 'Add to Inventory'
+    : entry.dropTarget === 'armor'    ? 'Add to Inventory'
+    : entry.dropTarget === 'equipment'? 'Add to Inventory'
     : entry.dropTarget === 'feature'  ? 'Add Feature'
     : null,
   );

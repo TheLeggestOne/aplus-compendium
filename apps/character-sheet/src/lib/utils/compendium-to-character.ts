@@ -17,6 +17,9 @@ import type {
   FeatureSourceType,
   CompendiumContentType,
   AbilityScore,
+  InventoryWeapon,
+  InventoryArmor,
+  InventoryEquipment,
 } from '@aplus-compendium/types';
 
 // ---------------------------------------------------------------------------
@@ -221,6 +224,77 @@ export function entryToEquipment(entry: CompendiumEntry): EquipmentItem {
     equipped:           false,
     attuned:            false,
     requiresAttunement: !!raw['reqAttune'],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Inventory item converters (new unified system)
+// ---------------------------------------------------------------------------
+
+function _inventoryId(): string {
+  return `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function entryToInventoryWeapon(entry: CompendiumEntry): InventoryWeapon {
+  const w = entryToWeapon(entry);
+  return {
+    type:                'weapon',
+    id:                  _inventoryId(),
+    name:                w.name,
+    quantity:            1,
+    weight:              w.weight,
+    rarity:              w.rarity,
+    description:         w.description,
+    containerId:         'default',
+    requiresAttunement:  w.requiresAttunement,
+    attuned:             false,
+    category:            w.category,
+    damageDice:          w.damageDice,
+    damageType:          w.damageType,
+    properties:          w.properties,
+    attackBonus:         w.attackBonus,
+    damageBonus:         w.damageBonus,
+    abilityUsed:         w.abilityUsed,
+    versatileDamageDice: w.versatileDamageDice,
+    range:               w.range,
+    dieType:             w.dieType,
+  };
+}
+
+export function entryToInventoryArmor(entry: CompendiumEntry): InventoryArmor {
+  const a = entryToArmor(entry);
+  return {
+    type:                'armor',
+    id:                  _inventoryId(),
+    name:                a.name,
+    quantity:            1,
+    weight:              a.weight,
+    rarity:              a.rarity,
+    description:         a.description,
+    containerId:         'default',
+    requiresAttunement:  a.requiresAttunement,
+    attuned:             false,
+    category:            a.category,
+    baseArmorClass:      a.baseArmorClass,
+    maxDexBonus:         a.maxDexBonus,
+    strengthRequirement: a.strengthRequirement,
+    stealthDisadvantage: a.stealthDisadvantage,
+  };
+}
+
+export function entryToInventoryEquipment(entry: CompendiumEntry): InventoryEquipment {
+  const e = entryToEquipment(entry);
+  return {
+    type:               'equipment',
+    id:                 _inventoryId(),
+    name:               e.name,
+    quantity:           1,
+    weight:             e.weight,
+    rarity:             e.rarity,
+    description:        e.description,
+    containerId:        'default',
+    requiresAttunement: e.requiresAttunement,
+    attuned:            false,
   };
 }
 

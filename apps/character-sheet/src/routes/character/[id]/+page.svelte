@@ -11,8 +11,7 @@
   import SpellSlotsGrid from '$lib/components/character/spell-slots-grid.svelte';
   import SpellList from '$lib/components/character/spell-list.svelte';
   import FeaturesList from '$lib/components/character/features-list.svelte';
-  import EquipmentList from '$lib/components/character/equipment-list.svelte';
-  import CurrencyDisplay from '$lib/components/character/currency-display.svelte';
+  import InventoryTab from '$lib/components/character/inventory-tab.svelte';
   import CharacterDetails from '$lib/components/character/character-details.svelte';
   import ProgressionTab from '$lib/components/character/progression-tab.svelte';
   import CompendiumPanel from '$lib/components/compendium/compendium-panel.svelte';
@@ -79,6 +78,7 @@
         Spellcasting{character.spellcasting ? '' : ' ✕'}
       </Tabs.Trigger>
       <Tabs.Trigger value="features-equipment">Features</Tabs.Trigger>
+      <Tabs.Trigger value="inventory">Inventory</Tabs.Trigger>
       <Tabs.Trigger value="progression">Progression</Tabs.Trigger>
       <Tabs.Trigger value="details">Details</Tabs.Trigger>
     </Tabs.List>
@@ -132,13 +132,12 @@
 
       <!-- Features & Equipment -->
       <Tabs.Content value="features-equipment" class="p-4">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <FeaturesList />
-          <div class="flex flex-col gap-4">
-            <EquipmentList />
-            <CurrencyDisplay currency={character.currency} />
-          </div>
-        </div>
+        <FeaturesList />
+      </Tabs.Content>
+
+      <!-- Inventory -->
+      <Tabs.Content value="inventory" class="p-4">
+        <InventoryTab />
       </Tabs.Content>
 
       <!-- Progression -->

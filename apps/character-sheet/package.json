@@ -20,7 +20,8 @@
   "dependencies": {
     "@aplus-compendium/types": "workspace:*",
     "better-sqlite3": "^12.6.2",
-    "electron": "^36.0.0"
+    "electron": "^36.0.0",
+    "svelte-dnd-action": "^0.9.69"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",

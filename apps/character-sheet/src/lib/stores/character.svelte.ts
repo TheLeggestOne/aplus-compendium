@@ -2,6 +2,7 @@ import type {
   Character, Spell, Weapon, Armor, EquipmentItem, Feature,
   AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, ProficiencyLevel,
   CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
+  InventoryItem, InventoryContainer, InventoryWeapon, InventoryArmor,
 } from '@aplus-compendium/types';
 import {
   abilityModifier, SKILL_ABILITY_MAP,
@@ -10,7 +11,7 @@ import {
   cantripCapacity, spellCapacity,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
-import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity, migrateSkillGrants } from '$lib/utils/migrate-character.js';
+import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity, migrateSkillGrants, migrateInventory } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -100,7 +101,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = migrateSkillGrants(migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar)))));
+    character = migrateInventory(migrateSkillGrants(migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar))))));
   }
 
   // --- Derived values ---
@@ -160,10 +161,53 @@ function createCharacterStore(initial: Character) {
   const carryCapacity = $derived(effectiveAbilityScores.strength * 15);
 
   const currentCarryWeight = $derived(() => {
+    const items = character.inventoryItems;
+    if (items) {
+      return items.reduce((sum, item) => sum + item.weight * item.quantity, 0);
+    }
+    // Fallback for unmigrated characters
     const weaponWeight = character.weapons.reduce((sum, w) => sum + w.weight * w.quantity, 0);
     const armorWeight = character.armor.reduce((sum, a) => sum + a.weight * a.quantity, 0);
     const equipmentWeight = character.equipment.reduce((sum, e) => sum + e.weight * e.quantity, 0);
     return weaponWeight + armorWeight + equipmentWeight;
+  });
+
+  const wornItems = $derived(character.inventoryItems?.filter((i) => i.containerId === 'worn') ?? []);
+
+  const attuneCount = $derived(character.inventoryItems?.filter((i) => i.attuned).length ?? 0);
+
+  /**
+   * AC derived from equipped armor and shield. Falls back to `character.combat.armorClass`
+   * when no armor is equipped (covers unarmored defense, Mage Armor, natural armor, etc.).
+   * Shield (in offhand) always adds its AC bonus on top.
+   */
+  const derivedAC = $derived.by(() => {
+    const dexMod = abilityModifier(effectiveAbilityScores.dexterity);
+    const equippedArmor = wornItems.find(
+      (i): i is InventoryArmor => i.type === 'armor' && i.equipSlot === 'armor',
+    );
+    const equippedShield = wornItems.find(
+      (i): i is InventoryArmor => i.type === 'armor' && i.equipSlot === 'offhand',
+    );
+
+    let baseAC: number;
+    if (equippedArmor) {
+      // Resolve max DEX contribution: prefer stored maxDexBonus, fall back to category
+      const maxDex =
+        equippedArmor.maxDexBonus !== undefined
+          ? equippedArmor.maxDexBonus
+          : equippedArmor.category === 'heavy'
+            ? 0
+            : equippedArmor.category === 'medium'
+              ? 2
+              : undefined; // light = full DEX
+      const dexContrib = maxDex === undefined ? dexMod : maxDex === 0 ? 0 : Math.min(dexMod, maxDex);
+      baseAC = equippedArmor.baseArmorClass + dexContrib;
+    } else {
+      baseAC = character.combat.armorClass;
+    }
+
+    return baseAC + (equippedShield ? equippedShield.baseArmorClass : 0);
   });
 
   const xpForNextLevel: Record<number, number> = {
@@ -461,7 +505,7 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
-  // --- Compendium add mutations ---
+  // --- Legacy compendium add mutations (kept for backward compat) ---
 
   function addWeapon(weapon: Weapon): void {
     character = { ...character, weapons: [...character.weapons, weapon] };
@@ -834,6 +878,191 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  // --- Inventory mutations ---
+
+  function _itemId(): string {
+    return `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function addInventoryItem(item: InventoryItem): void {
+    const items = character.inventoryItems ?? [];
+    const newItem = { ...item, id: item.id || _itemId(), containerId: item.containerId || 'default' };
+    character = { ...character, inventoryItems: [...items, newItem] };
+    queueSave();
+  }
+
+  function removeInventoryItem(itemId: string): void {
+    const items = (character.inventoryItems ?? []).filter((i) => i.id !== itemId);
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function updateInventoryItem(itemId: string, patch: Partial<InventoryItem>): void {
+    const items = (character.inventoryItems ?? []).map((i) =>
+      i.id === itemId ? ({ ...i, ...patch } as InventoryItem) : i,
+    );
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function adjustItemQuantity(itemId: string, delta: number): void {
+    const items = (character.inventoryItems ?? []).map((i) => {
+      if (i.id !== itemId) return i;
+      return { ...i, quantity: Math.max(0, i.quantity + delta) };
+    });
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function setItemQuantity(itemId: string, qty: number): void {
+    const items = (character.inventoryItems ?? []).map((i) =>
+      i.id === itemId ? { ...i, quantity: Math.max(0, qty) } : i,
+    );
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function toggleAttuned(itemId: string): void {
+    const items = (character.inventoryItems ?? []).map((i) =>
+      i.id === itemId ? { ...i, attuned: !i.attuned } : i,
+    );
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function moveItemToContainer(itemId: string, targetContainerId: string): void {
+    const allItems = character.inventoryItems ?? [];
+    const item = allItems.find((i) => i.id === itemId);
+    if (!item) return;
+
+    // Moving out of worn — just clear equipSlot
+    if (item.containerId === 'worn' && targetContainerId !== 'worn') {
+      const items = allItems.map((i) =>
+        i.id === itemId ? ({ ...i, containerId: targetContainerId, equipSlot: undefined } as InventoryItem) : i,
+      );
+      character = { ...character, inventoryItems: items };
+      queueSave();
+      return;
+    }
+
+    if (targetContainerId !== 'worn') {
+      const items = allItems.map((i) =>
+        i.id === itemId ? ({ ...i, containerId: targetContainerId, equipSlot: undefined } as InventoryItem) : i,
+      );
+      character = { ...character, inventoryItems: items };
+      queueSave();
+      return;
+    }
+
+    // Moving INTO worn — slot-aware logic
+    const wornNow = allItems.filter((i) => i.containerId === 'worn');
+    const updates = new Map<string, Partial<InventoryItem>>();
+
+    if (item.type === 'armor') {
+      const armorItem = item as InventoryArmor;
+      if (armorItem.category === 'shield') {
+        // Shield occupies the off-hand slot
+        const conflict = wornNow.find((i) => i.equipSlot === 'offhand');
+        if (conflict) updates.set(conflict.id, { containerId: 'default', equipSlot: undefined });
+        updates.set(itemId, { containerId: 'worn', equipSlot: 'offhand' });
+      } else {
+        // Body armor occupies the armor slot
+        const conflict = wornNow.find((i) => i.type === 'armor' && i.equipSlot === 'armor');
+        if (conflict) updates.set(conflict.id, { containerId: 'default', equipSlot: undefined });
+        updates.set(itemId, { containerId: 'worn', equipSlot: 'armor' });
+      }
+
+    } else if (item.type === 'weapon') {
+      const weaponItem = item as InventoryWeapon;
+      const isTwoHanded = weaponItem.properties.includes('two-handed');
+      const mainhand = wornNow.find((i) => i.equipSlot === 'mainhand');
+      const offhand = wornNow.find((i) => i.equipSlot === 'offhand');
+
+      if (!mainhand) {
+        // Mainhand free
+        updates.set(itemId, { containerId: 'worn', equipSlot: 'mainhand' });
+        // Two-handed clears offhand too
+        if (isTwoHanded && offhand) {
+          updates.set(offhand.id, { containerId: 'default', equipSlot: undefined });
+        }
+      } else {
+        const mainhandWeapon = mainhand as InventoryWeapon;
+        const mainIsTwoHanded = mainhandWeapon.properties.includes('two-handed');
+        if (mainIsTwoHanded) {
+          // Conflict: replace mainhand
+          updates.set(mainhand.id, { containerId: 'default', equipSlot: undefined });
+          updates.set(itemId, { containerId: 'worn', equipSlot: 'mainhand' });
+        } else if (!offhand) {
+          // Offhand free
+          updates.set(itemId, { containerId: 'worn', equipSlot: isTwoHanded ? 'mainhand' : 'offhand' });
+          if (isTwoHanded) {
+            // New two-handed weapon goes mainhand, old mainhand displaced
+            updates.set(mainhand.id, { containerId: 'default', equipSlot: undefined });
+          }
+        } else {
+          // Both slots filled — replace offhand (unless new is two-handed, then replace mainhand)
+          if (isTwoHanded) {
+            updates.set(mainhand.id, { containerId: 'default', equipSlot: undefined });
+            updates.set(offhand.id, { containerId: 'default', equipSlot: undefined });
+            updates.set(itemId, { containerId: 'worn', equipSlot: 'mainhand' });
+          } else {
+            updates.set(offhand.id, { containerId: 'default', equipSlot: undefined });
+            updates.set(itemId, { containerId: 'worn', equipSlot: 'offhand' });
+          }
+        }
+      }
+    } else {
+      // Equipment items → misc slot, no limit
+      updates.set(itemId, { containerId: 'worn', equipSlot: 'misc' });
+    }
+
+    const items = allItems.map((i) => {
+      const patch = updates.get(i.id);
+      return patch ? ({ ...i, ...patch } as InventoryItem) : i;
+    });
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
+  function addContainer(name: string, capacityLbs?: number): void {
+    const containers = character.inventoryContainers ?? [];
+    const newContainer: InventoryContainer = {
+      id: `container-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      capacityLbs,
+    };
+    character = { ...character, inventoryContainers: [...containers, newContainer] };
+    queueSave();
+  }
+
+  function removeContainer(containerId: string): void {
+    // Move all items from this container to default
+    const items = (character.inventoryItems ?? []).map((i) =>
+      i.containerId === containerId
+        ? ({ ...i, containerId: 'default', equipSlot: undefined } as InventoryItem)
+        : i,
+    );
+    const containers = (character.inventoryContainers ?? []).filter((c) => c.id !== containerId);
+    character = { ...character, inventoryContainers: containers, inventoryItems: items };
+    queueSave();
+  }
+
+  function renameContainer(containerId: string, name: string): void {
+    const containers = (character.inventoryContainers ?? []).map((c) =>
+      c.id === containerId ? { ...c, name } : c,
+    );
+    character = { ...character, inventoryContainers: containers };
+    queueSave();
+  }
+
+  function setContainerCapacity(containerId: string, capacityLbs: number | undefined): void {
+    const containers = (character.inventoryContainers ?? []).map((c) =>
+      c.id === containerId ? { ...c, capacityLbs } : c,
+    );
+    character = { ...character, inventoryContainers: containers };
+    queueSave();
+  }
+
   return {
     get character() { return character; },
     get totalLevel() { return totalLevel; },
@@ -843,6 +1072,9 @@ function createCharacterStore(initial: Character) {
     get effectiveAbilityScores() { return effectiveAbilityScores; },
     get carryCapacity() { return carryCapacity; },
     get currentCarryWeight() { return currentCarryWeight(); },
+    get wornItems() { return wornItems; },
+    get attuneCount() { return attuneCount; },
+    get derivedAC() { return derivedAC; },
     get xpProgress() { return xpProgress(); },
     get xpForNextLevel() {
       return xpForNextLevel[totalLevel] ?? Infinity;
@@ -886,6 +1118,18 @@ function createCharacterStore(initial: Character) {
     setSkillGrantSelections,
     addManualSkillGrant,
     removeSkillGrant,
+    // Inventory mutations
+    addInventoryItem,
+    removeInventoryItem,
+    updateInventoryItem,
+    adjustItemQuantity,
+    setItemQuantity,
+    toggleAttuned,
+    moveItemToContainer,
+    addContainer,
+    removeContainer,
+    renameContainer,
+    setContainerCapacity,
   };
 }
 

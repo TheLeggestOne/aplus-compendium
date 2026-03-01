@@ -5,6 +5,7 @@ export * from './dnd5e/classes.js';
 export * from './dnd5e/combat.js';
 export * from './dnd5e/currency.js';
 export * from './dnd5e/equipment.js';
+export * from './dnd5e/inventory.js';
 export * from './dnd5e/features.js';
 export * from './dnd5e/skills.js';
 export * from './dnd5e/spell-capacity-tables.js';

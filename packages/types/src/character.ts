@@ -5,6 +5,7 @@ import type { CharacterClass } from './dnd5e/classes.js';
 import type { CombatStats } from './dnd5e/combat.js';
 import type { Currency } from './dnd5e/currency.js';
 import type { Armor, EquipmentItem, Weapon } from './dnd5e/equipment.js';
+import type { InventoryContainer, InventoryItem } from './dnd5e/inventory.js';
 import type { Feature } from './dnd5e/features.js';
 import type { SavingThrows, SkillEntry, SkillName, SkillProficiencyGrant } from './dnd5e/skills.js';
 import type { CharacterSpellcasting } from './dnd5e/spellcasting.js';
@@ -64,11 +65,17 @@ export interface Character {
   levelStack?: ClassLevel[];
   classSpellcasting?: ClassSpellcasting[];
 
-  // Gear
+  // Gear (legacy arrays kept for migration; new system uses inventoryItems)
   weapons: Weapon[];
   armor: Armor[];
   equipment: EquipmentItem[];
   currency: Currency;
+
+  // Inventory system
+  inventoryContainers?: InventoryContainer[];
+  inventoryItems?: InventoryItem[];
+  /** Set to true once the old weapons/armor/equipment arrays have been migrated. */
+  _inventoryMigrated?: boolean;
 
   // Features & traits
   features: Feature[];

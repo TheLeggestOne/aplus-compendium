@@ -10,7 +10,7 @@
   import EditModeToggle from './edit-mode-toggle.svelte';
   import InspirationBadge from './inspiration-badge.svelte';
 
-  const { character, passivePerception } = $derived(characterStore);
+  const { character, passivePerception, derivedAC } = $derived(characterStore);
   const { panelOpen } = $derived(compendiumStore);
 
   const isDying = $derived(character.combat.currentHitPoints === 0);
@@ -34,7 +34,7 @@
 
       <!-- Key combat stats -->
       <div class="hidden md:flex items-center gap-2">
-        <KeyStatPill label="AC" value={character.combat.armorClass} />
+        <KeyStatPill label="AC" value={derivedAC} />
         <KeyStatPill label="Init" value={character.combat.initiative >= 0 ? `+${character.combat.initiative}` : character.combat.initiative} />
         <KeyStatPill label="Speed" value={`${character.combat.speed}ft`} />
         <KeyStatPill label="Prof" value={`+${character.proficiencyBonus}`} />

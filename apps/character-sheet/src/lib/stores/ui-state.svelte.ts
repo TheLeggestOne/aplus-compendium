@@ -3,6 +3,7 @@ export type CharacterSheetTab =
   | 'combat'
   | 'spellcasting'
   | 'features-equipment'
+  | 'inventory'
   | 'progression'
   | 'details';
 

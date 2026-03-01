@@ -1,4 +1,4 @@
-import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant } from '@aplus-compendium/types';
+import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, InventoryContainer, InventoryItem, InventoryWeapon, InventoryArmor, InventoryEquipment } from '@aplus-compendium/types';
 import {
   abilityModifier,
   CLASS_HIT_DICE,
@@ -220,6 +220,121 @@ export function migrateSkillGrants(char: Character): Character {
   }
 
   return { ...char, skillProficiencyGrants: grants };
+}
+
+/**
+ * Migrates the legacy weapons/armor/equipment arrays to the unified inventoryItems
+ * system with container support. Creates the default "Character Inventory" and
+ * "Worn / Equipped" containers, then converts all existing items into InventoryItem
+ * records with appropriate containerId values based on their current equipped status.
+ */
+export function migrateInventory(char: Character): Character {
+  if (char._inventoryMigrated) return char;
+
+  const containers: InventoryContainer[] = [
+    { id: 'default', name: 'Character Inventory', isDefault: true },
+    { id: 'worn', name: 'Worn / Equipped', isWornEquipped: true },
+  ];
+
+  const items: InventoryItem[] = [];
+
+  for (const w of char.weapons) {
+    const isWorn = !!w.equipped;
+    const inv: InventoryWeapon = {
+      type:               'weapon',
+      id:                 w.id,
+      name:               w.name,
+      quantity:           w.quantity,
+      weight:             w.weight,
+      rarity:             w.rarity,
+      description:        w.description,
+      containerId:        isWorn ? 'worn' : 'default',
+      equipSlot:          isWorn ? 'mainhand' : undefined,
+      requiresAttunement: w.requiresAttunement,
+      attuned:            w.attuned,
+      category:           w.category,
+      damageDice:         w.damageDice,
+      damageType:         w.damageType,
+      properties:         w.properties,
+      attackBonus:        w.attackBonus,
+      damageBonus:        w.damageBonus,
+      abilityUsed:        w.abilityUsed,
+      versatileDamageDice: w.versatileDamageDice,
+      range:              w.range,
+      dieType:            w.dieType,
+    };
+    items.push(inv);
+  }
+
+  // Track slots already filled during migration to avoid slot conflicts
+  let armorSlotFilled = false;
+  let offhandSlotFilled = false;
+
+  for (const a of char.armor) {
+    const isWorn = !!a.equipped;
+    let equipSlot: InventoryArmor['equipSlot'] = undefined;
+    if (isWorn) {
+      if (a.category === 'shield' && !offhandSlotFilled) {
+        equipSlot = 'offhand';
+        offhandSlotFilled = true;
+      } else if (a.category !== 'shield' && !armorSlotFilled) {
+        equipSlot = 'armor';
+        armorSlotFilled = true;
+      }
+    }
+    const inv: InventoryArmor = {
+      type:                'armor',
+      id:                  a.id,
+      name:                a.name,
+      quantity:            a.quantity,
+      weight:              a.weight,
+      rarity:              a.rarity,
+      description:         a.description,
+      containerId:         isWorn && equipSlot ? 'worn' : 'default',
+      equipSlot,
+      requiresAttunement:  a.requiresAttunement,
+      attuned:             a.attuned,
+      category:            a.category,
+      baseArmorClass:      a.baseArmorClass,
+      // Infer maxDexBonus from category if the legacy record omitted it
+      maxDexBonus:
+        a.maxDexBonus !== undefined
+          ? a.maxDexBonus
+          : a.category === 'heavy'
+            ? 0
+            : a.category === 'medium'
+              ? 2
+              : undefined,
+      strengthRequirement: a.strengthRequirement,
+      stealthDisadvantage: a.stealthDisadvantage,
+    };
+    items.push(inv);
+  }
+
+  for (const e of char.equipment) {
+    const isWorn = !!e.equipped;
+    const inv: InventoryEquipment = {
+      type:               'equipment',
+      id:                 e.id,
+      name:               e.name,
+      quantity:           e.quantity,
+      weight:             e.weight,
+      rarity:             e.rarity,
+      description:        e.description,
+      containerId:        isWorn ? 'worn' : 'default',
+      equipSlot:          isWorn ? 'misc' : undefined,
+      requiresAttunement: e.requiresAttunement,
+      attuned:            e.attuned,
+    };
+    items.push(inv);
+  }
+
+  return {
+    ...char,
+    inventoryContainers: containers,
+    inventoryItems: items,
+    _inventoryMigrated: true,
+  };
 }
 
 /**
