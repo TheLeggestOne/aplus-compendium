@@ -5,7 +5,15 @@ import type {
   CompendiumSearchResult,
   CompendiumStatus,
   ImportProgress,
+  Spell,
 } from '@aplus-compendium/types';
+
+export interface PickModeState {
+  mode: 'cantrip' | 'spell';
+  className: string;
+  onPick: (spell: Spell) => void;
+  onCancel: () => void;
+}
 
 const CONTENT_TYPES: CompendiumContentType[] = [
   'spell',
@@ -45,6 +53,9 @@ function createCompendiumStore() {
 
   // Available sources for the active content type (for filter UI)
   let availableSources = $state<string[]>([]);
+
+  // Pick mode — used by level-up dialog to select spells via the compendium panel
+  let pickMode = $state<PickModeState | null>(null);
 
   // Debounced search — stale token prevents older results overwriting newer ones
   let _searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -126,6 +137,7 @@ function createCompendiumStore() {
     get importProgress() { return importProgress; },
     get availableSources() { return availableSources; },
     get contentTypes() { return CONTENT_TYPES; },
+    get pickMode() { return pickMode; },
 
     // --- Lifecycle ---
     async initialize(): Promise<void> {
@@ -149,6 +161,26 @@ function createCompendiumStore() {
 
     closePanel(): void {
       panelOpen = false;
+    },
+
+    // --- Pick mode (level-up spell selection) ---
+    enterPickMode(opts: PickModeState): void {
+      pickMode = opts;
+      activeType = 'spell';
+      query = '';
+      filters = opts.mode === 'cantrip'
+        ? { classes: [opts.className], level: [0] }
+        : { classes: [opts.className] };
+      results = [];
+      selectedId = null;
+      selectedEntry = null;
+      panelOpen = true;
+      void _loadSources();
+      queueSearch();
+    },
+
+    exitPickMode(): void {
+      pickMode = null;
     },
 
     togglePanel(): void {

@@ -177,3 +177,31 @@ export function migrateHpRoll(char: Character): Character {
 
   return { ...char, levelStack };
 }
+
+/**
+ * Strips the removed per-level spell tracking fields from level stack entries.
+ *
+ * The old model stored `cantripsGained`, `spellsGained`, and `spellSwapped`
+ * on each ClassLevel. The new capacity-based model stores spells only in
+ * ClassSpellcasting — the per-level fields are no longer used.
+ */
+export function migrateSpellCapacity(char: Character): Character {
+  if (!char.levelStack || char.levelStack.length === 0) return char;
+
+  // Check if migration is needed — look for any legacy spell fields
+  const hasLegacy = char.levelStack.some((lv) => {
+    const raw = lv as unknown as Record<string, unknown>;
+    return raw.cantripsGained !== undefined
+      || raw.spellsGained !== undefined
+      || raw.spellSwapped !== undefined;
+  });
+  if (!hasLegacy) return char;
+
+  const levelStack = char.levelStack.map((lv) => {
+    const raw = lv as unknown as Record<string, unknown>;
+    const { cantripsGained: _c, spellsGained: _s, spellSwapped: _sw, ...rest } = raw;
+    return rest as unknown as ClassLevel;
+  });
+
+  return { ...char, levelStack };
+}

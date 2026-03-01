@@ -33,6 +33,15 @@
 
   const raw = $derived(entry.raw);
 
+  // --- Pick mode (spell selection via compendium) ---
+  const inPickMode = $derived(compendiumStore.pickMode);
+
+  function pickSpell() {
+    if (!inPickMode) return;
+    inPickMode.onPick(entryToSpell(entry));
+    // Stay in pick mode so the user can keep adding spells
+  }
+
   // --- Add to character ---
   let addedLabel = $state<string | null>(null);
   let _addedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -45,10 +54,6 @@
 
   function addToCharacter() {
     switch (entry.dropTarget) {
-      case 'spell':
-        characterStore.addSpell(entryToSpell(entry));
-        flash(entry.level === 0 ? 'Cantrip added!' : 'Spell added!');
-        break;
       case 'weapon':
         characterStore.addWeapon(entryToWeapon(entry));
         flash('Added to weapons!');
@@ -69,13 +74,11 @@
   }
 
   const addLabel = $derived(
-    entry.dropTarget === 'spell'
-      ? (entry.level === 0 ? 'Add Cantrip' : 'Add Spell')
-      : entry.dropTarget === 'weapon'   ? 'Add to Weapons'
-      : entry.dropTarget === 'armor'    ? 'Add to Armor'
-      : entry.dropTarget === 'equipment'? 'Add to Equipment'
-      : entry.dropTarget === 'feature'  ? 'Add Feature'
-      : null,
+    entry.dropTarget === 'weapon'   ? 'Add to Weapons'
+    : entry.dropTarget === 'armor'    ? 'Add to Armor'
+    : entry.dropTarget === 'equipment'? 'Add to Equipment'
+    : entry.dropTarget === 'feature'  ? 'Add Feature'
+    : null,
   );
 
   // --- Spell detail helpers ---
@@ -537,8 +540,15 @@
     </div>
   {/if}
 
-  <!-- Add to character -->
-  {#if addLabel}
+  <!-- Add to character / Pick spell -->
+  {#if inPickMode && isSpell}
+    <div class="flex items-center gap-2 pt-1">
+      <Button size="sm" class="h-7 text-xs flex-1" onclick={pickSpell}>
+        Pick
+      </Button>
+    </div>
+    <Separator />
+  {:else if addLabel}
     <div class="flex items-center gap-2 pt-1">
       <Button size="sm" class="h-7 text-xs flex-1" onclick={addToCharacter} disabled={!!addedLabel}>
         {addedLabel ?? addLabel}

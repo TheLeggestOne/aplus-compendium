@@ -44,17 +44,6 @@ export interface ClassLevel {
 
   /** Feature IDs gained at this level (references character.features[].id) */
   featureIds: string[];
-
-  /** Cantrip IDs gained at this level (for known-spell casters, enables revert) */
-  cantripsGained?: string[];
-
-  /** Spell IDs gained at this level (for known-spell casters like Bard/Sorcerer/Warlock).
-   *  Prepared casters (Cleric/Druid/Paladin) don't use this — their prep list is derived. */
-  spellsGained?: string[];
-
-  /** Spell swapped at this level (some classes can swap one known spell on level-up).
-   *  Full Spell objects are stored so the swap is fully reversible on level pop. */
-  spellSwapped?: { removed: Spell; added: Spell };
 }
 
 /**

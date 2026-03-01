@@ -1,14 +1,18 @@
 <script lang="ts">
   import type { CompendiumSearchResult } from '@aplus-compendium/types';
   import { Badge } from '$lib/components/ui/badge/index.js';
+  import PlusIcon from '@lucide/svelte/icons/plus';
+  import CheckIcon from '@lucide/svelte/icons/check';
 
   interface Props {
     entry: CompendiumSearchResult;
     selected: boolean;
     onclick: () => void;
+    onpick?: () => void;
+    justPicked?: boolean;
   }
 
-  const { entry, selected, onclick }: Props = $props();
+  const { entry, selected, onclick, onpick, justPicked }: Props = $props();
 
   function spellLevelLabel(level: number | undefined): string {
     if (level === undefined) return '';
@@ -91,8 +95,26 @@
       </div>
     </div>
 
-    <Badge variant="outline" class="shrink-0 text-[10px] px-1 py-0 h-4 font-normal opacity-60">
-      {entry.source}
-    </Badge>
+    <div class="flex items-center gap-1 shrink-0">
+      <Badge variant="outline" class="text-[10px] px-1 py-0 h-4 font-normal opacity-60">
+        {entry.source}
+      </Badge>
+      {#if onpick}
+        <button
+          class="size-5 flex items-center justify-center rounded transition-colors
+            {justPicked
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-primary/10 text-primary hover:bg-primary/20'}"
+          onclick={(e: MouseEvent) => { e.stopPropagation(); onpick?.(); }}
+          title="Add spell"
+        >
+          {#if justPicked}
+            <CheckIcon class="size-3" />
+          {:else}
+            <PlusIcon class="size-3" />
+          {/if}
+        </button>
+      {/if}
+    </div>
   </div>
 </button>

@@ -7,9 +7,10 @@ import {
   abilityModifier, SKILL_ABILITY_MAP,
   CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS,
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
+  cantripCapacity, spellCapacity,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
-import { migrateAbilityScoreLayers, migrateHpRoll } from '$lib/utils/migrate-character.js';
+import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar)));
+    character = migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar))));
   }
 
   // --- Derived values ---
@@ -226,6 +227,26 @@ function createCharacterStore(initial: Character) {
     if (!stack || stack.length === 0) return character.combat.maxHitPoints;
     const conMod = abilityModifier(effectiveAbilityScores.constitution);
     return stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+  });
+
+  // --- Per-class spell capacity ---
+
+  const classSpellCapacities = $derived.by(() => {
+    if (!character.classSpellcasting) return [];
+    const summary = character.levelStack
+      ? deriveClassesSummary(character.levelStack)
+      : character.classes;
+    return character.classSpellcasting.map((cs) => {
+      const classLevel = summary.find((c) => c.class === cs.class)?.level ?? 0;
+      const aMod = abilityModifier(effectiveAbilityScores[cs.abilityScore]);
+      return {
+        class: cs.class,
+        cantripCap: cantripCapacity(cs.class, classLevel),
+        spellCap: spellCapacity(cs.class, classLevel, aMod),
+        cantripCount: cs.cantrips.length,
+        spellCount: cs.spellsKnown.length,
+      };
+    });
   });
 
   // --- Recalculate skills/saves from effective scores ---
@@ -397,24 +418,6 @@ function createCharacterStore(initial: Character) {
 
   // --- Compendium add mutations ---
 
-  function addSpell(spell: Spell): void {
-    if (!character.spellcasting) return;
-    if (spell.level === 0) {
-      if (character.spellcasting.cantrips.some(s => s.id === spell.id)) return;
-      character = {
-        ...character,
-        spellcasting: { ...character.spellcasting, cantrips: [...character.spellcasting.cantrips, spell] },
-      };
-    } else {
-      if (character.spellcasting.spellsKnown.some(s => s.id === spell.id)) return;
-      character = {
-        ...character,
-        spellcasting: { ...character.spellcasting, spellsKnown: [...character.spellcasting.spellsKnown, spell] },
-      };
-    }
-    queueSave();
-  }
-
   function addWeapon(weapon: Weapon): void {
     character = { ...character, weapons: [...character.weapons, weapon] };
     queueSave();
@@ -511,9 +514,6 @@ function createCharacterStore(initial: Character) {
     subclassChoice?: string;
     asiChoice?: AsiChoice;
     features?: Feature[];
-    cantripsGained?: Spell[];
-    spellsGained?: Spell[];
-    spellSwapped?: { removed: Spell; added: Spell };
   }): void {
     const stack = character.levelStack ?? [];
     const classLevelCount = stack.filter((lv) => lv.class === params.class).length;
@@ -528,14 +528,11 @@ function createCharacterStore(initial: Character) {
       featureIds: (params.features ?? []).map((f) => f.id),
       subclassChoice: params.subclassChoice,
       asiChoice: params.asiChoice,
-      cantripsGained: params.cantripsGained?.map((s) => s.id),
-      spellsGained: params.spellsGained?.map((s) => s.id),
-      spellSwapped: params.spellSwapped,
     };
 
     // If first level in a caster class, initialize ClassSpellcasting
     const spellAbility = CLASS_SPELLCASTING_ABILITY[params.class];
-    let classSpellcasting = character.classSpellcasting
+    const classSpellcasting = character.classSpellcasting
       ? [...character.classSpellcasting]
       : [];
     if (spellAbility && newClassLevel === 1) {
@@ -547,32 +544,6 @@ function createCharacterStore(initial: Character) {
         spellsKnown: [],
       });
     }
-
-    // Apply spell selections to ClassSpellcasting
-    classSpellcasting = classSpellcasting.map((cs) => {
-      if (cs.class !== params.class) return cs;
-      let cantrips = [...cs.cantrips];
-      let spellsKnown = [...cs.spellsKnown];
-
-      if (params.cantripsGained) {
-        for (const spell of params.cantripsGained) {
-          if (!cantrips.some((s) => s.id === spell.id)) cantrips.push(spell);
-        }
-      }
-      if (params.spellsGained) {
-        for (const spell of params.spellsGained) {
-          if (!spellsKnown.some((s) => s.id === spell.id)) spellsKnown.push(spell);
-        }
-      }
-      if (params.spellSwapped) {
-        spellsKnown = spellsKnown.filter((s) => s.id !== params.spellSwapped!.removed.id);
-        if (!spellsKnown.some((s) => s.id === params.spellSwapped!.added.id)) {
-          spellsKnown.push(params.spellSwapped!.added);
-        }
-      }
-
-      return { ...cs, cantrips, spellsKnown };
-    });
 
     // Tag features with class source info
     const newFeatures = (params.features ?? []).map((f) => ({
@@ -639,33 +610,19 @@ function createCharacterStore(initial: Character) {
     if (remainingClassLevels === 0) {
       classSpellcasting = classSpellcasting.filter((cs) => cs.class !== removed.class);
     } else {
-      // Revert spell selections from the removed level
+      // Trim spells/cantrips that exceed the new (lower) capacity
+      const newSummary = deriveClassesSummary(newStack);
       classSpellcasting = classSpellcasting.map((cs) => {
         if (cs.class !== removed.class) return cs;
-        let cantrips = [...cs.cantrips];
-        let spellsKnown = [...cs.spellsKnown];
-
-        // Revert spell swap first (re-add removed, remove added)
-        if (removed.spellSwapped) {
-          spellsKnown = spellsKnown.filter((s) => s.id !== removed.spellSwapped!.added.id);
-          if (!spellsKnown.some((s) => s.id === removed.spellSwapped!.removed.id)) {
-            spellsKnown.push(removed.spellSwapped!.removed);
-          }
-        }
-
-        // Remove cantrips gained at this level
-        if (removed.cantripsGained) {
-          const ids = new Set(removed.cantripsGained);
-          cantrips = cantrips.filter((s) => !ids.has(s.id));
-        }
-
-        // Remove spells gained at this level
-        if (removed.spellsGained) {
-          const ids = new Set(removed.spellsGained);
-          spellsKnown = spellsKnown.filter((s) => !ids.has(s.id));
-        }
-
-        return { ...cs, cantrips, spellsKnown };
+        const classLvl = newSummary.find((c) => c.class === cs.class)?.level ?? 0;
+        const aMod = abilityModifier(effectiveAbilityScores[cs.abilityScore]);
+        const cCap = cantripCapacity(cs.class, classLvl);
+        const sCap = spellCapacity(cs.class, classLvl, aMod);
+        return {
+          ...cs,
+          cantrips: cs.cantrips.slice(0, cCap),
+          spellsKnown: cs.spellsKnown.slice(0, sCap),
+        };
       });
     }
 
@@ -720,22 +677,28 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
-  function addClassSpell(dndClass: DndClass, spell: Spell): void {
-    if (!character.classSpellcasting) return;
+  function addClassSpell(dndClass: DndClass, spell: Spell): boolean {
+    if (!character.classSpellcasting) return false;
+
+    // Find capacity for this class
+    const cap = classSpellCapacities.find((c) => c.class === dndClass);
 
     const classSpellcasting = character.classSpellcasting.map((cs) => {
       if (cs.class !== dndClass) return cs;
       if (spell.level === 0) {
         if (cs.cantrips.some((s) => s.id === spell.id)) return cs;
+        if (cap && cs.cantrips.length >= cap.cantripCap) return cs;
         return { ...cs, cantrips: [...cs.cantrips, spell] };
       } else {
         if (cs.spellsKnown.some((s) => s.id === spell.id)) return cs;
+        if (cap && cs.spellsKnown.length >= cap.spellCap) return cs;
         return { ...cs, spellsKnown: [...cs.spellsKnown, spell] };
       }
     });
 
     character = { ...character, classSpellcasting };
     queueSave();
+    return true;
   }
 
   function removeClassSpell(dndClass: DndClass, spellId: string): void {
@@ -772,11 +735,11 @@ function createCharacterStore(initial: Character) {
     get derivedProficiencyBonus() { return derivedProficiencyBonus; },
     get derivedSpellSlots() { return derivedSpellSlots(); },
     get derivedMaxHp() { return derivedMaxHp; },
+    get classSpellCapacities() { return classSpellCapacities; },
     // Existing mutations
     reinit,
     setAbilityScores,
     setRace,
-    addSpell,
     addWeapon,
     addArmor,
     addEquipment,

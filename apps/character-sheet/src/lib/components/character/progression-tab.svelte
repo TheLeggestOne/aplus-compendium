@@ -114,24 +114,6 @@
                 </Badge>
               {/if}
 
-              {#if level.cantripsGained && level.cantripsGained.length > 0}
-                <Badge variant="outline" class="text-[10px] px-1.5 py-0 h-4 opacity-70">
-                  +{level.cantripsGained.length} cantrip{level.cantripsGained.length > 1 ? 's' : ''}
-                </Badge>
-              {/if}
-
-              {#if level.spellsGained && level.spellsGained.length > 0}
-                <Badge variant="outline" class="text-[10px] px-1.5 py-0 h-4 opacity-70">
-                  +{level.spellsGained.length} spell{level.spellsGained.length > 1 ? 's' : ''}
-                </Badge>
-              {/if}
-
-              {#if level.spellSwapped}
-                <Badge variant="outline" class="text-[10px] px-1.5 py-0 h-4 opacity-70">
-                  swapped spell
-                </Badge>
-              {/if}
-
               {#if level.featureIds.length > 0}
                 <Badge variant="outline" class="text-[10px] px-1.5 py-0 h-4 opacity-60">
                   +{level.featureIds.length} feature{level.featureIds.length > 1 ? 's' : ''}

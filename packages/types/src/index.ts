@@ -7,6 +7,7 @@ export * from './dnd5e/currency.js';
 export * from './dnd5e/equipment.js';
 export * from './dnd5e/features.js';
 export * from './dnd5e/skills.js';
+export * from './dnd5e/spell-capacity-tables.js';
 export * from './dnd5e/spell-slot-tables.js';
 export * from './dnd5e/spellcasting.js';
 export * from './character.js';

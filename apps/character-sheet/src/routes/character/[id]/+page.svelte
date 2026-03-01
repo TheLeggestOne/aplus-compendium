@@ -111,14 +111,22 @@
 
       <!-- Spellcasting -->
       <Tabs.Content value="spellcasting" class="p-4">
-        {#if character.spellcasting}
+        {#if character.classSpellcasting && character.classSpellcasting.length > 0}
+          <div class="flex flex-col gap-6 max-w-2xl">
+            {#if character.spellcasting}
+              <SpellcastingHeader ability={character.spellcasting.ability} />
+            {/if}
+            <SpellSlotsGrid slots={characterStore.derivedSpellSlots} />
+            <SpellList
+              classSpellcasting={character.classSpellcasting}
+              capacities={characterStore.classSpellCapacities}
+            />
+          </div>
+        {:else if character.spellcasting}
+          <!-- Legacy fallback for characters without classSpellcasting -->
           <div class="flex flex-col gap-6 max-w-2xl">
             <SpellcastingHeader ability={character.spellcasting.ability} />
             <SpellSlotsGrid slots={character.spellcasting.slots} />
-            <SpellList
-              spells={character.spellcasting.spellsKnown}
-              cantrips={character.spellcasting.cantrips}
-            />
           </div>
         {:else}
           <div class="flex items-center justify-center h-40">

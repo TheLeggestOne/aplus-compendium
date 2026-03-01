@@ -1,20 +1,16 @@
 <script lang="ts">
   import type {
-    DndClass, Spell, AsiChoice, AbilityScore,
-    CompendiumSearchResult, CompendiumEntry,
+    DndClass, AsiChoice, AbilityScore,
+    CompendiumSearchResult,
   } from '@aplus-compendium/types';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL,
-    CLASS_SPELLCASTING_ABILITY, CLASS_CASTER_PROGRESSION,
-    abilityModifier,
   } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
-  import { entryToSpell } from '$lib/utils/compendium-to-character.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Badge } from '$lib/components/ui/badge/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
-  import { Separator } from '$lib/components/ui/separator/index.js';
   import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import CheckIcon from '@lucide/svelte/icons/check';
@@ -43,7 +39,7 @@
   };
 
   // ---- Wizard state ----
-  type WizardStep = 'class' | 'hp' | 'subclass' | 'asi' | 'spells' | 'summary';
+  type WizardStep = 'class' | 'hp' | 'subclass' | 'asi' | 'summary';
   let currentStep = $state<WizardStep>('class');
 
   // Collected data
@@ -57,29 +53,15 @@
   let asiAbility1 = $state<AbilityScore>('strength');
   let asiAbility2 = $state<AbilityScore>('dexterity');
   let asiAmount = $state<'+2 one' | '+1 two'>('+1 two');
-  let cantripsGained = $state<Spell[]>([]);
-  let spellsGained = $state<Spell[]>([]);
-  let spellSwapped = $state<{ removed: Spell; added: Spell } | undefined>(undefined);
-
   // Subclass search
   let subclassResults = $state<CompendiumSearchResult[]>([]);
   let subclassFreeText = $state('');
-
-  // Spell search
-  let spellQuery = $state('');
-  let spellResults = $state<CompendiumSearchResult[]>([]);
-  let spellSearching = $state(false);
-  let spellTab = $state<'cantrips' | 'spells' | 'swap'>('spells');
 
   // Feat search
   let featQuery = $state('');
   let featResults = $state<CompendiumSearchResult[]>([]);
   let featSearching = $state(false);
   let selectedFeatName = $state('');
-
-  // Swap state
-  let swapRemovedSpell = $state<Spell | null>(null);
-  let swapAddedSpell = $state<Spell | null>(null);
 
   // ---- Derived ----
   const { character, totalLevel, abilityModifiers } = $derived(characterStore);
@@ -103,16 +85,11 @@
     selectedClass !== null && CLASS_ASI_LEVELS[selectedClass].includes(newClassLevel),
   );
 
-  const hasCasting = $derived(
-    selectedClass !== null && !!CLASS_SPELLCASTING_ABILITY[selectedClass],
-  );
-
   // Build ordered step list based on class selection
   const stepOrder = $derived.by(() => {
     const steps: WizardStep[] = ['class', 'hp'];
     if (needsSubclass) steps.push('subclass');
     if (needsAsi) steps.push('asi');
-    if (hasCasting) steps.push('spells');
     steps.push('summary');
     return steps;
   });
@@ -126,7 +103,6 @@
       case 'hp': return 'Hit Points';
       case 'subclass': return 'Subclass';
       case 'asi': return 'Ability Score Improvement';
-      case 'spells': return 'Spells';
       case 'summary': return 'Summary';
     }
   });
@@ -137,7 +113,6 @@
       case 'hp': return hpRoll > 0;
       case 'subclass': return !!subclassChoice;
       case 'asi': return !!asiChoice;
-      case 'spells': return true; // spells are optional
       case 'summary': return true;
     }
   });
@@ -159,19 +134,11 @@
     asiAbility1 = 'strength';
     asiAbility2 = 'dexterity';
     asiAmount = '+1 two';
-    cantripsGained = [];
-    spellsGained = [];
-    spellSwapped = undefined;
     subclassResults = [];
     subclassFreeText = '';
-    spellQuery = '';
-    spellResults = [];
-    spellTab = 'spells';
     featQuery = '';
     featResults = [];
     selectedFeatName = '';
-    swapRemovedSpell = null;
-    swapAddedSpell = null;
   }
 
   // ---- Navigation ----
@@ -278,82 +245,6 @@
     }
   });
 
-  // ---- Step: Spells ----
-  let _spellTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function searchSpells() {
-    if (_spellTimer) clearTimeout(_spellTimer);
-    _spellTimer = setTimeout(() => void _executeSpellSearch(), 300);
-  }
-
-  async function _executeSpellSearch() {
-    const api = window.electronAPI;
-    if (!api || !selectedClass) return;
-
-    spellSearching = true;
-    const className = selectedClass.charAt(0).toUpperCase() + selectedClass.slice(1);
-    const filters: Record<string, unknown> = {
-      classes: [className],
-    };
-    if (spellTab === 'cantrips') {
-      filters['level'] = [0];
-    } else {
-      // Exclude cantrips for non-cantrip tabs
-      // Don't filter level for now — let user see all available
-    }
-
-    try {
-      const result = await api.compendium.search(
-        spellQuery.trim(), 'spell', filters as never, 30, 0,
-      );
-      if (result.ok) spellResults = result.data;
-    } catch (e) {
-      console.error('[level-up] spell search error:', e);
-    } finally {
-      spellSearching = false;
-    }
-  }
-
-  async function addSpellFromResult(sr: CompendiumSearchResult) {
-    const api = window.electronAPI;
-    if (!api) return;
-    try {
-      const result = await api.compendium.get(sr.id, 'spell');
-      if (!result.ok || !result.data) return;
-      const spell = entryToSpell(result.data);
-      if (spellTab === 'cantrips') {
-        if (!cantripsGained.some(s => s.id === spell.id)) {
-          cantripsGained = [...cantripsGained, spell];
-        }
-      } else if (spellTab === 'swap') {
-        swapAddedSpell = spell;
-        if (swapRemovedSpell) {
-          spellSwapped = { removed: swapRemovedSpell, added: spell };
-        }
-      } else {
-        if (!spellsGained.some(s => s.id === spell.id)) {
-          spellsGained = [...spellsGained, spell];
-        }
-      }
-    } catch (e) {
-      console.error('[level-up] get spell error:', e);
-    }
-  }
-
-  function removeCantrip(id: string) {
-    cantripsGained = cantripsGained.filter(s => s.id !== id);
-  }
-
-  function removeSpell(id: string) {
-    spellsGained = spellsGained.filter(s => s.id !== id);
-  }
-
-  function clearSwap() {
-    swapRemovedSpell = null;
-    swapAddedSpell = null;
-    spellSwapped = undefined;
-  }
-
   // ---- Step: Feat search ----
   let _featTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -391,9 +282,6 @@
       hpRoll,
       subclassChoice,
       asiChoice,
-      cantripsGained: cantripsGained.length > 0 ? cantripsGained : undefined,
-      spellsGained: spellsGained.length > 0 ? spellsGained : undefined,
-      spellSwapped,
     });
 
     open = false;
@@ -403,13 +291,6 @@
   function capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
-
-  // Get current spells known for the selected class (for swap)
-  const currentClassSpells = $derived.by(() => {
-    if (!selectedClass || !character.classSpellcasting) return [];
-    const cs = character.classSpellcasting.find(c => c.class === selectedClass);
-    return cs?.spellsKnown ?? [];
-  });
 </script>
 
 <Dialog.Root bind:open>
@@ -688,183 +569,6 @@
           </div>
         {/if}
 
-      <!-- STEP: Spells -->
-      {:else if currentStep === 'spells'}
-        <div class="space-y-3">
-          <!-- Tabs -->
-          <div class="flex gap-1 border-b border-border">
-            <button
-              class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors
-                {spellTab === 'cantrips' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-              onclick={() => { spellTab = 'cantrips'; spellQuery = ''; spellResults = []; }}
-            >
-              Cantrips
-              {#if cantripsGained.length > 0}
-                <Badge variant="secondary" class="ml-1 text-[10px] px-1 py-0 h-4">{cantripsGained.length}</Badge>
-              {/if}
-            </button>
-            <button
-              class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors
-                {spellTab === 'spells' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-              onclick={() => { spellTab = 'spells'; spellQuery = ''; spellResults = []; }}
-            >
-              Spells
-              {#if spellsGained.length > 0}
-                <Badge variant="secondary" class="ml-1 text-[10px] px-1 py-0 h-4">{spellsGained.length}</Badge>
-              {/if}
-            </button>
-            <button
-              class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors
-                {spellTab === 'swap' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-              onclick={() => { spellTab = 'swap'; spellQuery = ''; spellResults = []; }}
-            >
-              Swap
-              {#if spellSwapped}
-                <Badge variant="secondary" class="ml-1 text-[10px] px-1 py-0 h-4">1</Badge>
-              {/if}
-            </button>
-          </div>
-
-          {#if spellTab === 'swap'}
-            <!-- Swap mode -->
-            <div class="space-y-3">
-              <p class="text-xs text-muted-foreground">
-                Optionally swap one known spell for a different one of the same class.
-              </p>
-
-              <!-- Remove spell -->
-              <div>
-                <p class="text-xs font-medium text-muted-foreground mb-1">Remove:</p>
-                {#if currentClassSpells.length === 0}
-                  <p class="text-xs text-muted-foreground/60 italic">No known spells to swap.</p>
-                {:else}
-                  <div class="space-y-0.5 max-h-32 overflow-auto">
-                    {#each currentClassSpells as spell}
-                      <button
-                        class="w-full text-left px-2 py-1 rounded text-xs transition-colors
-                          {swapRemovedSpell?.id === spell.id ? 'bg-destructive/10 border border-destructive/30' : 'hover:bg-muted/50'}"
-                        onclick={() => {
-                          swapRemovedSpell = spell;
-                          if (swapAddedSpell) spellSwapped = { removed: spell, added: swapAddedSpell };
-                        }}
-                      >
-                        {spell.name}
-                        <span class="text-muted-foreground/60 ml-1">Lv {spell.level}</span>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-
-              {#if swapRemovedSpell}
-                <Separator />
-                <!-- Add replacement -->
-                <div>
-                  <p class="text-xs font-medium text-muted-foreground mb-1">Replace with:</p>
-                  <div class="relative mb-2">
-                    <SearchIcon class="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      class="h-8 text-sm pl-8"
-                      placeholder="Search for replacement..."
-                      value={spellQuery}
-                      oninput={(e: Event) => { spellQuery = (e.target as HTMLInputElement).value; searchSpells(); }}
-                      onfocus={() => { if (spellResults.length === 0) searchSpells(); }}
-                    />
-                  </div>
-
-                  {#if swapAddedSpell}
-                    <div class="flex items-center gap-2 rounded border border-primary/30 bg-primary/5 px-2 py-1 text-xs mb-2">
-                      <CheckIcon class="size-3 text-primary" />
-                      <span>{swapAddedSpell.name}</span>
-                      <button class="ml-auto" onclick={clearSwap}>
-                        <XIcon class="size-3 text-muted-foreground" />
-                      </button>
-                    </div>
-                  {/if}
-
-                  <div class="space-y-0.5 max-h-32 overflow-auto">
-                    {#each spellResults as sr}
-                      {#if sr.level !== 0}
-                        <button
-                          class="w-full text-left px-2 py-1 rounded text-xs hover:bg-muted/50 transition-colors"
-                          onclick={() => addSpellFromResult(sr)}
-                        >
-                          {sr.name}
-                          <span class="text-muted-foreground/60 ml-1">Lv {sr.level}</span>
-                          <Badge variant="outline" class="ml-1 text-[10px] px-1 py-0 h-3.5 opacity-50">{sr.source}</Badge>
-                        </button>
-                      {/if}
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {:else}
-            <!-- Cantrips or Spells search -->
-            <div class="relative">
-              <SearchIcon class="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
-              <Input
-                type="text"
-                class="h-8 text-sm pl-8"
-                placeholder="Search {spellTab === 'cantrips' ? 'cantrips' : 'spells'}..."
-                value={spellQuery}
-                oninput={(e: Event) => { spellQuery = (e.target as HTMLInputElement).value; searchSpells(); }}
-                onfocus={() => { if (spellResults.length === 0) searchSpells(); }}
-              />
-            </div>
-
-            <!-- Selected list -->
-            {@const selected = spellTab === 'cantrips' ? cantripsGained : spellsGained}
-            {#if selected.length > 0}
-              <div class="flex flex-wrap gap-1">
-                {#each selected as spell}
-                  <Badge variant="secondary" class="text-xs gap-1 pr-1">
-                    {spell.name}
-                    <button
-                      class="hover:text-destructive transition-colors"
-                      onclick={() => spellTab === 'cantrips' ? removeCantrip(spell.id) : removeSpell(spell.id)}
-                    >
-                      <XIcon class="size-3" />
-                    </button>
-                  </Badge>
-                {/each}
-              </div>
-            {/if}
-
-            <!-- Search results -->
-            <div class="space-y-0.5 max-h-40 overflow-auto">
-              {#each spellResults as sr}
-                {@const isCantrip = sr.level === 0}
-                {#if spellTab === 'cantrips' ? isCantrip : !isCantrip}
-                  {@const alreadyAdded = selected.some(s => s.id === sr.id)}
-                  <button
-                    class="w-full text-left px-2 py-1 rounded text-xs transition-colors
-                      {alreadyAdded ? 'opacity-40' : 'hover:bg-muted/50'}"
-                    onclick={() => { if (!alreadyAdded) addSpellFromResult(sr); }}
-                    disabled={alreadyAdded}
-                  >
-                    {sr.name}
-                    {#if !isCantrip}
-                      <span class="text-muted-foreground/60 ml-1">Lv {sr.level}</span>
-                    {/if}
-                    <Badge variant="outline" class="ml-1 text-[10px] px-1 py-0 h-3.5 opacity-50">{sr.source}</Badge>
-                    {#if sr.concentration}
-                      <span class="text-amber-400/60 ml-1">C</span>
-                    {/if}
-                    {#if sr.ritual}
-                      <span class="text-blue-400/60 ml-1">R</span>
-                    {/if}
-                  </button>
-                {/if}
-              {/each}
-              {#if spellSearching}
-                <p class="text-xs text-muted-foreground text-center py-2">Searching...</p>
-              {/if}
-            </div>
-          {/if}
-        </div>
-
       <!-- STEP: Summary -->
       {:else if currentStep === 'summary'}
         <div class="space-y-3">
@@ -891,20 +595,6 @@
               </div>
             {/if}
 
-            {#if cantripsGained.length > 0}
-              <div class="text-muted-foreground">Cantrips</div>
-              <div>{cantripsGained.map(s => s.name).join(', ')}</div>
-            {/if}
-
-            {#if spellsGained.length > 0}
-              <div class="text-muted-foreground">Spells</div>
-              <div>{spellsGained.map(s => s.name).join(', ')}</div>
-            {/if}
-
-            {#if spellSwapped}
-              <div class="text-muted-foreground">Swap</div>
-              <div>{spellSwapped.removed.name} → {spellSwapped.added.name}</div>
-            {/if}
           </div>
         </div>
       {/if}

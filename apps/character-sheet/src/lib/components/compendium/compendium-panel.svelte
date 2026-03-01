@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CompendiumContentType } from '@aplus-compendium/types';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { entryToSpell } from '$lib/utils/compendium-to-character.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import FilterBar from './filter-bar.svelte';
@@ -34,6 +35,8 @@
     contentTypes,
   } = $derived(compendiumStore);
 
+  const pickMode = $derived(compendiumStore.pickMode);
+
   let filtersOpen = $state(false);
   const hasFilters = $derived(Object.keys(compendiumStore.filters).length > 0);
 
@@ -60,27 +63,65 @@
     if (filterZoneEl.contains(e.target as Node)) return;
     filtersOpen = false;
   }
+
+  // --- Pick mode: inline "+" on each list row ---
+  let justPickedId = $state<string | null>(null);
+  let _pickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function pickFromRow(entryId: string) {
+    if (!pickMode) return;
+    const api = window.electronAPI;
+    if (!api) return;
+    try {
+      const result = await api.compendium.get(entryId, activeType);
+      if (result.ok && result.data) {
+        pickMode.onPick(entryToSpell(result.data));
+        if (_pickTimer) clearTimeout(_pickTimer);
+        justPickedId = entryId;
+        _pickTimer = setTimeout(() => { justPickedId = null; }, 1200);
+      }
+    } catch (e) {
+      console.error('[compendium] pick fetch error:', e);
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <aside class="flex h-full flex-col border-l border-border bg-card/30" onclick={handlePanelClick}>
-  <!-- Type selector tabs -->
-  <div class="flex shrink-0 overflow-x-auto border-b border-border">
-    {#each contentTypes as type}
-      <button
-        class="shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap
-          {activeType === type
-            ? 'border-b-2 border-primary text-foreground'
-            : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => compendiumStore.setType(type)}
+  {#if pickMode}
+    <!-- Pick mode banner -->
+    <div class="flex shrink-0 items-center justify-between gap-2 px-3 py-2 border-b border-primary/30 bg-primary/5">
+      <p class="text-xs font-medium text-primary truncate">
+        Picking {pickMode.mode === 'cantrip' ? 'cantrip' : 'spell'} for {pickMode.className}
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-6 px-2 text-xs shrink-0"
+        onclick={() => { pickMode.onCancel(); compendiumStore.exitPickMode(); }}
       >
-        {TYPE_LABELS[type]}
-        {#if status?.counts[type]}
-          <span class="ml-1 text-[10px] opacity-50">{status.counts[type]}</span>
-        {/if}
-      </button>
-    {/each}
-  </div>
+        Cancel
+      </Button>
+    </div>
+  {:else}
+    <!-- Type selector tabs -->
+    <div class="flex shrink-0 overflow-x-auto border-b border-border">
+      {#each contentTypes as type}
+        <button
+          class="shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap
+            {activeType === type
+              ? 'border-b-2 border-primary text-foreground'
+              : 'text-muted-foreground hover:text-foreground'}"
+          onclick={() => compendiumStore.setType(type)}
+        >
+          {TYPE_LABELS[type]}
+          {#if status?.counts[type]}
+            <span class="ml-1 text-[10px] opacity-50">{status.counts[type]}</span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   {#if !status?.imported}
     <!-- Import prompt -->
@@ -136,6 +177,8 @@
                   {entry}
                   selected={selectedId === entry.id}
                   onclick={() => compendiumStore.selectEntry(entry.id)}
+                  onpick={pickMode ? () => pickFromRow(entry.id) : undefined}
+                  justPicked={justPickedId === entry.id}
                 />
 
                 {#if selectedId === entry.id}
