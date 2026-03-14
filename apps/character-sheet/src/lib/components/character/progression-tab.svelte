@@ -3,9 +3,13 @@
   import { Badge } from '$lib/components/ui/badge/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
+  import * as Popover from '$lib/components/ui/popover/index.js';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import Undo2Icon from '@lucide/svelte/icons/undo-2';
+  import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
   import LevelUpDialog from './level-up-dialog.svelte';
+  import EditLevelDialog from './edit-level-dialog.svelte';
 
   const { character, totalLevel, abilityModifiers } = $derived(characterStore);
   const conMod = $derived(abilityModifiers.constitution);
@@ -15,6 +19,8 @@
 
   let levelUpOpen = $state(false);
   let confirmUndo = $state(false);
+  let editLevelOpen = $state(false);
+  let editStackIndex = $state(0);
 
   onMount(() => {
     function handleXpLevelUp() {
@@ -131,6 +137,27 @@
               {/if}
             </div>
           </div>
+
+          <!-- Edit menu -->
+          <Popover.Root>
+            <Popover.Trigger>
+              <button
+                class="shrink-0 p-1 rounded text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="Edit level {overallLevel}"
+              >
+                <EllipsisVerticalIcon class="size-4" />
+              </button>
+            </Popover.Trigger>
+            <Popover.Content class="w-auto p-1" align="end">
+              <button
+                class="flex items-center gap-2 w-full px-3 py-1.5 text-xs rounded hover:bg-muted/50 transition-colors"
+                onclick={() => { editStackIndex = stack.length - 1 - reverseIdx; editLevelOpen = true; }}
+              >
+                <PencilIcon class="size-3" />
+                Edit Choices
+              </button>
+            </Popover.Content>
+          </Popover.Root>
         </div>
       {/each}
     </div>
@@ -138,3 +165,4 @@
 </div>
 
 <LevelUpDialog bind:open={levelUpOpen} />
+<EditLevelDialog bind:open={editLevelOpen} stackIndex={editStackIndex} />

@@ -135,6 +135,14 @@ export const CLASS_SKILL_CHOICES: Record<DndClass, { count: number; choices: Ski
   wizard: { count: 2, choices: ['arcana', 'history', 'insight', 'investigation', 'medicine', 'religion'] },
 };
 
+/** Skill proficiency choices granted when multiclassing INTO a class (PHB p.164).
+ *  Most classes grant nothing; bard, ranger, and rogue each grant 1 skill. */
+export const MULTICLASS_SKILL_CHOICES: Partial<Record<DndClass, { count: number; choices: SkillName[] }>> = {
+  bard:   { count: 1, choices: [] }, // any skill
+  ranger: { count: 1, choices: ['animal-handling', 'athletics', 'insight', 'investigation', 'nature', 'perception', 'stealth', 'survival'] },
+  rogue:  { count: 1, choices: ['acrobatics', 'athletics', 'deception', 'insight', 'intimidation', 'investigation', 'perception', 'performance', 'persuasion', 'sleight-of-hand', 'stealth'] },
+};
+
 /** Class levels at which each class gains an ASI (or feat) */
 export const CLASS_ASI_LEVELS: Record<DndClass, number[]> = {
   artificer: [4, 8, 12, 16, 19],

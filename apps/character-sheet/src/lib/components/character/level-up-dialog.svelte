@@ -1,11 +1,11 @@
 <script lang="ts">
   import type {
-    DndClass, AsiChoice, AbilityScore,
+    DndClass, AsiChoice, AbilityScore, SkillName,
     CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
   import { classFeatureEntryToFeature } from '$lib/utils/compendium-to-character.js';
   import {
-    CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL,
+    CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL, CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
   } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -40,7 +40,7 @@
   };
 
   // ---- Wizard state ----
-  type WizardStep = 'class' | 'hp' | 'subclass' | 'asi' | 'summary';
+  type WizardStep = 'class' | 'hp' | 'skills' | 'subclass' | 'asi' | 'summary';
   let currentStep = $state<WizardStep>('class');
 
   // Collected data
@@ -64,6 +64,9 @@
   let featSearching = $state(false);
   let selectedFeatName = $state('');
 
+  // Skill selection state
+  let skillSelections = $state<SkillName[]>([]);
+
   // ---- Derived ----
   const { character, totalLevel, abilityModifiers } = $derived(characterStore);
   const stack = $derived(character.levelStack ?? []);
@@ -78,6 +81,21 @@
     return map;
   });
 
+  // First class ever or multiclassing into a new class that grants skills
+  const isFirstClassEver = $derived(stack.length === 0);
+  const isMulticlassNew = $derived(
+    selectedClass !== null && !isFirstClassEver && !currentClasses.has(selectedClass),
+  );
+  const needsSkills = $derived(
+    selectedClass !== null && (isFirstClassEver || (isMulticlassNew && !!MULTICLASS_SKILL_CHOICES[selectedClass])),
+  );
+
+  const skillChoiceData = $derived.by(() => {
+    if (!selectedClass) return { count: 0, choices: [] as SkillName[] };
+    if (isFirstClassEver) return CLASS_SKILL_CHOICES[selectedClass];
+    return MULTICLASS_SKILL_CHOICES[selectedClass] ?? { count: 0, choices: [] as SkillName[] };
+  });
+
   const needsSubclass = $derived(
     selectedClass !== null && newClassLevel === CLASS_SUBCLASS_LEVEL[selectedClass],
   );
@@ -89,6 +107,7 @@
   // Build ordered step list based on class selection
   const stepOrder = $derived.by(() => {
     const steps: WizardStep[] = ['class', 'hp'];
+    if (needsSkills) steps.push('skills');
     if (needsSubclass) steps.push('subclass');
     if (needsAsi) steps.push('asi');
     steps.push('summary');
@@ -102,6 +121,7 @@
     switch (currentStep) {
       case 'class': return 'Choose Class';
       case 'hp': return 'Hit Points';
+      case 'skills': return 'Skill Proficiencies';
       case 'subclass': return 'Subclass';
       case 'asi': return 'Ability Score Improvement';
       case 'summary': return 'Summary';
@@ -112,6 +132,7 @@
     switch (currentStep) {
       case 'class': return selectedClass !== null;
       case 'hp': return hpRoll > 0;
+      case 'skills': return skillSelections.length >= skillChoiceData.count;
       case 'subclass': return !!subclassChoice;
       case 'asi': return !!asiChoice;
       case 'summary': return true;
@@ -140,6 +161,7 @@
     featQuery = '';
     featResults = [];
     selectedFeatName = '';
+    skillSelections = [];
     summaryFeaturesPromise = null;
     summaryFeaturesLoading = false;
     raceSpellsPromise = null;
@@ -222,6 +244,27 @@
     const roll = Math.floor(Math.random() * max) + 1;
     hpMethod = 'roll';
     hpRoll = roll;
+  }
+
+  // ---- Step: Skills ----
+  function titleCase(s: string) {
+    return s.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  function setSkillSlot(slotIndex: number, value: string) {
+    const updated = [...skillSelections];
+    if (value) {
+      updated[slotIndex] = value as SkillName;
+    } else {
+      updated[slotIndex] = undefined as unknown as SkillName;
+    }
+    skillSelections = updated.filter(Boolean);
+  }
+
+  function skillOptionsForSlot(slotIndex: number): SkillName[] {
+    const pool = skillChoiceData.choices.length > 0 ? skillChoiceData.choices : SKILL_NAMES;
+    const otherSelected = new Set(skillSelections.filter((_, i) => i !== slotIndex));
+    return pool.filter((s) => !otherSelected.has(s));
   }
 
   // ---- Step: Subclass ----
@@ -341,6 +384,7 @@
         subclassChoice,
         asiChoice,
         features,
+        skillSelections: skillSelections.length > 0 ? skillSelections : undefined,
       });
       await characterStore.addRaceSpellGrantsForLevel(newTotalLevel);
 
@@ -459,6 +503,40 @@
             <span class="text-sm font-semibold">HP gained this level: {hpGained}</span>
           </div>
         </div>
+
+      <!-- STEP: Skills -->
+      {:else if currentStep === 'skills'}
+        {@const { count, choices } = skillChoiceData}
+        <p class="text-sm text-muted-foreground">
+          Choose {count} skill proficienc{count === 1 ? 'y' : 'ies'} for your {selectedClass}:
+        </p>
+        <div class="space-y-2">
+          {#each { length: count } as _, i}
+            {@const options = skillOptionsForSlot(i)}
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">Skill {i + 1}</span>
+              <select
+                class="flex-1 h-8 rounded border border-border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                value={skillSelections[i] ?? ''}
+                onchange={(e) => setSkillSlot(i, (e.currentTarget as HTMLSelectElement).value)}
+              >
+                <option value="">— choose —</option>
+                {#each options as skill}
+                  <option value={skill} selected={skillSelections[i] === skill}>{titleCase(skill)}</option>
+                {/each}
+              </select>
+            </div>
+          {/each}
+        </div>
+        {#if choices.length > 0}
+          <p class="text-xs text-muted-foreground">
+            Available from: {choices.map(titleCase).join(', ')}
+          </p>
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            Any skill is available.
+          </p>
+        {/if}
 
       <!-- STEP: Subclass -->
       {:else if currentStep === 'subclass'}
@@ -641,6 +719,11 @@
 
             <div class="text-muted-foreground">HP Gained</div>
             <div class="font-medium">{hpGained}</div>
+
+            {#if skillSelections.length > 0}
+              <div class="text-muted-foreground">Skill Proficiencies</div>
+              <div class="font-medium">{skillSelections.map(titleCase).join(', ')}</div>
+            {/if}
 
             {#if subclassChoice}
               <div class="text-muted-foreground">Subclass</div>

@@ -7,7 +7,7 @@ import type {
 } from '@aplus-compendium/types';
 import {
   abilityModifier, SKILL_ABILITY_MAP, SKILL_NAMES,
-  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS, CLASS_SKILL_CHOICES,
+  CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS, CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES,
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
   cantripCapacity, spellCapacity,
 } from '@aplus-compendium/types';
@@ -809,6 +809,7 @@ function createCharacterStore(initial: Character) {
     subclassChoice?: string;
     asiChoice?: AsiChoice;
     features?: Feature[];
+    skillSelections?: SkillName[];
   }): void {
     const stack = character.levelStack ?? [];
     const classLevelCount = stack.filter((lv) => lv.class === params.class).length;
@@ -873,7 +874,9 @@ function createCharacterStore(initial: Character) {
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
 
     // First class ever → set saving throw proficiencies + add skill grant
-    if (stack.length === 0) {
+    const isFirstClassEver = stack.length === 0;
+    const isMulticlassNew = !isFirstClassEver && classLevelCount === 0;
+    if (isFirstClassEver) {
       const [save1, save2] = CLASS_SAVING_THROWS[params.class];
       const savingThrows = { ...character.savingThrows };
       for (const ability of ABILITY_KEYS) {
@@ -889,8 +892,9 @@ function createCharacterStore(initial: Character) {
         sourceLabel: params.class.charAt(0).toUpperCase() + params.class.slice(1),
         count,
         choices,
-        // Auto-select when only one choice is available
-        selected: choices.length === 1 ? [...choices] : [],
+        selected: params.skillSelections?.length
+          ? params.skillSelections
+          : choices.length === 1 ? [...choices] : [],
       };
       const existingGrants = character.skillProficiencyGrants ?? [];
       character = {
@@ -898,6 +902,27 @@ function createCharacterStore(initial: Character) {
         savingThrows,
         skillProficiencyGrants: [...existingGrants, classGrant],
       };
+    } else if (isMulticlassNew) {
+      // Multiclass into a new class — some classes grant reduced skill choices (PHB p.164)
+      const mcSkills = MULTICLASS_SKILL_CHOICES[params.class];
+      if (mcSkills) {
+        const { count, choices } = mcSkills;
+        const classGrant: SkillProficiencyGrant = {
+          id: `class-${params.class}`,
+          source: 'class',
+          sourceLabel: `${params.class.charAt(0).toUpperCase() + params.class.slice(1)} (multiclass)`,
+          count,
+          choices,
+          selected: params.skillSelections?.length
+            ? params.skillSelections
+            : choices.length === 1 ? [...choices] : [],
+        };
+        const existingGrants = character.skillProficiencyGrants ?? [];
+        character = {
+          ...character,
+          skillProficiencyGrants: [...existingGrants, classGrant],
+        };
+      }
     }
 
     const updatedStack = [...stack, newLevel];
@@ -1025,6 +1050,50 @@ function createCharacterStore(initial: Character) {
         hitDicePools: deriveHitDicePools(newStack, character.combat.hitDicePools),
       },
     };
+
+    recalculateSkillsAndSaves();
+    recomputeHp();
+    queueSave();
+  }
+
+  /** Edit choices on an existing level in the stack (HP, subclass, ASI, skill selections). */
+  function updateLevelChoices(stackIndex: number, changes: {
+    hpRoll?: number;
+    subclassChoice?: string | null; // null to clear
+    asiChoice?: AsiChoice | null;   // null to clear
+    skillSelections?: SkillName[];
+  }): void {
+    const stack = character.levelStack;
+    if (!stack || stackIndex < 0 || stackIndex >= stack.length) return;
+
+    const level = stack[stackIndex]!;
+    const updatedLevel: ClassLevel = { ...level };
+
+    if (changes.hpRoll !== undefined) updatedLevel.hpRoll = changes.hpRoll;
+    if (changes.subclassChoice !== undefined) {
+      updatedLevel.subclassChoice = changes.subclassChoice ?? undefined;
+    }
+    if (changes.asiChoice !== undefined) {
+      updatedLevel.asiChoice = changes.asiChoice ?? undefined;
+    }
+
+    const newStack = [...stack];
+    newStack[stackIndex] = updatedLevel;
+
+    character = {
+      ...character,
+      levelStack: newStack,
+      classes: deriveClassesSummary(newStack),
+    };
+
+    // Update skill grant selections if provided (applies to level 1 grants)
+    if (changes.skillSelections) {
+      const grantId = `class-${level.class}`;
+      const grants = (character.skillProficiencyGrants ?? []).map((g) =>
+        g.id === grantId ? { ...g, selected: changes.skillSelections! } : g,
+      );
+      character = { ...character, skillProficiencyGrants: grants };
+    }
 
     recalculateSkillsAndSaves();
     recomputeHp();
@@ -1489,6 +1558,7 @@ function createCharacterStore(initial: Character) {
     // Class stack mutations
     addClassLevel,
     removeLastLevel,
+    updateLevelChoices,
     setSubclass,
     addClassSpell,
     removeClassSpell,
