@@ -250,6 +250,10 @@ function createCharacterStore(initial: Character) {
     return Math.round(((character.experience - currentMin) / (currentMax - currentMin)) * 100);
   });
 
+  const canLevelUp = $derived(
+    totalLevel < 20 && character.experience >= (xpForNextLevel[totalLevel] ?? Infinity),
+  );
+
   // --- Level stack derived values ---
 
   const hasLevelStack = $derived(
@@ -913,6 +917,13 @@ function createCharacterStore(initial: Character) {
       },
     };
 
+    // Ensure XP meets the threshold for the new total level
+    const newTotalLevel = updatedStack.length;
+    const minXp = xpForCurrentLevel[newTotalLevel] ?? 0;
+    if (character.experience < minXp) {
+      character = { ...character, experience: minXp };
+    }
+
     recalculateSkillsAndSaves();
     recomputeHp();
     queueSave();
@@ -1130,6 +1141,18 @@ function createCharacterStore(initial: Character) {
     const grants = (character.skillProficiencyGrants ?? []).filter((g) => g.id !== grantId);
     character = { ...character, skillProficiencyGrants: grants };
     recalculateSkillsAndSaves();
+    queueSave();
+  }
+
+  // --- XP mutations ---
+
+  function setExperience(xp: number): void {
+    character = { ...character, experience: Math.max(0, xp) };
+    queueSave();
+  }
+
+  function adjustExperience(delta: number): void {
+    character = { ...character, experience: Math.max(0, character.experience + delta) };
     queueSave();
   }
 
@@ -1368,6 +1391,10 @@ function createCharacterStore(initial: Character) {
     get xpForNextLevel() {
       return xpForNextLevel[totalLevel] ?? Infinity;
     },
+    get xpForCurrentLevel() {
+      return xpForCurrentLevel[totalLevel] ?? 0;
+    },
+    get canLevelUp() { return canLevelUp; },
     // Level stack derived values
     get hasLevelStack() { return hasLevelStack; },
     get derivedProficiencyBonus() { return derivedProficiencyBonus; },
@@ -1412,6 +1439,9 @@ function createCharacterStore(initial: Character) {
     removeClassSpell,
     updateClassSpell,
     setSpellPrepared,
+    // XP mutations
+    setExperience,
+    adjustExperience,
     // Skill grant mutations
     setSkillGrantSelections,
     addManualSkillGrant,

@@ -11,8 +11,18 @@
   const conMod = $derived(abilityModifiers.constitution);
   const stack = $derived(character.levelStack ?? []);
 
+  import { onMount } from 'svelte';
+
   let levelUpOpen = $state(false);
   let confirmUndo = $state(false);
+
+  onMount(() => {
+    function handleXpLevelUp() {
+      levelUpOpen = true;
+    }
+    window.addEventListener('xp-level-up', handleXpLevelUp);
+    return () => window.removeEventListener('xp-level-up', handleXpLevelUp);
+  });
 
   function undoLastLevel() {
     characterStore.removeLastLevel();

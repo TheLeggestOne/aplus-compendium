@@ -9,6 +9,7 @@
   import DeathSavesTracker from './death-saves-tracker.svelte';
   import EditModeToggle from './edit-mode-toggle.svelte';
   import InspirationBadge from './inspiration-badge.svelte';
+  import XpTracker from './xp-tracker.svelte';
 
   const { character, passivePerception, derivedAC } = $derived(characterStore);
   const { panelOpen } = $derived(compendiumStore);
@@ -39,6 +40,12 @@
         <KeyStatPill label="Speed" value={`${character.combat.speed}ft`} />
         <KeyStatPill label="Prof" value={`+${character.proficiencyBonus}`} />
         <KeyStatPill label="Passive Perc" value={passivePerception} />
+      </div>
+
+      <Separator orientation="vertical" class="h-12 hidden md:block" />
+
+      <div class="hidden md:block">
+        <XpTracker />
       </div>
     {/if}
 
