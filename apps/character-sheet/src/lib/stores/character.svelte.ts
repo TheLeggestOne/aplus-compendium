@@ -331,6 +331,41 @@ function createCharacterStore(initial: Character) {
     });
   });
 
+  // --- Merge new features, deduplicating by name+sourceClass ---
+  // When a feature with the same name and source class already exists (e.g. "Circle Spells"
+  // appearing at multiple druid levels), merge grantedSpells into the existing feature
+  // rather than adding a duplicate entry.
+
+  function mergeNewFeatures(existing: Feature[], incoming: Feature[]): Feature[] {
+    const result = [...existing];
+    for (const f of incoming) {
+      const match = result.find(
+        (e) => e.name === f.name && e.sourceClass === f.sourceClass,
+      );
+      if (match) {
+        // Merge granted spells from the new feature into the existing one
+        if (f.grantedSpells?.length) {
+          const existingIds = new Set((match.grantedSpells ?? []).map((s) => s.id));
+          match.grantedSpells = [
+            ...(match.grantedSpells ?? []),
+            ...f.grantedSpells.filter((s) => !existingIds.has(s.id)),
+          ];
+        }
+        // Merge granted languages
+        if (f.grantedLanguages?.length) {
+          const existingLangs = new Set(match.grantedLanguages ?? []);
+          match.grantedLanguages = [
+            ...(match.grantedLanguages ?? []),
+            ...f.grantedLanguages.filter((l) => !existingLangs.has(l)),
+          ];
+        }
+      } else {
+        result.push(f);
+      }
+    }
+    return result;
+  }
+
   // --- Recalculate skills/saves from effective scores ---
 
   function getProfFromGrants(skill: SkillName, entry: SkillEntry): ProficiencyLevel {
@@ -808,6 +843,8 @@ function createCharacterStore(initial: Character) {
     hpRoll: number;
     subclassChoice?: string;
     asiChoice?: AsiChoice;
+    /** Armor/weapon/tool proficiencies to grant (from compendium class data) */
+    proficiencies?: string[];
     features?: Feature[];
     skillSelections?: SkillName[];
   }): void {
@@ -925,6 +962,16 @@ function createCharacterStore(initial: Character) {
       }
     }
 
+    // Merge armor/weapon/tool proficiencies from compendium class data
+    if (params.proficiencies?.length) {
+      const existing = new Set(character.otherProficiencies);
+      const merged = [
+        ...character.otherProficiencies,
+        ...params.proficiencies.filter((p) => !existing.has(p)),
+      ];
+      character = { ...character, otherProficiencies: merged };
+    }
+
     const updatedStack = [...stack, newLevel];
     const updatedClasses = deriveClassesSummary(updatedStack);
     const newProfBonus = proficiencyBonusForLevel(updatedStack.length);
@@ -936,19 +983,7 @@ function createCharacterStore(initial: Character) {
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
       languages: newLanguages,
-      features: [
-        ...character.features,
-        // Skip spell-grant-only features (no description/entries) when a feature
-        // with the same name already exists — avoids duplicate "Circle Spells" etc.
-        ...newFeatures.filter((f) => {
-          const isSpellGrantOnly =
-            (f.grantedSpells?.length ?? 0) > 0 &&
-            !f.description &&
-            (!f.rawEntries || f.rawEntries.length === 0);
-          if (!isSpellGrantOnly) return true;
-          return !character.features.some((existing) => existing.name === f.name);
-        }),
-      ],
+      features: mergeNewFeatures(character.features, newFeatures),
       combat: {
         ...character.combat,
         hitDicePools: deriveHitDicePools(updatedStack, character.combat.hitDicePools),

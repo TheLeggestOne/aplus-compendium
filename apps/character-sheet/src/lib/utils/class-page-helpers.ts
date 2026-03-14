@@ -214,6 +214,57 @@ export function extractStartingProficiencies(classRaw: Record<string, unknown>):
 }
 
 /**
+ * Extract armor, weapon, and tool proficiencies from a class's startingProficiencies
+ * as individual string entries suitable for merging into character.otherProficiencies.
+ */
+export function extractProficiencyList(classRaw: Record<string, unknown>): string[] {
+  const sp = classRaw['startingProficiencies'] as Record<string, unknown> | undefined;
+  if (!sp) return [];
+  return parseProficiencyBlock(sp);
+}
+
+/**
+ * Extract proficiencies gained when multiclassing INTO a class.
+ */
+export function extractMulticlassProficiencyList(classRaw: Record<string, unknown>): string[] {
+  const mc = classRaw['multiclassing'] as { proficienciesGained?: Record<string, unknown> } | undefined;
+  if (!mc?.proficienciesGained) return [];
+  return parseProficiencyBlock(mc.proficienciesGained);
+}
+
+function parseProficiencyBlock(block: Record<string, unknown>): string[] {
+  const result: string[] = [];
+
+  for (const key of ['armor', 'weapons', 'tools'] as const) {
+    const arr = block[key];
+    if (!Array.isArray(arr)) continue;
+    for (const entry of arr) {
+      if (typeof entry === 'string') {
+        result.push(formatProficiency(entry, key));
+      } else if (entry && typeof entry === 'object') {
+        const obj = entry as Record<string, unknown>;
+        // { proficiency: "light" } or { full: "light armor" }
+        const name = (obj['proficiency'] ?? obj['full'] ?? obj['name'] ?? '') as string;
+        if (name) result.push(formatProficiency(name, key));
+        // { anyOf: N } or { choose: { from: [...], count: N } } — skip choice-based
+      }
+    }
+  }
+
+  return result;
+}
+
+function formatProficiency(name: string, category: 'armor' | 'weapons' | 'tools'): string {
+  // Capitalize first letter
+  const cap = name.charAt(0).toUpperCase() + name.slice(1);
+  // Add category suffix if the name is a bare keyword like "light", "simple"
+  if (category === 'armor' && /^(light|medium|heavy)$/i.test(name)) return `${cap} armor`;
+  if (category === 'armor' && /^shield$/i.test(name)) return 'Shields';
+  if (category === 'weapons' && /^(simple|martial)$/i.test(name)) return `${cap} weapons`;
+  return cap;
+}
+
+/**
  * Extract multiclassing requirements as a readable string.
  * Handles both flat `{ str: 13, cha: 13 }` (AND) and
  * `{ or: [{ str: 13, dex: 13 }] }` (OR) formats.

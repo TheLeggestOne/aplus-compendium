@@ -4,6 +4,7 @@
     CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
   import { classFeatureEntryToFeature } from '$lib/utils/compendium-to-character.js';
+  import { extractProficiencyList, extractMulticlassProficiencyList } from '$lib/utils/class-page-helpers.js';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL, CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
   } from '@aplus-compendium/types';
@@ -378,6 +379,29 @@
     confirming = true;
     try {
       const newTotalLevel = totalLevel + 1;
+
+      // Fetch class proficiencies from compendium for first class or multiclass
+      let proficiencies: string[] | undefined;
+      if (isFirstClassEver || isMulticlassNew) {
+        const api = window.electronAPI;
+        if (api) {
+          try {
+            const className = capitalize(cls);
+            // Try PHB first, then XPHB
+            let result = await api.compendium.get(`${className}|PHB`, 'class');
+            if (!result.ok) result = await api.compendium.get(`${className}|XPHB`, 'class');
+            if (result.ok && result.data?.raw) {
+              const raw = result.data.raw as Record<string, unknown>;
+              proficiencies = isFirstClassEver
+                ? extractProficiencyList(raw)
+                : extractMulticlassProficiencyList(raw);
+            }
+          } catch (e) {
+            console.warn('[level-up] Failed to fetch class proficiencies:', e);
+          }
+        }
+      }
+
       characterStore.addClassLevel({
         class: cls,
         hpRoll,
@@ -385,6 +409,7 @@
         asiChoice,
         features,
         skillSelections: skillSelections.length > 0 ? skillSelections : undefined,
+        proficiencies,
       });
       await characterStore.addRaceSpellGrantsForLevel(newTotalLevel);
 

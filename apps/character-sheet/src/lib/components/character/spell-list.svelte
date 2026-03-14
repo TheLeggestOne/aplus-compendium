@@ -2,7 +2,6 @@
   import type { ClassSpellcasting, DndClass, Spell, SpellLevel } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
-  import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import SpellEntry from './spell-entry.svelte';
   import SectionHeader from './section-header.svelte';
   import KeyStatPill from './key-stat-pill.svelte';
@@ -11,6 +10,8 @@
   import BookOpenCheckIcon from '@lucide/svelte/icons/book-open-check';
   import EyeOffIcon from '@lucide/svelte/icons/eye-off';
   import EyeIcon from '@lucide/svelte/icons/eye';
+  import LockIcon from '@lucide/svelte/icons/lock';
+  import ZapIcon from '@lucide/svelte/icons/zap';
 
   interface ClassCapacity {
     class: DndClass;
@@ -52,8 +53,15 @@
     return [...groups.entries()].sort(([a], [b]) => a - b);
   }
 
-  function isGranted(spell: Spell): boolean {
-    return !!spell.grantedByFeatureId;
+  function groupGrantedByFeature(spells: Spell[]): [string, Spell[]][] {
+    const groups = new Map<string, Spell[]>();
+    for (const spell of spells) {
+      const key = spell.grantedByFeatureName ?? 'Granted';
+      const list = groups.get(key) ?? [];
+      list.push(spell);
+      groups.set(key, list);
+    }
+    return [...groups.entries()];
   }
 
   function capitalize(s: string): string {
@@ -94,6 +102,20 @@
 
   function isPrepared(spell: Spell): boolean {
     return spell.prepared !== false;
+  }
+
+  const slots = $derived(characterStore.derivedSpellSlots);
+
+  function slotsAvailable(level: SpellLevel): number {
+    const slot = slots.find((s) => s.level === level);
+    if (!slot) return 0;
+    return slot.total - slot.used;
+  }
+
+  function castSpell(level: SpellLevel) {
+    if (level >= 1 && level <= 9) {
+      characterStore.useSpellSlot(level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9);
+    }
   }
 </script>
 
@@ -161,12 +183,10 @@
         </div>
       {/if}
 
-      <ScrollArea class="rounded-md border border-border bg-card px-2 py-1 max-h-[500px]">
+      <div class="rounded-md border border-border bg-card px-2 py-1">
         <!-- Cantrips -->
         {#if cap && cap.cantripCap > 0}
-          {@const grantedCantrips = cs.grantedSpells?.filter((s) => s.level === 0) ?? []}
-          {@const allCantrips = [...cs.cantrips, ...grantedCantrips]}
-          {#if allCantrips.length > 0 || cs.cantrips.length < cap.cantripCap}
+          {#if cs.cantrips.length > 0 || cs.cantrips.length < cap.cantripCap}
             <div class="mb-3">
               <div class="flex items-center justify-between px-2 py-1">
                 <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -176,21 +196,17 @@
                   {cs.cantrips.length}/{cap.cantripCap}
                 </span>
               </div>
-              {#each allCantrips as spell (spell.id)}
+              {#each cs.cantrips as spell (spell.id)}
                 <div class="flex items-center group">
                   <div class="flex-1 min-w-0">
                     <SpellEntry {spell} dndClass={cs.class} />
                   </div>
-                  {#if !isGranted(spell)}
-                    <button
-                      class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-destructive transition-colors"
-                      onclick={() => removeSpell(cs.class, spell.id)}
-                    >
-                      <XIcon class="size-3" />
-                    </button>
-                  {:else}
-                    <div class="shrink-0 w-5"></div>
-                  {/if}
+                  <button
+                    class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-destructive transition-colors"
+                    onclick={() => removeSpell(cs.class, spell.id)}
+                  >
+                    <XIcon class="size-3" />
+                  </button>
                 </div>
               {/each}
               {#if cs.cantrips.length < cap.cantripCap}
@@ -208,11 +224,10 @@
 
         <!-- Spells by level -->
         {#if cap && cap.spellCap > 0}
-          {@const grantedLevelSpells = cs.grantedSpells?.filter((s) => s.level > 0) ?? []}
           {@const chosenSpells = isHidingUnprepared && !isPrepareMode
             ? cs.spellsKnown.filter(isPrepared)
             : cs.spellsKnown}
-          {@const spellGroups = groupByLevel([...chosenSpells, ...grantedLevelSpells])}
+          {@const spellGroups = groupByLevel(chosenSpells)}
 
           <div class="flex items-center justify-between px-2 py-1">
             <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -229,10 +244,9 @@
                 {LEVEL_LABELS[level]}
               </p>
               {#each levelSpells as spell (spell.id)}
-                {@const granted = isGranted(spell)}
                 {@const prepared = isPrepared(spell)}
-                <div class="flex items-center group {!prepared && !isPrepareMode && !granted ? 'opacity-50' : ''}">
-                  {#if isPrepareMode && !granted}
+                <div class="flex items-center group {!prepared && !isPrepareMode ? 'opacity-50' : ''}">
+                  {#if isPrepareMode}
                     <button
                       class="shrink-0 p-1 ml-1 mr-0.5 rounded transition-colors {prepared ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-primary'}"
                       onclick={() => togglePrepared(cs.class, spell.id, prepared)}
@@ -244,21 +258,25 @@
                         {/if}
                       </div>
                     </button>
-                  {:else if isPrepareMode && granted}
-                    <div class="shrink-0 w-6 ml-1 mr-0.5"></div>
                   {/if}
                   <div class="flex-1 min-w-0">
                     <SpellEntry {spell} dndClass={cs.class} />
                   </div>
-                  {#if !isPrepareMode && !granted}
+                  {#if !isPrepareMode}
+                    <button
+                      class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-primary transition-colors disabled:hover:!text-muted-foreground/0 disabled:opacity-50"
+                      onclick={() => castSpell(spell.level)}
+                      disabled={slotsAvailable(spell.level) === 0}
+                      title="Cast ({slotsAvailable(spell.level)} slots left)"
+                    >
+                      <ZapIcon class="size-3" />
+                    </button>
                     <button
                       class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-destructive transition-colors"
                       onclick={() => removeSpell(cs.class, spell.id)}
                     >
                       <XIcon class="size-3" />
                     </button>
-                  {:else if !isPrepareMode}
-                    <div class="shrink-0 w-5"></div>
                   {/if}
                 </div>
               {/each}
@@ -276,11 +294,42 @@
           {/if}
         {/if}
 
-        {@const totalGranted = cs.grantedSpells?.length ?? 0}
-        {#if cs.cantrips.length === 0 && cs.spellsKnown.length === 0 && totalGranted === 0}
+        <!-- Granted spells (from features like Circle Spells) -->
+        {#if cs.grantedSpells && cs.grantedSpells.length > 0}
+          {@const grantedByFeature = groupGrantedByFeature(cs.grantedSpells)}
+          {#each grantedByFeature as [featureName, featureSpells] (featureName)}
+            <div class="mb-3 mt-1">
+              <div class="flex items-center gap-1.5 px-2 py-1">
+                <LockIcon class="size-2.5 text-muted-foreground/60" />
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {featureName}
+                </p>
+              </div>
+              {#each featureSpells as spell (spell.id)}
+                <div class="flex items-center group">
+                  <div class="flex-1 min-w-0">
+                    <SpellEntry {spell} dndClass={cs.class} />
+                  </div>
+                  {#if spell.level > 0}
+                    <button
+                      class="shrink-0 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-primary transition-colors disabled:hover:!text-muted-foreground/0 disabled:opacity-50"
+                      onclick={() => castSpell(spell.level)}
+                      disabled={slotsAvailable(spell.level) === 0}
+                      title="Cast ({slotsAvailable(spell.level)} slots left)"
+                    >
+                      <ZapIcon class="size-3" />
+                    </button>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {/each}
+        {/if}
+
+        {#if cs.cantrips.length === 0 && cs.spellsKnown.length === 0 && (cs.grantedSpells?.length ?? 0) === 0}
           <p class="py-4 text-sm text-center text-muted-foreground">No spells known.</p>
         {/if}
-      </ScrollArea>
+      </div>
     </div>
   {/each}
 </div>
