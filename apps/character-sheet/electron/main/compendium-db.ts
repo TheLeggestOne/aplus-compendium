@@ -1196,13 +1196,28 @@ export function getClassFeaturesByLevel(
       const spellFeatureId = `class-feat::${className.toLowerCase()}::${classLevel}::${spellFeatureName.toLowerCase().replace(/\s+/g, '-')}`;
       const subclassSpells = extractSpellGrantsAtLevel(sc, classLevel, spellFeatureId, spellFeatureName, d);
       if (subclassSpells.length > 0) {
-        results.push({
-          name: spellFeatureName,
-          entries: [],
-          source: (sc.source as string) ?? '',
-          isSubclass: true,
-          grantedSpells: subclassSpells,
-        });
+        // Merge spell grants into an existing same-name feature (e.g. "Circle Spells"
+        // description entry) instead of creating a duplicate entry.
+        const existingIdx = results.findIndex(
+          (r) => r.name === spellFeatureName && r.isSubclass,
+        );
+        if (existingIdx !== -1) {
+          results[existingIdx] = {
+            ...results[existingIdx]!,
+            grantedSpells: [
+              ...(results[existingIdx]!.grantedSpells ?? []),
+              ...subclassSpells,
+            ],
+          };
+        } else {
+          results.push({
+            name: spellFeatureName,
+            entries: [],
+            source: (sc.source as string) ?? '',
+            isSubclass: true,
+            grantedSpells: subclassSpells,
+          });
+        }
       }
     }
   }

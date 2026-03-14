@@ -911,7 +911,19 @@ function createCharacterStore(initial: Character) {
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
       languages: newLanguages,
-      features: [...character.features, ...newFeatures],
+      features: [
+        ...character.features,
+        // Skip spell-grant-only features (no description/entries) when a feature
+        // with the same name already exists — avoids duplicate "Circle Spells" etc.
+        ...newFeatures.filter((f) => {
+          const isSpellGrantOnly =
+            (f.grantedSpells?.length ?? 0) > 0 &&
+            !f.description &&
+            (!f.rawEntries || f.rawEntries.length === 0);
+          if (!isSpellGrantOnly) return true;
+          return !character.features.some((existing) => existing.name === f.name);
+        }),
+      ],
       combat: {
         ...character.combat,
         hitDicePools: deriveHitDicePools(updatedStack, character.combat.hitDicePools),
