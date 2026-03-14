@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('compendium:get-subclasses', className),
     getClassFeatures: (className: string, classLevel: number, subclassName?: string) =>
       ipcRenderer.invoke('compendium:get-class-features', className, classLevel, subclassName),
+    getRaceSpellGrants: (raceName: string, subraceName: string | undefined, charLevel: number, exactLevelOnly?: boolean) =>
+      ipcRenderer.invoke('compendium:get-race-spell-grants', raceName, subraceName, charLevel, exactLevelOnly),
     onProgress: (callback: (progress: unknown) => void) => {
       ipcRenderer.on('compendium:progress', (_event, progress) => callback(progress));
     },

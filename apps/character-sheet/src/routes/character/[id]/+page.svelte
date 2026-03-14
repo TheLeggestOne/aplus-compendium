@@ -10,6 +10,7 @@
   import WeaponsList from '$lib/components/character/weapons-list.svelte';
   import SpellSlotsGrid from '$lib/components/character/spell-slots-grid.svelte';
   import SpellList from '$lib/components/character/spell-list.svelte';
+  import RaceSpellList from '$lib/components/character/race-spell-list.svelte';
   import FeaturesList from '$lib/components/character/features-list.svelte';
   import InventoryTab from '$lib/components/character/inventory-tab.svelte';
   import CharacterDetails from '$lib/components/character/character-details.svelte';
@@ -124,11 +125,21 @@
               classSpellcasting={character.classSpellcasting}
               capacities={characterStore.classSpellCapacities}
             />
+            {#if character.raceGrantedSpells && character.raceGrantedSpells.length > 0}
+              <RaceSpellList spells={character.raceGrantedSpells} raceName={character.subrace ?? character.race} />
+            {/if}
           </div>
         {:else if character.spellcasting}
           <!-- Legacy fallback for characters without classSpellcasting -->
           <div class="flex flex-col gap-6 max-w-2xl">
             <SpellSlotsGrid slots={character.spellcasting.slots} />
+            {#if character.raceGrantedSpells && character.raceGrantedSpells.length > 0}
+              <RaceSpellList spells={character.raceGrantedSpells} raceName={character.subrace ?? character.race} />
+            {/if}
+          </div>
+        {:else if character.raceGrantedSpells && character.raceGrantedSpells.length > 0}
+          <div class="flex flex-col gap-6 max-w-2xl">
+            <RaceSpellList spells={character.raceGrantedSpells} raceName={character.subrace ?? character.race} />
           </div>
         {:else}
           <div class="flex items-center justify-center h-40">

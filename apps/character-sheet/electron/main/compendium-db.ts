@@ -1183,6 +1183,145 @@ export function debugSpellClasses(): { total: number; withClasses: number; sampl
   return { total, withClasses, sample };
 }
 
+// Fetch spells granted by a race (and optionally subrace) keyed by character level.
+// Race additionalSpells use character level as keys (unlike class additionalSpells which use class level).
+// Categories handled: 'innate', 'prepared', 'known'.
+//
+// grantedByFeatureId format: "race:<sourceName>:<unlockLevel>"
+// This lets the client drop spells synchronously when a level is removed (no IPC needed).
+//
+// exactLevelOnly=false (default): return all spells whose threshold <= charLevel (full refresh).
+// exactLevelOnly=true: return only spells whose threshold === charLevel (incremental level-up).
+export function getRaceSpellGrants(
+  raceName: string,
+  subraceName: string | undefined,
+  charLevel: number,
+  exactLevelOnly: boolean = false,
+): import('@aplus-compendium/types').Spell[] {
+  const d = db();
+  const spells: import('@aplus-compendium/types').Spell[] = [];
+  const seen = new Set<string>();
+
+  const queryById   = d.prepare('SELECT raw_json, name, id FROM spells WHERE lower(id) = ? LIMIT 1');
+  const queryByName = d.prepare('SELECT raw_json, name, id FROM spells WHERE lower(name) = ? LIMIT 1');
+
+  const minLevel = exactLevelOnly ? charLevel : 1;
+
+  // Helper to extract spells from one race/subrace object's additionalSpells.
+  // Each spell's grantedByFeatureId encodes the source name and the exact character level
+  // at which it unlocks, so removals can be done synchronously by featureId.
+  // 5etools additionalSpells level values may be:
+  //   - A direct array:  "1": ["dancing lights#c"]
+  //   - A frequency obj: "3": { "daily": { "1": ["faerie fire"] }, "ritual": [...] }
+  //     (XPHB / newer format — one extra nesting level per frequency type)
+  // Flatten all refs from either format into a plain unknown[].
+  function flattenLevelValue(val: unknown): unknown[] {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object' && val !== null) {
+      const out: unknown[] = [];
+      for (const freqVal of Object.values(val as Record<string, unknown>)) {
+        if (Array.isArray(freqVal)) {
+          out.push(...freqVal);
+        } else if (typeof freqVal === 'object' && freqVal !== null) {
+          // Double-nested: { daily: { "1": [...] } }
+          for (const innerVal of Object.values(freqVal as Record<string, unknown>)) {
+            if (Array.isArray(innerVal)) out.push(...innerVal);
+          }
+        }
+      }
+      return out;
+    }
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function extractFromObj(obj: any, sourceName: string, featureName: string): void {
+    const blocks = obj.additionalSpells as Record<string, unknown>[] | undefined;
+    if (!Array.isArray(blocks) || blocks.length === 0) return;
+
+    for (const block of blocks) {
+      for (const category of ['innate', 'prepared', 'known'] as const) {
+        const categoryBlock = block[category] as Record<string, unknown> | undefined;
+        if (!categoryBlock) continue;
+
+        for (let lvl = minLevel; lvl <= charLevel; lvl++) {
+          const rawLevel = categoryBlock[lvl.toString()];
+          if (rawLevel === undefined) continue;
+          const refs = flattenLevelValue(rawLevel);
+          if (refs.length === 0) continue;
+
+          // featureId encodes both source and the character level that unlocked these spells
+          const featureId = `race:${sourceName}:${lvl}`;
+
+          for (const ref of refs) {
+            let refStr: string | undefined;
+            if (typeof ref === 'string') {
+              refStr = ref;
+            } else if (typeof ref === 'object' && ref !== null) {
+              const r = ref as Record<string, unknown>;
+              if (typeof r['spell'] === 'string') refStr = r['spell'] as string;
+              else continue; // choice object — skip
+            }
+            if (!refStr) continue;
+
+            const cleanRef = refStr.split('#')[0]!.trim();
+            const [rawName, rawSource] = cleanRef.split('|');
+            if (!rawName) continue;
+
+            const nameKey = rawName.toLowerCase();
+            if (seen.has(nameKey)) continue;
+            seen.add(nameKey);
+
+            let row: { raw_json: string; name: string; id: string } | undefined;
+            if (rawSource) {
+              row = queryById.get(`${rawName}|${rawSource}`.toLowerCase()) as typeof row;
+            }
+            if (!row) {
+              row = queryByName.get(nameKey) as typeof row;
+            }
+            if (!row) continue;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const raw = JSON.parse(row.raw_json) as any;
+            const spell = rawJsonToSpell(raw, row.id, row.name);
+            spell.grantedByFeatureId = featureId;
+            spell.grantedByFeatureName = featureName;
+            spells.push(spell);
+          }
+        }
+      }
+    }
+  }
+
+  // Base race
+  const raceRow = d.prepare(
+    'SELECT raw_json FROM races WHERE lower(name) = ? AND subrace_of IS NULL ORDER BY source LIMIT 1',
+  ).get(raceName.toLowerCase()) as { raw_json: string } | undefined;
+  if (raceRow) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const race = JSON.parse(raceRow.raw_json) as any;
+    extractFromObj(race, raceName, `${raceName} Racial Spells`);
+  }
+
+  // Subrace (if any) — DB name is the subrace part without the parent race suffix
+  if (subraceName) {
+    // character.subrace is stored as "<subracePart> <raceName>", e.g. "High Elf"
+    const rawSubraceName = subraceName.endsWith(` ${raceName}`)
+      ? subraceName.slice(0, -(raceName.length + 1))
+      : subraceName;
+    const subraceRow = d.prepare(
+      'SELECT raw_json FROM races WHERE lower(name) = ? AND lower(subrace_of) = ? ORDER BY source LIMIT 1',
+    ).get(rawSubraceName.toLowerCase(), raceName.toLowerCase()) as { raw_json: string } | undefined;
+    if (subraceRow) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subrace = JSON.parse(subraceRow.raw_json) as any;
+      extractFromObj(subrace, subraceName, `${subraceName} Racial Spells`);
+    }
+  }
+
+  return spells;
+}
+
 // Post-import fix: re-extract classes_json from raw_json for spells that had no class data
 // This handles 5etools data builds that embed class lists in the spell JSON
 export function repairSpellClasses(): number {

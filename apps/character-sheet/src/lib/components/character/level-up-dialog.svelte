@@ -142,6 +142,7 @@
     selectedFeatName = '';
     summaryFeaturesPromise = null;
     summaryFeaturesLoading = false;
+    raceSpellsPromise = null;
   }
 
   // ---- Navigation ----
@@ -177,6 +178,15 @@
       const p = fetchFeaturesForSummary();
       summaryFeaturesPromise = p;
       p.then(() => { summaryFeaturesLoading = false; }, () => { summaryFeaturesLoading = false; });
+
+      // Preview race spell grants at the new total level
+      if (character.race && window.electronAPI) {
+        const newTotalLevel = totalLevel + 1;
+        raceSpellsPromise = window.electronAPI.compendium
+          .getRaceSpellGrants(character.race, character.subrace, newTotalLevel, true)
+          .then((r) => r.ok ? r.data : [])
+          .catch(() => []);
+      }
     }
   }
 
@@ -287,6 +297,7 @@
   // cleanly without relying on $state mutations from async callbacks.
   let summaryFeaturesPromise = $state<Promise<Feature[]> | null>(null);
   let summaryFeaturesLoading = $state(false);
+  let raceSpellsPromise = $state<Promise<import('@aplus-compendium/types').Spell[]> | null>(null);
 
   async function fetchFeaturesForSummary(): Promise<Feature[]> {
     const cls = selectedClass;
@@ -323,6 +334,7 @@
 
     confirming = true;
     try {
+      const newTotalLevel = totalLevel + 1;
       characterStore.addClassLevel({
         class: cls,
         hpRoll,
@@ -330,6 +342,7 @@
         asiChoice,
         features,
       });
+      await characterStore.addRaceSpellGrantsForLevel(newTotalLevel);
 
       open = false;
     } finally {
@@ -661,6 +674,15 @@
                 {/if}
               {:catch}
                 <!-- silently ignore fetch errors in preview -->
+              {/await}
+            {/if}
+
+            {#if raceSpellsPromise}
+              {#await raceSpellsPromise then raceSpells}
+                {#if raceSpells.length > 0}
+                  <div class="text-muted-foreground">Race Spells Unlocked</div>
+                  <div class="font-medium">{raceSpells.map((s) => s.name).join(', ')}</div>
+                {/if}
               {/await}
             {/if}
 

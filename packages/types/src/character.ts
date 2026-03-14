@@ -8,7 +8,7 @@ import type { Armor, EquipmentItem, Weapon } from './dnd5e/equipment.js';
 import type { InventoryContainer, InventoryItem } from './dnd5e/inventory.js';
 import type { Feature } from './dnd5e/features.js';
 import type { SavingThrows, SkillEntry, SkillName, SkillProficiencyGrant } from './dnd5e/skills.js';
-import type { CharacterSpellcasting } from './dnd5e/spellcasting.js';
+import type { CharacterSpellcasting, Spell } from './dnd5e/spellcasting.js';
 
 export interface CharacterAppearance {
   age?: string;
@@ -64,6 +64,8 @@ export interface Character {
   // Class stack — optional (missing = legacy character without level history)
   levelStack?: ClassLevel[];
   classSpellcasting?: ClassSpellcasting[];
+  /** Spells granted by the character's race (e.g. Tiefling Infernal Legacy). Not tied to any class. */
+  raceGrantedSpells?: Spell[];
 
   // Gear (legacy arrays kept for migration; new system uses inventoryItems)
   weapons: Weapon[];

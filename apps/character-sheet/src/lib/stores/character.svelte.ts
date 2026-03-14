@@ -552,6 +552,8 @@ function createCharacterStore(initial: Character) {
     }
 
     // Store racial bonuses — effectiveAbilityScores derives the total
+    // Clear raceGrantedSpells immediately so old race's spells don't linger;
+    // refreshRaceSpellGrants() (called by the UI after setRace) repopulates for the new race.
     character = {
       ...character,
       race: data.isSubrace ? (data.parentRace ?? data.name) : data.name,
@@ -561,11 +563,67 @@ function createCharacterStore(initial: Character) {
       languages: data.languages.length > 0 ? data.languages : character.languages,
       features,
       raceAbilityBonuses: Object.keys(newBonuses).length > 0 ? newBonuses : undefined,
+      raceGrantedSpells: undefined,
     };
 
     recalculateSkillsAndSaves();
     recomputeHp();
     queueSave();
+  }
+
+  // Full refresh — replaces all raceGrantedSpells with spells available up to current totalLevel.
+  // Used after setRace() to populate from scratch for the new race.
+  async function refreshRaceSpellGrants(): Promise<void> {
+    if (!character.race || !window.electronAPI) return;
+    const result = await window.electronAPI.compendium.getRaceSpellGrants(
+      character.race,
+      character.subrace,
+      totalLevel,
+      false, // cumulative: all levels 1..totalLevel
+    );
+    if (!result.ok) {
+      console.error('[character] getRaceSpellGrants failed:', result.error);
+      return;
+    }
+    character = { ...character, raceGrantedSpells: result.data.length > 0 ? result.data : undefined };
+    queueSave();
+  }
+
+  // Incremental add — fetches only spells that unlock at exactly charLevel and appends them.
+  // Used after addClassLevel() so new race spell tiers are picked up one level at a time.
+  async function addRaceSpellGrantsForLevel(charLevel: number): Promise<void> {
+    if (!character.race || !window.electronAPI) return;
+    const result = await window.electronAPI.compendium.getRaceSpellGrants(
+      character.race,
+      character.subrace,
+      charLevel,
+      true, // exactLevelOnly
+    );
+    if (!result.ok) {
+      console.error('[character] getRaceSpellGrants (exact) failed:', result.error);
+      return;
+    }
+    if (result.data.length === 0) return;
+    const existing = character.raceGrantedSpells ?? [];
+    const existingIds = new Set(existing.map((s) => s.id));
+    const newSpells = result.data.filter((s) => !existingIds.has(s.id));
+    if (newSpells.length === 0) return;
+    character = { ...character, raceGrantedSpells: [...existing, ...newSpells] };
+    queueSave();
+  }
+
+  // Synchronous removal — drops race spells whose grantedByFeatureId encodes the given character
+  // level ("race:<name>:<level>"). Called inside removeLastLevel() without needing IPC.
+  function removeRaceSpellGrantsForLevel(charLevel: number): void {
+    if (!character.raceGrantedSpells) return;
+    const suffix = `:${charLevel}`;
+    const remaining = character.raceGrantedSpells.filter(
+      (s) => !s.grantedByFeatureId?.startsWith('race:') || !s.grantedByFeatureId.endsWith(suffix),
+    );
+    character = {
+      ...character,
+      raceGrantedSpells: remaining.length > 0 ? remaining : undefined,
+    };
   }
 
   function longRest(): void {
@@ -780,6 +838,11 @@ function createCharacterStore(initial: Character) {
 
     const newProfBonus = proficiencyBonusForLevel(newStack.length);
     const updatedClasses = deriveClassesSummary(newStack);
+
+    // Remove race spells that unlock at the level being stripped (sync, no IPC needed).
+    // featureId format is "race:<name>:<charLevel>" so we can filter by the removed total level.
+    const removedTotalLevel = stack.length; // before removal
+    removeRaceSpellGrantsForLevel(removedTotalLevel);
 
     character = {
       ...character,
@@ -1139,6 +1202,8 @@ function createCharacterStore(initial: Character) {
     reinit,
     setAbilityScores,
     setRace,
+    refreshRaceSpellGrants,
+    addRaceSpellGrantsForLevel,
     addWeapon,
     addArmor,
     addEquipment,

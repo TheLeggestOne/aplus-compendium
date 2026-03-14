@@ -16,7 +16,7 @@
     entryToInventoryArmor,
     entryToInventoryEquipment,
   } from '$lib/utils/compendium-to-character.js';
-  import type { RaceData } from '$lib/utils/compendium-to-character.js';
+
   import RaceAsiChooser from './race-asi-chooser.svelte';
   import {
     extractHitDie,
@@ -225,7 +225,7 @@
     }
   }
 
-  function setAsRace() {
+  async function setAsRace() {
     if (!raceData) return;
     if (raceHasChoices) {
       asiChooserTarget = 'base';
@@ -233,10 +233,11 @@
       return;
     }
     characterStore.setRace(raceData);
+    await characterStore.refreshRaceSpellGrants();
     flash('Race set!');
   }
 
-  function setSubraceAsRace() {
+  async function setSubraceAsRace() {
     if (!expandedSubraceEntry) return;
     const data = extractRaceData(expandedSubraceEntry);
     const hasChoices =
@@ -248,15 +249,17 @@
       return;
     }
     characterStore.setRace(data);
+    await characterStore.refreshRaceSpellGrants();
     flash('Race set!');
   }
 
-  function confirmRaceWithBonuses(resolved: Partial<Record<AbilityScore, number>>) {
+  async function confirmRaceWithBonuses(resolved: Partial<Record<AbilityScore, number>>) {
     const data = asiChooserTarget === 'subrace' && expandedSubraceEntry
       ? extractRaceData(expandedSubraceEntry)
       : raceData;
     if (!data) return;
     characterStore.setRace(data, resolved);
+    await characterStore.refreshRaceSpellGrants();
     showAsiChooser = false;
     flash('Race set!');
   }

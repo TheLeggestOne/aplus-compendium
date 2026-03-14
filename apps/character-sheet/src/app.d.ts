@@ -46,6 +46,7 @@ declare global {
         getSubraces: (raceName: string) => Promise<IpcResult<CompendiumSearchResult[]>>;
         getSubclasses: (className: string) => Promise<IpcResult<CompendiumSearchResult[]>>;
         getClassFeatures: (className: string, classLevel: number, subclassName?: string) => Promise<IpcResult<{ name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[] }[]>>;
+        getRaceSpellGrants: (raceName: string, subraceName: string | undefined, charLevel: number, exactLevelOnly?: boolean) => Promise<IpcResult<Spell[]>>;
         onProgress: (callback: (progress: ImportProgress) => void) => void;
         offProgress: () => void;
         clear: () => Promise<IpcResult<void>>;
