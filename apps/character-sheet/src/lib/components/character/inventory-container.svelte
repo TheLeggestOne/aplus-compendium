@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // Per-session expanded state — shared across all instances, survives re-renders
+  const containerExpandedState = new Map<string, boolean>();
+</script>
+
 <script lang="ts">
   import type { InventoryContainer, InventoryItem, InventoryEquipment } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
@@ -24,7 +29,11 @@
 
   const { container, items, defaultExpanded = false }: Props = $props();
 
-  let expanded = $state(defaultExpanded || !!container.isDefault);
+  let expanded = $state(containerExpandedState.get(container.id) ?? (defaultExpanded || !!container.isDefault));
+
+  $effect(() => {
+    containerExpandedState.set(container.id, expanded);
+  });
   let editContainerOpen = $state(false);
 
   const containerWeight = $derived(items.reduce((sum, i) => sum + i.weight * i.quantity, 0));
@@ -82,8 +91,12 @@
 
   function onSearchInput() {
     if (searchQuery.trim()) {
-      contentViewerStore.close();
-      compendiumStore.openPanel('item');
+      // Only open/switch the panel if it isn't already showing items — avoids
+      // re-rendering the right pane on every keystroke which steals focus
+      if (!compendiumStore.panelOpen || compendiumStore.activeType !== 'item') {
+        contentViewerStore.close();
+        compendiumStore.openPanel('item');
+      }
       compendiumStore.setQuery(searchQuery.trim());
     }
   }
@@ -170,7 +183,11 @@
       class="min-h-[2.5rem] border-t border-border divide-y divide-border/40"
     >
       {#each dndItems as dndItem (dndItem.id)}
-        <InventoryItemRow item={dndItem.item} />
+        {#if dndItem.item}
+          <InventoryItemRow item={dndItem.item} />
+        {:else}
+          <div class="h-8" />
+        {/if}
       {:else}
         <p class="text-xs text-muted-foreground/40 text-center py-2">Empty — drag items here</p>
       {/each}

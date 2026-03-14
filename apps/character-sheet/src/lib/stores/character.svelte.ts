@@ -3,6 +3,7 @@ import type {
   AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, ProficiencyLevel,
   CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
   InventoryItem, InventoryContainer, InventoryWeapon, InventoryArmor, CharacterBackground,
+  Currency,
 } from '@aplus-compendium/types';
 import {
   abilityModifier, SKILL_ABILITY_MAP, SKILL_NAMES,
@@ -1358,21 +1359,63 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
-  function sellItem(itemId: string, fraction: number, sellQuantity?: number): void {
+  const SELL_DENOMS: { key: keyof Currency; cp: number }[] = [
+    { key: 'platinum', cp: 1000 },
+    { key: 'gold', cp: 100 },
+    { key: 'electrum', cp: 50 },
+    { key: 'silver', cp: 10 },
+    { key: 'copper', cp: 1 },
+  ];
+  const DENOM_SHORT_TO_KEY: Record<string, keyof Currency> = {
+    pp: 'platinum', gp: 'gold', ep: 'electrum', sp: 'silver', cp: 'copper',
+  };
+
+  function sellItem(itemId: string, fraction: number, sellQuantity?: number, largestDenom?: string): void {
     const item = (character.inventoryItems ?? []).find((i) => i.id === itemId);
     if (!item) return;
     const qty = Math.min(sellQuantity ?? item.quantity, item.quantity);
-    const goldAmount = Math.floor((item.costGp ?? 0) * qty * fraction);
+    const totalCp = Math.floor((item.costGp ?? 0) * qty * fraction * 100);
     const remaining = item.quantity - qty;
     const items = remaining > 0
       ? (character.inventoryItems ?? []).map((i) => i.id === itemId ? { ...i, quantity: remaining } as InventoryItem : i)
       : (character.inventoryItems ?? []).filter((i) => i.id !== itemId);
+    // Split into denominations starting from chosen largest
+    const startKey = DENOM_SHORT_TO_KEY[largestDenom ?? 'gp'] ?? 'gold';
+    const startIdx = SELL_DENOMS.findIndex((d) => d.key === startKey);
+    const gains: Partial<Record<keyof Currency, number>> = {};
+    let rem = totalCp;
+    for (let i = Math.max(0, startIdx); i < SELL_DENOMS.length; i++) {
+      const d = SELL_DENOMS[i]!;
+      gains[d.key] = Math.floor(rem / d.cp);
+      rem %= d.cp;
+    }
+    const cur = character.currency;
     character = {
       ...character,
       inventoryItems: items,
-      currency: { ...character.currency, gold: (character.currency.gold ?? 0) + goldAmount },
+      currency: {
+        platinum: (cur.platinum ?? 0) + (gains.platinum ?? 0),
+        gold: (cur.gold ?? 0) + (gains.gold ?? 0),
+        electrum: (cur.electrum ?? 0) + (gains.electrum ?? 0),
+        silver: (cur.silver ?? 0) + (gains.silver ?? 0),
+        copper: (cur.copper ?? 0) + (gains.copper ?? 0),
+      },
     };
     queueSave();
+  }
+
+  // Currency mutations
+  function setCurrencyDenomination(key: keyof Currency, value: number): void {
+    character = {
+      ...character,
+      currency: { ...character.currency, [key]: Math.max(0, Math.floor(value)) },
+    };
+    queueSave();
+  }
+
+  function adjustCurrencyDenomination(key: keyof Currency, delta: number): void {
+    const current = character.currency[key] ?? 0;
+    setCurrencyDenomination(key, current + delta);
   }
 
   return {
@@ -1461,6 +1504,9 @@ function createCharacterStore(initial: Character) {
     setContainerCapacity,
     setContainerCountsTowardCarry,
     sellItem,
+    // Currency mutations
+    setCurrencyDenomination,
+    adjustCurrencyDenomination,
   };
 }
 

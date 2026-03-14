@@ -44,6 +44,8 @@ interface InventoryItemBase {
   /** Raw 5etools entries for rich-text rendering. Cleared if description is manually edited. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawEntries?: unknown[];
+  /** Source book abbreviation (e.g. "PHB", "DMG"). Set when imported from compendium. */
+  source?: string;
 }
 
 export type InventoryWeapon = InventoryItemBase & {

@@ -65,6 +65,9 @@
   <!-- Name + summary -->
   <div class="flex-1 min-w-0">
     <span class="text-xs truncate {rarityColor}">{item.name}</span>
+    {#if item.source}
+      <span class="ml-1 text-[9px] uppercase tracking-wider text-muted-foreground/40" title={item.source}>{item.source}</span>
+    {/if}
     {#if item.tier}
       <span class="ml-1 text-[9px] uppercase tracking-wider text-muted-foreground/60">{item.tier}</span>
     {/if}

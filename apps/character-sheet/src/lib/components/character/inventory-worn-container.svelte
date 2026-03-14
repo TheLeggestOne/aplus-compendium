@@ -109,19 +109,23 @@
   </div>
 
   <!-- Misc worn items (equipment items) + drop target for the whole container -->
+  {#if dndItems.length > 0}
+    <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-0.5">Worn Items</p>
+  {/if}
   <div
     use:dndzone={{ items: dndItems, dropFromOthersDisabled: false }}
     onconsider={handleDndConsider}
     onfinalize={handleDndFinalize}
     class="min-h-[2rem] px-1 py-1"
   >
-    {#if dndItems.length > 0}
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-0.5">Worn Items</p>
-      {#each dndItems as d (d.id)}
+    {#each dndItems as d (d.id)}
+      {#if d.item}
         <InventoryItemRow item={d.item} />
-      {/each}
+      {:else}
+        <div class="h-8" />
+      {/if}
     {:else}
       <p class="text-xs text-muted-foreground/40 text-center py-1">Drop items here to equip</p>
-    {/if}
+    {/each}
   </div>
 </div>
