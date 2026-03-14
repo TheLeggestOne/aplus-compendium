@@ -25,6 +25,31 @@
   let damageBonus = $state(item.type === 'weapon' ? (item as InventoryWeapon).damageBonus : 0);
   // Armor-specific
   let baseArmorClass = $state(item.type === 'armor' ? (item as InventoryArmor).baseArmorClass : 10);
+  // Original base AC (without magic bonus) for +N calculations
+  let originalBaseAC = $state(item.type === 'armor' ? (item as InventoryArmor).baseArmorClass : 10);
+
+  /** Detect the current +N magic bonus from the item name. */
+  function detectMagicBonus(): number {
+    const match = name.match(/^\+(\d)/);
+    return match ? parseInt(match[1]) : 0;
+  }
+
+  /** Strip any leading "+N " prefix from a name. */
+  function stripBonusPrefix(n: string): string {
+    return n.replace(/^\+\d\s+/, '');
+  }
+
+  /** Apply a +N magic bonus (0 = remove). */
+  function applyMagicBonus(bonus: number) {
+    const baseName = stripBonusPrefix(name);
+    name = bonus > 0 ? `+${bonus} ${baseName}` : baseName;
+    if (item.type === 'weapon') {
+      attackBonus = bonus;
+      damageBonus = bonus;
+    } else if (item.type === 'armor') {
+      baseArmorClass = originalBaseAC + bonus;
+    }
+  }
 
   $effect(() => {
     if (open) {
@@ -36,7 +61,14 @@
       attuned = item.attuned ?? false;
       if (item.type === 'weapon') attackBonus = (item as InventoryWeapon).attackBonus;
       if (item.type === 'weapon') damageBonus = (item as InventoryWeapon).damageBonus;
-      if (item.type === 'armor') baseArmorClass = (item as InventoryArmor).baseArmorClass;
+      if (item.type === 'armor') {
+        baseArmorClass = (item as InventoryArmor).baseArmorClass;
+        // Derive original base AC by subtracting any existing +N bonus from the name
+        const existingBonus = /^\+(\d)/.exec(item.name);
+        originalBaseAC = existingBonus
+          ? (item as InventoryArmor).baseArmorClass - parseInt(existingBonus[1])
+          : (item as InventoryArmor).baseArmorClass;
+      }
     }
   });
 
@@ -74,6 +106,24 @@
         <label class="text-xs font-medium text-muted-foreground">Name</label>
         <Input bind:value={name} class="h-7 text-xs" />
       </div>
+
+      {#if item.type === 'weapon' || item.type === 'armor'}
+        {@const currentBonus = detectMagicBonus()}
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-muted-foreground">Magic bonus:</span>
+          {#each [1, 2, 3] as n}
+            <button
+              class="h-6 w-8 rounded border text-xs font-medium transition-colors
+                {currentBonus === n
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
+              onclick={() => applyMagicBonus(currentBonus === n ? 0 : n)}
+            >
+              +{n}
+            </button>
+          {/each}
+        </div>
+      {/if}
 
       <div class="grid grid-cols-3 gap-2">
         <div class="space-y-1">

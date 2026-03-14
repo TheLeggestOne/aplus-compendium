@@ -8,7 +8,7 @@
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
   import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { dndzone } from 'svelte-dnd-action';
   import InventoryItemRow from './inventory-item-row.svelte';
   import InventoryContainerEditDialog from './inventory-container-edit-dialog.svelte';
@@ -68,6 +68,7 @@
 
   // Inline search / add — syncs to the SRD compendium panel
   let searchQuery = $state('');
+  let searchInput = $state<HTMLInputElement | null>(null);
 
   // When an item is added (any container), close the SRD panel
   let _prevItemCount = items.length;
@@ -89,13 +90,17 @@
     });
   });
 
-  function onSearchInput() {
-    if (searchQuery.trim()) {
+  async function onSearchInput() {
+    // Only act if query has at least one alphanumeric char (avoids opening panel for lone "+", "-", etc.)
+    if (searchQuery.trim() && /[a-zA-Z0-9]/.test(searchQuery)) {
       // Only open/switch the panel if it isn't already showing items — avoids
       // re-rendering the right pane on every keystroke which steals focus
       if (!compendiumStore.panelOpen || compendiumStore.activeType !== 'item') {
         contentViewerStore.close();
         compendiumStore.openPanel('item');
+        // Wait for Svelte to finish the DOM update (panel mount), then restore focus
+        await tick();
+        searchInput?.focus();
       }
       compendiumStore.setQuery(searchQuery.trim());
     }
@@ -198,6 +203,7 @@
       <div class="flex items-center gap-1.5">
         <SearchIcon class="size-3 text-muted-foreground/40 shrink-0" />
         <input
+          bind:this={searchInput}
           bind:value={searchQuery}
           oninput={onSearchInput}
           onkeydown={(e) => {

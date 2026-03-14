@@ -80,6 +80,10 @@ function renderTag(tag: string, content: string): string {
     case 'feat':
     case 'background':
     case 'classFeature':
+      // {@classFeature name|class|source|level|subclass|subSrc|displayText}
+      // parts[2] is source, NOT display — display is parts[6]
+      return `<span class="text-amber-400">${parts[6] || capitalize(main)}</span>`;
+
     case 'optfeature':
     case 'language':
     case 'sense':
@@ -88,6 +92,10 @@ function renderTag(tag: string, content: string): string {
     case 'itemProperty':
     case 'variantrule':
     case 'quickref':
+      // {@quickref title|source|chapterIdx|headerIdx|displayText}
+      // parts[2] is chapter index (a number), NOT a display override
+      return `<span class="text-amber-400">${parts[4] || capitalize(main)}</span>`;
+
     case 'table':
     case 'deity':
     case 'hazard':

@@ -759,10 +759,19 @@ export function searchCompendium(
 
   // FTS query — use t.rowid (INTEGER) not t.id (TEXT); content_rowid is the integer rowid.
   // Each word gets a prefix wildcard ("word"*) so typing "fire" matches "fireball", etc.
+  // Also add a LIKE fallback on name to catch items with special chars (e.g. "+2 Shield").
   if (query.trim()) {
-    const terms = query.trim().replace(/['"]/g, '').split(/\s+/).filter(Boolean);
-    where.push(`t.rowid IN (SELECT rowid FROM ${cfg.fts} WHERE ${cfg.fts} MATCH ?)`);
-    params.push(terms.map(t => `"${t}"*`).join(' '));
+    const sanitized = query.trim().replace(/["'+\-*^(){}:~]/g, '');
+    const terms = sanitized.split(/\s+/).filter(Boolean);
+    if (terms.length > 0) {
+      const ftsClause = `t.rowid IN (SELECT rowid FROM ${cfg.fts} WHERE ${cfg.fts} MATCH ?)`;
+      // LIKE fallback: name must contain each original word (case-insensitive via SQLite default)
+      const rawTerms = query.trim().split(/\s+/).filter(Boolean);
+      const likeClause = rawTerms.map(() => 't.name LIKE ?').join(' AND ');
+      where.push(`(${ftsClause} OR (${likeClause}))`);
+      params.push(terms.map(t => `"${t}"*`).join(' '));
+      params.push(...rawTerms.map(t => `%${t}%`));
+    }
   }
 
   // Filters
