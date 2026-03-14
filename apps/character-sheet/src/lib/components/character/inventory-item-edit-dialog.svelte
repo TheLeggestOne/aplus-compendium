@@ -9,13 +9,15 @@
     item: InventoryItem;
     open: boolean;
     onclose?: () => void;
+    onsell?: () => void;
   }
 
-  let { item, open = $bindable(), onclose }: Props = $props();
+  let { item, open = $bindable(), onclose, onsell }: Props = $props();
 
   let name = $state(item.name);
   let quantity = $state(item.quantity);
   let weight = $state(item.weight);
+  let costGp = $state(item.costGp ?? 0);
   let description = $state(item.description ?? '');
   let attuned = $state(item.attuned ?? false);
   // Weapon-specific
@@ -24,40 +26,40 @@
   // Armor-specific
   let baseArmorClass = $state(item.type === 'armor' ? (item as InventoryArmor).baseArmorClass : 10);
 
-  let confirmDelete = $state(false);
-
   $effect(() => {
     if (open) {
       name = item.name;
       quantity = item.quantity;
       weight = item.weight;
+      costGp = item.costGp ?? 0;
       description = item.description ?? '';
       attuned = item.attuned ?? false;
       if (item.type === 'weapon') attackBonus = (item as InventoryWeapon).attackBonus;
       if (item.type === 'weapon') damageBonus = (item as InventoryWeapon).damageBonus;
       if (item.type === 'armor') baseArmorClass = (item as InventoryArmor).baseArmorClass;
-      confirmDelete = false;
     }
   });
 
   function save() {
-    const patch: Partial<InventoryItem> = { name, quantity, weight, description, attuned };
-    if (item.type === 'weapon') {
-      Object.assign(patch, { attackBonus, damageBonus });
-    }
-    if (item.type === 'armor') {
-      Object.assign(patch, { baseArmorClass });
-    }
+    const patch: Partial<InventoryItem> = { name, quantity, weight, costGp: costGp || undefined, description, attuned };
+    if (item.type === 'weapon') Object.assign(patch, { attackBonus, damageBonus });
+    if (item.type === 'armor') Object.assign(patch, { baseArmorClass });
     characterStore.updateInventoryItem(item.id, patch);
     open = false;
     onclose?.();
   }
 
   function deleteItem() {
-    if (!confirmDelete) { confirmDelete = true; return; }
     characterStore.removeInventoryItem(item.id);
     open = false;
     onclose?.();
+  }
+
+  function openSell() {
+    // Persist current costGp so sell dialog sees it
+    characterStore.updateInventoryItem(item.id, { costGp: costGp || undefined });
+    open = false;
+    onsell?.();
   }
 </script>
 
@@ -73,7 +75,7 @@
         <Input bind:value={name} class="h-7 text-xs" />
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-3 gap-2">
         <div class="space-y-1">
           <label class="text-xs font-medium text-muted-foreground">Quantity</label>
           <Input type="number" min="0" bind:value={quantity} class="h-7 text-xs" />
@@ -81,6 +83,10 @@
         <div class="space-y-1">
           <label class="text-xs font-medium text-muted-foreground">Weight (lbs)</label>
           <Input type="number" min="0" step="0.1" bind:value={weight} class="h-7 text-xs" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Cost (gp)</label>
+          <Input type="number" min="0" step="0.01" bind:value={costGp} class="h-7 text-xs" />
         </div>
       </div>
 
@@ -123,14 +129,17 @@
 
     <Dialog.Footer class="flex items-center justify-between border-t border-border pt-3 mt-1">
       <Button
-        variant={confirmDelete ? 'destructive' : 'ghost'}
+        variant="ghost"
         size="sm"
-        class="h-7 px-2 text-xs"
+        class="h-7 px-2 text-xs text-destructive hover:text-destructive"
         onclick={deleteItem}
       >
-        {confirmDelete ? 'Confirm delete' : 'Delete'}
+        Delete
       </Button>
       <div class="flex gap-2">
+        <Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={openSell}>
+          Sell…
+        </Button>
         <Dialog.Close>
           <Button variant="outline" size="sm" class="h-7 text-xs">Cancel</Button>
         </Dialog.Close>

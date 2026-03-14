@@ -238,6 +238,16 @@ function _inventoryId(): string {
   return `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function _costGp(raw: Record<string, unknown>): number | undefined {
+  // 5etools stores item cost in copper pieces in `value` field (e.g. 1000 = 10 gp)
+  return typeof raw['value'] === 'number' ? raw['value'] / 100 : undefined;
+}
+
+function _rawEntries(raw: Record<string, unknown>): unknown[] | undefined {
+  const e = raw['entries'];
+  return Array.isArray(e) && e.length > 0 ? e : undefined;
+}
+
 export function entryToInventoryWeapon(entry: CompendiumEntry): InventoryWeapon {
   const w = entryToWeapon(entry);
   return {
@@ -246,8 +256,10 @@ export function entryToInventoryWeapon(entry: CompendiumEntry): InventoryWeapon 
     name:                w.name,
     quantity:            1,
     weight:              w.weight,
+    costGp:              _costGp(entry.raw),
     rarity:              w.rarity,
     description:         w.description,
+    rawEntries:          _rawEntries(entry.raw),
     containerId:         'default',
     requiresAttunement:  w.requiresAttunement,
     attuned:             false,
@@ -272,8 +284,10 @@ export function entryToInventoryArmor(entry: CompendiumEntry): InventoryArmor {
     name:                a.name,
     quantity:            1,
     weight:              a.weight,
+    costGp:              _costGp(entry.raw),
     rarity:              a.rarity,
     description:         a.description,
+    rawEntries:          _rawEntries(entry.raw),
     containerId:         'default',
     requiresAttunement:  a.requiresAttunement,
     attuned:             false,
@@ -293,8 +307,11 @@ export function entryToInventoryEquipment(entry: CompendiumEntry): InventoryEqui
     name:               e.name,
     quantity:           1,
     weight:             e.weight,
+    costGp:             _costGp(entry.raw),
     rarity:             e.rarity,
     description:        e.description,
+    rawEntries:         _rawEntries(entry.raw),
+    wondrous:           !!entry.raw['wondrous'],
     containerId:        'default',
     requiresAttunement: e.requiresAttunement,
     attuned:            false,

@@ -1,9 +1,13 @@
 <script lang="ts">
   import type { InventoryItem, InventoryWeapon } from '@aplus-compendium/types';
-  import { Badge } from '$lib/components/ui/badge/index.js';
   import { characterStore } from '$lib/stores/character.svelte.js';
+  import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
   import InventoryItemEditDialog from './inventory-item-edit-dialog.svelte';
+  import InventorySellDialog from './inventory-sell-dialog.svelte';
   import PencilIcon from '@lucide/svelte/icons/pencil';
+  import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+  import CoinsIcon from '@lucide/svelte/icons/coins';
   import SwordIcon from '@lucide/svelte/icons/sword';
   import ShieldIcon from '@lucide/svelte/icons/shield';
   import BoxIcon from '@lucide/svelte/icons/box';
@@ -16,10 +20,14 @@
   const { item }: Props = $props();
 
   let editOpen = $state(false);
+  let sellOpen = $state(false);
 
   function decrement() { characterStore.adjustItemQuantity(item.id, -1); }
   function increment() { characterStore.adjustItemQuantity(item.id, 1); }
   function toggleAttuned() { characterStore.toggleAttuned(item.id); }
+  function deleteItem() { characterStore.removeInventoryItem(item.id); }
+  function viewItem() { contentViewerStore.open({ type: 'item', data: item }); }
+  function editInViewer() { contentViewerStore.open({ type: 'item', data: item }); contentViewerStore.setMode('edit'); }
 
   const RARITY_COLORS: Record<string, string> = {
     uncommon:  'text-green-500',
@@ -89,15 +97,46 @@
     >+</button>
   </div>
 
+  <!-- View in content panel -->
+  <button
+    onclick={viewItem}
+    title="View item details"
+    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground"
+  >
+    <ExternalLinkIcon class="size-3" />
+  </button>
+
   <!-- Edit button -->
   <button
-    onclick={() => { editOpen = true; }}
+    onclick={editInViewer}
     class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground"
   >
     <PencilIcon class="size-3" />
   </button>
+
+  <!-- Sell button -->
+  <button
+    onclick={() => { sellOpen = true; }}
+    title="Sell item"
+    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-yellow-400"
+  >
+    <CoinsIcon class="size-3" />
+  </button>
+
+  <!-- Delete button (no confirm) -->
+  <button
+    onclick={deleteItem}
+    title="Delete item"
+    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-destructive"
+  >
+    <Trash2Icon class="size-3" />
+  </button>
 </div>
 
 {#if editOpen}
-  <InventoryItemEditDialog {item} bind:open={editOpen} />
+  <InventoryItemEditDialog {item} bind:open={editOpen} onsell={() => { sellOpen = true; }} />
+{/if}
+
+{#if sellOpen}
+  <InventorySellDialog {item} bind:open={sellOpen} />
 {/if}

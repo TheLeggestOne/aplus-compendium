@@ -74,26 +74,38 @@ function createCharacterStore(initial: Character) {
 
   let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+  async function _executeSave(): Promise<void> {
+    if (!window.electronAPI) return;
+    try {
+      // JSON round-trip strips Svelte 5 reactive proxies — passing a proxy directly
+      // to Electron IPC causes a silent structured-clone failure.
+      const plain = JSON.parse(JSON.stringify(character)) as Character;
+      // Keep classes summary synced from level stack for backward compatibility
+      if (plain.levelStack && plain.levelStack.length > 0) {
+        plain.classes = deriveClassesSummary(plain.levelStack);
+        plain.proficiencyBonus = proficiencyBonusForLevel(plain.levelStack.length);
+      }
+      const result = await window.electronAPI.characters.save(plain);
+      if (!result.ok) console.error('[character] save failed:', result.error);
+    } catch (e) {
+      console.error('[character] save IPC error:', e);
+    }
+  }
+
   function queueSave(): void {
     if (_saveTimer !== null) clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(async () => {
+    _saveTimer = setTimeout(() => {
       _saveTimer = null;
-      if (!window.electronAPI) return;
-      try {
-        // JSON round-trip strips Svelte 5 reactive proxies — passing a proxy directly
-        // to Electron IPC causes a silent structured-clone failure.
-        const plain = JSON.parse(JSON.stringify(character)) as Character;
-        // Keep classes summary synced from level stack for backward compatibility
-        if (plain.levelStack && plain.levelStack.length > 0) {
-          plain.classes = deriveClassesSummary(plain.levelStack);
-          plain.proficiencyBonus = proficiencyBonusForLevel(plain.levelStack.length);
-        }
-        const result = await window.electronAPI.characters.save(plain);
-        if (!result.ok) console.error('[character] save failed:', result.error);
-      } catch (e) {
-        console.error('[character] save IPC error:', e);
-      }
+      void _executeSave();
     }, 1500);
+  }
+
+  async function saveNow(): Promise<void> {
+    if (_saveTimer !== null) {
+      clearTimeout(_saveTimer);
+      _saveTimer = null;
+    }
+    await _executeSave();
   }
 
   function reinit(newChar: Character): void {
@@ -163,7 +175,13 @@ function createCharacterStore(initial: Character) {
   const currentCarryWeight = $derived(() => {
     const items = character.inventoryItems;
     if (items) {
-      return items.reduce((sum, item) => sum + item.weight * item.quantity, 0);
+      const containers = character.inventoryContainers ?? [];
+      return items.reduce((sum, item) => {
+        // Skip items in containers that opt out of carry weight tracking
+        const container = containers.find((c) => c.id === item.containerId);
+        if (container && container.countsTowardCarry === false) return sum;
+        return sum + item.weight * item.quantity;
+      }, 0);
     }
     // Fallback for unmigrated characters
     const weaponWeight = character.weapons.reduce((sum, w) => sum + w.weight * w.quantity, 0);
@@ -1142,6 +1160,15 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  /** Fully replaces an item by id — use when changing item type. */
+  function replaceInventoryItem(updated: InventoryItem): void {
+    const items = (character.inventoryItems ?? []).map((i) =>
+      i.id === updated.id ? updated : i,
+    );
+    character = { ...character, inventoryItems: items };
+    queueSave();
+  }
+
   function adjustItemQuantity(itemId: string, delta: number): void {
     const items = (character.inventoryItems ?? []).map((i) => {
       if (i.id !== itemId) return i;
@@ -1300,6 +1327,31 @@ function createCharacterStore(initial: Character) {
     queueSave();
   }
 
+  function setContainerCountsTowardCarry(containerId: string, value: boolean): void {
+    const containers = (character.inventoryContainers ?? []).map((c) =>
+      c.id === containerId ? { ...c, countsTowardCarry: value } : c,
+    );
+    character = { ...character, inventoryContainers: containers };
+    queueSave();
+  }
+
+  function sellItem(itemId: string, fraction: number, sellQuantity?: number): void {
+    const item = (character.inventoryItems ?? []).find((i) => i.id === itemId);
+    if (!item) return;
+    const qty = Math.min(sellQuantity ?? item.quantity, item.quantity);
+    const goldAmount = Math.floor((item.costGp ?? 0) * qty * fraction);
+    const remaining = item.quantity - qty;
+    const items = remaining > 0
+      ? (character.inventoryItems ?? []).map((i) => i.id === itemId ? { ...i, quantity: remaining } as InventoryItem : i)
+      : (character.inventoryItems ?? []).filter((i) => i.id !== itemId);
+    character = {
+      ...character,
+      inventoryItems: items,
+      currency: { ...character.currency, gold: (character.currency.gold ?? 0) + goldAmount },
+    };
+    queueSave();
+  }
+
   return {
     get character() { return character; },
     get totalLevel() { return totalLevel; },
@@ -1325,6 +1377,7 @@ function createCharacterStore(initial: Character) {
     get classSpellcastingAbilities() { return classSpellcastingAbilities; },
     // Existing mutations
     reinit,
+    saveNow,
     setAbilityScores,
     setRace,
     setBackground,
@@ -1367,6 +1420,7 @@ function createCharacterStore(initial: Character) {
     addInventoryItem,
     removeInventoryItem,
     updateInventoryItem,
+    replaceInventoryItem,
     adjustItemQuantity,
     setItemQuantity,
     toggleAttuned,
@@ -1375,6 +1429,8 @@ function createCharacterStore(initial: Character) {
     removeContainer,
     renameContainer,
     setContainerCapacity,
+    setContainerCountsTowardCarry,
+    sellItem,
   };
 }
 

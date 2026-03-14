@@ -15,6 +15,7 @@
   let name = $state(container.name);
   let hasCapacity = $state(container.capacityLbs !== undefined);
   let capacityLbs = $state(container.capacityLbs ?? 50);
+  let countsTowardCarry = $state(container.countsTowardCarry !== false);
   let confirmDelete = $state(false);
 
   $effect(() => {
@@ -22,6 +23,7 @@
       name = container.name;
       hasCapacity = container.capacityLbs !== undefined;
       capacityLbs = container.capacityLbs ?? 50;
+      countsTowardCarry = container.countsTowardCarry !== false;
       confirmDelete = false;
     }
   });
@@ -29,6 +31,7 @@
   function save() {
     if (name.trim()) characterStore.renameContainer(container.id, name.trim());
     characterStore.setContainerCapacity(container.id, hasCapacity ? capacityLbs : undefined);
+    characterStore.setContainerCountsTowardCarry(container.id, countsTowardCarry);
     open = false;
   }
 
@@ -62,6 +65,14 @@
             <span class="text-xs text-muted-foreground">lbs</span>
           </div>
         {/if}
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="counts-carry" bind:checked={countsTowardCarry} class="h-3.5 w-3.5" />
+        <label for="counts-carry" class="text-xs text-muted-foreground cursor-pointer">
+          Count toward carry weight
+          <span class="text-muted-foreground/50">(disable for bag of holding, etc.)</span>
+        </label>
       </div>
     </div>
 

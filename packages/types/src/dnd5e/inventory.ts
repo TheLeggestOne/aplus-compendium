@@ -13,6 +13,8 @@ export interface InventoryContainer {
   isDefault?: boolean;
   /** True for the special "Worn / Equipped" container. */
   isWornEquipped?: boolean;
+  /** If false, items in this container don't count toward carry weight (e.g. bag of holding). Defaults to true. */
+  countsTowardCarry?: boolean;
 }
 
 interface InventoryItemBase {
@@ -21,6 +23,8 @@ interface InventoryItemBase {
   quantity: number;
   /** Weight per unit, in lbs. */
   weight: number;
+  /** Cost in gold pieces (from compendium or manually entered). */
+  costGp?: number;
   rarity?: ItemRarity;
   description?: string;
   /** Which container this item lives in. */
@@ -29,6 +33,11 @@ interface InventoryItemBase {
   equipSlot?: EquipSlot;
   requiresAttunement?: boolean;
   attuned?: boolean;
+  /** True if this is a wondrous item (5etools `wondrous` flag). */
+  wondrous?: boolean;
+  /** Raw 5etools entries for rich-text rendering. Cleared if description is manually edited. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rawEntries?: unknown[];
 }
 
 export type InventoryWeapon = InventoryItemBase & {

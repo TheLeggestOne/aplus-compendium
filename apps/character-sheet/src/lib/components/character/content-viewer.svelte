@@ -6,6 +6,7 @@
   import ContentViewerRace from './content-viewer-race.svelte';
   import ContentViewerClass from './content-viewer-class.svelte';
   import ContentViewerBackground from './content-viewer-background.svelte';
+  import ContentViewerItem from './content-viewer-item.svelte';
   import XIcon from '@lucide/svelte/icons/x';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import EyeIcon from '@lucide/svelte/icons/eye';
@@ -69,6 +70,8 @@
         <ContentViewerClass classData={content.data} />
       {:else if content.type === 'background'}
         <ContentViewerBackground background={content.data} />
+      {:else if content.type === 'item'}
+        <ContentViewerItem item={content.data} />
       {/if}
     </ScrollArea>
 

@@ -1,12 +1,15 @@
 <script lang="ts">
-  import type { InventoryContainer, InventoryItem } from '@aplus-compendium/types';
+  import type { InventoryContainer, InventoryItem, InventoryEquipment } from '@aplus-compendium/types';
   import { characterStore } from '$lib/stores/character.svelte.js';
+  import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
+  import { untrack } from 'svelte';
   import { dndzone } from 'svelte-dnd-action';
   import InventoryItemRow from './inventory-item-row.svelte';
-  import InventoryCustomItemDialog from './inventory-custom-item-dialog.svelte';
   import InventoryContainerEditDialog from './inventory-container-edit-dialog.svelte';
   import { Progress } from '$lib/components/ui/progress/index.js';
   import PlusIcon from '@lucide/svelte/icons/plus';
+  import SearchIcon from '@lucide/svelte/icons/search';
   import Settings2Icon from '@lucide/svelte/icons/settings-2';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
@@ -22,7 +25,6 @@
   const { container, items, defaultExpanded = false }: Props = $props();
 
   let expanded = $state(defaultExpanded || !!container.isDefault);
-  let addItemOpen = $state(false);
   let editContainerOpen = $state(false);
 
   const containerWeight = $derived(items.reduce((sum, i) => sum + i.weight * i.quantity, 0));
@@ -46,7 +48,6 @@
   }
 
   function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
-    // Update immediately so items stay draggable before the store re-syncs
     dndItems = e.detail.items;
     const previousIds = new Set(items.map((i) => i.id));
     for (const d of e.detail.items) {
@@ -55,10 +56,57 @@
       }
     }
   }
+
+  // Inline search / add — syncs to the SRD compendium panel
+  let searchQuery = $state('');
+
+  // When an item is added (any container), close the SRD panel
+  let _prevItemCount = items.length;
+  $effect(() => {
+    const len = items.length;
+    untrack(() => {
+      if (len > _prevItemCount) compendiumStore.closePanel();
+      _prevItemCount = len;
+    });
+  });
+
+  // When the SRD panel closes, clear this container's search bar
+  let _wasPanelOpen = compendiumStore.panelOpen;
+  $effect(() => {
+    const isOpen = compendiumStore.panelOpen;
+    untrack(() => {
+      if (!isOpen && _wasPanelOpen) searchQuery = '';
+      _wasPanelOpen = isOpen;
+    });
+  });
+
+  function onSearchInput() {
+    if (searchQuery.trim()) {
+      contentViewerStore.close();
+      compendiumStore.openPanel('item');
+      compendiumStore.setQuery(searchQuery.trim());
+    }
+  }
+
+  function addCustomItem() {
+    const name = searchQuery.trim();
+    const item: InventoryEquipment = {
+      type: 'equipment',
+      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: name || 'New Item',
+      quantity: 1,
+      weight: 0,
+      containerId: container.id,
+      requiresAttunement: false,
+      attuned: false,
+    };
+    characterStore.addInventoryItem(item);
+    searchQuery = '';
+  }
 </script>
 
 <div class="rounded-md border border-border bg-card">
-  <!-- Header — use a div to avoid nesting buttons -->
+  <!-- Header -->
   <div class="flex items-center gap-2 px-3 py-2">
     <button
       class="flex items-center gap-2 flex-1 min-w-0 hover:opacity-70 transition-opacity text-left"
@@ -84,7 +132,7 @@
       {/if}
     </span>
 
-    <!-- Edit button (non-default containers only) -->
+    <!-- Settings button (non-default containers only) -->
     {#if !container.isDefault}
       <button
         onclick={() => { editContainerOpen = true; }}
@@ -128,22 +176,31 @@
       {/each}
     </div>
 
-    <!-- Add item row -->
+    <!-- Inline search / add row -->
     <div class="border-t border-border px-2 py-1.5">
-      <button
-        onclick={() => { addItemOpen = true; }}
-        class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <PlusIcon class="size-3" />
-        Add custom item
-      </button>
+      <div class="flex items-center gap-1.5">
+        <SearchIcon class="size-3 text-muted-foreground/40 shrink-0" />
+        <input
+          bind:value={searchQuery}
+          oninput={onSearchInput}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') addCustomItem();
+            if (e.key === 'Escape') { searchQuery = ''; }
+          }}
+          placeholder="Search or add item…"
+          class="flex-1 text-xs bg-transparent focus:outline-none placeholder:text-muted-foreground/40 min-w-0"
+        />
+        <button
+          onclick={addCustomItem}
+          title={searchQuery.trim() ? `Add "${searchQuery.trim()}" as custom item` : 'Add item'}
+          class="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors rounded p-0.5"
+        >
+          <PlusIcon class="size-3" />
+        </button>
+      </div>
     </div>
   {/if}
 </div>
-
-{#if addItemOpen}
-  <InventoryCustomItemDialog bind:open={addItemOpen} containerId={container.id} />
-{/if}
 
 {#if editContainerOpen && !container.isDefault}
   <InventoryContainerEditDialog {container} bind:open={editContainerOpen} />
