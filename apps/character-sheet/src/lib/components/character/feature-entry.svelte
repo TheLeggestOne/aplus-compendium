@@ -3,9 +3,10 @@
   import { Badge } from '$lib/components/ui/badge/index.js';
   import * as Collapsible from '$lib/components/ui/collapsible/index.js';
   import { cn } from '$lib/utils.js';
-  import { ChevronRight } from '@lucide/svelte';
+  import { ChevronRight, Plus, X } from '@lucide/svelte';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import EntryRenderer from '$lib/components/ui/entry-renderer.svelte';
+  import { extractOptions } from '$lib/utils/tag-renderer.js';
 
   interface Props {
     feature: Feature;
@@ -22,6 +23,59 @@
     background:  'bg-orange-500/20 text-orange-400 border-orange-500/30',
     feat:        'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   };
+
+  const extractedOptions = $derived(
+    feature.rawEntries ? extractOptions(feature.rawEntries) : []
+  );
+
+  // Extra options loaded lazily for subclass-gate features (e.g. Martial Archetype)
+  // where options aren't embedded in rawEntries and may not be stored on old characters.
+  let lazySubclassOptions = $state<string[]>([]);
+
+  $effect(() => {
+    if (!open) return;
+    if (extractedOptions.length > 0) return;
+    if ((feature.knownChoiceOptions ?? []).length > 0) return;
+    const sourceClass = feature.sourceClass;
+    if (!sourceClass) return;
+    window.electronAPI.compendium.getSubclassesIfGate(sourceClass, feature.name)
+      .then((names: string[]) => { lazySubclassOptions = names; })
+      .catch(() => {});
+  });
+
+  const availableOptions = $derived(
+    extractedOptions.length > 0
+      ? extractedOptions
+      : (feature.knownChoiceOptions ?? []).length > 0
+        ? (feature.knownChoiceOptions ?? [])
+        : lazySubclassOptions
+  );
+
+  function selectOption(optionName: string) {
+    const choices = feature.choices ?? [];
+    // Fill the first empty choice slot if one exists
+    const emptySlot = choices.find(c => !c.selected);
+    if (emptySlot) {
+      characterStore.updateFeatureChoice(feature.id, emptySlot.id, optionName);
+    } else {
+      // Add a new slot pre-filled with this option
+      characterStore.addFeatureChoice(feature.id, {
+        id: `choice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: '',
+        options: availableOptions,
+        selected: optionName,
+      });
+    }
+  }
+
+  function addChoice() {
+    characterStore.addFeatureChoice(feature.id, {
+      id: `choice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label: '',
+      options: availableOptions,
+      selected: '',
+    });
+  }
 </script>
 
 <Collapsible.Root bind:open>
@@ -74,11 +128,76 @@
 
     <Collapsible.Content>
       <div class="px-3 pb-3 pt-1 border-t border-border text-xs text-muted-foreground">
+
+        {#if feature.choices && feature.choices.length > 0}
+          <div class="mb-3 flex flex-col gap-1.5">
+            {#each feature.choices as choice (choice.id)}
+              <div class="flex items-center gap-1.5">
+                <input
+                  class="w-28 shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="Label"
+                  value={choice.label}
+                  oninput={(e) => characterStore.patchFeatureChoice(feature.id, choice.id, { label: (e.currentTarget as HTMLInputElement).value })}
+                />
+
+                {#if choice.options.length > 0}
+                  <select
+                    class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={choice.selected}
+                    onchange={(e) => characterStore.updateFeatureChoice(feature.id, choice.id, (e.currentTarget as HTMLSelectElement).value)}
+                  >
+                    <option value="">— choose —</option>
+                    {#each choice.options as opt}
+                      <option value={opt}>{opt}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <input
+                    class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="Selection"
+                    value={choice.selected}
+                    oninput={(e) => characterStore.updateFeatureChoice(feature.id, choice.id, (e.currentTarget as HTMLInputElement).value)}
+                  />
+                {/if}
+
+                <button
+                  class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                  onclick={() => characterStore.removeFeatureChoice(feature.id, choice.id)}
+                  aria-label="Remove choice"
+                >
+                  <X class="size-3" />
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
         {#if feature.rawEntries && feature.rawEntries.length > 0}
           <EntryRenderer entries={feature.rawEntries} />
         {:else if feature.description}
           <p class="leading-relaxed selectable">{feature.description}</p>
         {/if}
+
+        {#if availableOptions.length > 0}
+          <div class="mt-3 flex flex-wrap gap-1">
+            {#each availableOptions as opt}
+              <button
+                class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+                onclick={() => selectOption(opt)}
+              >
+                {opt}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
+        <button
+          class="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          onclick={addChoice}
+        >
+          <Plus class="size-3" />
+          Add choice
+        </button>
       </div>
     </Collapsible.Content>
   </div>

@@ -175,6 +175,49 @@ interface EntryObject {
 }
 
 /**
+ * Walk a 5etools entries array and collect all named options from
+ * `{ type: "options" }` blocks. Returns a flat list of option names.
+ */
+export function extractOptions(entries: unknown[]): string[] {
+  const names: string[] = [];
+  for (const entry of entries) {
+    // Extract {@filter displayText|...} tags from string entries (e.g. Favored Enemy)
+    // Only treat a string as an options list if it contains 3+ filter tags
+    if (typeof entry === 'string') {
+      const filterRe = /\{@filter\s+([^|}\s][^|}]*)/g;
+      const hits = [...entry.matchAll(filterRe)];
+      if (hits.length >= 3) {
+        for (const m of hits) {
+          if (m[1]) names.push(m[1].trim());
+        }
+      }
+      continue;
+    }
+
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+
+    if (e.type === 'options') {
+      const items = Array.isArray(e.entries) ? e.entries : Array.isArray(e.items) ? e.items : [];
+      for (const item of items as unknown[]) {
+        if (!item || typeof item !== 'object') continue;
+        const i = item as Record<string, unknown>;
+        if (typeof i.name === 'string' && i.name) {
+          names.push(i.name);
+        } else if (i.type === 'refOptionalfeature' && typeof i.optionalfeature === 'string') {
+          // "Archery|PHB" or just "Archery" — strip source suffix
+          const optName = (i.optionalfeature as string).split('|')[0];
+          if (optName) names.push(optName);
+        }
+      }
+    }
+    // Recurse into nested entries blocks
+    if (Array.isArray(e.entries)) names.push(...extractOptions(e.entries as unknown[]));
+  }
+  return names;
+}
+
+/**
  * Renders a 5etools entries array to an HTML string.
  * Handles the most common structural types; unknown types fall back to
  * recursive string rendering.
@@ -271,6 +314,15 @@ function renderEntry(entry: Entry, depth: number): string {
         return nameHtml + renderEntries(entry.entries, depth + 1);
       }
       return nameHtml;
+    }
+
+    case 'refOptionalfeature': {
+      // Inline reference to an optional feature — render just the name
+      if (typeof entry.optionalfeature === 'string') {
+        const name = entry.optionalfeature.split('|')[0];
+        return `<p><span class="text-amber-400">${name}</span></p>`;
+      }
+      return '';
     }
 
     case 'options':

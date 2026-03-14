@@ -16,6 +16,14 @@ export interface FeatureUses {
 import type { DndClass } from './classes.js';
 import type { Spell } from './spellcasting.js';
 
+export interface FeatureChoice {
+  id: string;
+  label: string;
+  /** Valid options to pick from. Empty array means free-text entry. */
+  options: string[];
+  selected: string;
+}
+
 export interface Feature {
   id: string;
   name: string;
@@ -24,6 +32,7 @@ export interface Feature {
   description: string;
   rawEntries?: unknown[];
   uses?: FeatureUses;
+  choices?: FeatureChoice[];
 
   /** Which class granted this feature (for class/subclass source types) */
   sourceClass?: DndClass;
@@ -34,4 +43,6 @@ export interface Feature {
   grantedLanguages?: string[];
   /** Spells granted by this feature (e.g. Circle Spells, Oath Spells), pre-resolved from compendium */
   grantedSpells?: Spell[];
+  /** Pre-resolved option names for features whose choices aren't embedded in rawEntries (e.g. subclass archetypes). */
+  knownChoiceOptions?: string[];
 }

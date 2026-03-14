@@ -1,5 +1,5 @@
 import type {
-  Character, Spell, Weapon, Armor, EquipmentItem, Feature,
+  Character, Spell, Weapon, Armor, EquipmentItem, Feature, FeatureChoice,
   AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, ProficiencyLevel,
   CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
   InventoryItem, InventoryContainer, InventoryWeapon, InventoryArmor,
@@ -525,6 +525,48 @@ function createCharacterStore(initial: Character) {
   function addFeature(feature: Feature): void {
     if (character.features.some(f => f.id === feature.id)) return;
     character = { ...character, features: [...character.features, feature] };
+    queueSave();
+  }
+
+  function addFeatureChoice(featureId: string, choice: FeatureChoice): void {
+    const features = character.features.map((f) => {
+      if (f.id !== featureId) return f;
+      return { ...f, choices: [...(f.choices ?? []), choice] };
+    });
+    character = { ...character, features };
+    queueSave();
+  }
+
+  function updateFeatureChoice(featureId: string, choiceId: string, selected: string): void {
+    const features = character.features.map((f) => {
+      if (f.id !== featureId) return f;
+      return {
+        ...f,
+        choices: (f.choices ?? []).map((c) => (c.id === choiceId ? { ...c, selected } : c)),
+      };
+    });
+    character = { ...character, features };
+    queueSave();
+  }
+
+  function patchFeatureChoice(featureId: string, choiceId: string, patch: Partial<FeatureChoice>): void {
+    const features = character.features.map((f) => {
+      if (f.id !== featureId) return f;
+      return {
+        ...f,
+        choices: (f.choices ?? []).map((c) => (c.id === choiceId ? { ...c, ...patch } : c)),
+      };
+    });
+    character = { ...character, features };
+    queueSave();
+  }
+
+  function removeFeatureChoice(featureId: string, choiceId: string): void {
+    const features = character.features.map((f) => {
+      if (f.id !== featureId) return f;
+      return { ...f, choices: (f.choices ?? []).filter((c) => c.id !== choiceId) };
+    });
+    character = { ...character, features };
     queueSave();
   }
 
@@ -1208,6 +1250,10 @@ function createCharacterStore(initial: Character) {
     addArmor,
     addEquipment,
     addFeature,
+    addFeatureChoice,
+    updateFeatureChoice,
+    patchFeatureChoice,
+    removeFeatureChoice,
     adjustHp,
     setCurrentHp,
     setTempHp,

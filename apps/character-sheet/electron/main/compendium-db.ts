@@ -883,6 +883,26 @@ export function getSubraces(raceName: string): CompendiumSearchResult[] {
 }
 
 // Fetch all subclasses for a given class name
+/**
+ * Returns subclass names for the given class ONLY if `featureName` matches the class's
+ * `subclassTitle` (the "choose your archetype" gate feature). Returns [] otherwise.
+ */
+export function getSubclassNamesIfGate(className: string, featureName: string): string[] {
+  const d = db();
+  // Class names are stored capitalised ("Fighter"); sourceClass on features may be lowercase
+  const row = d.prepare(
+    'SELECT raw_json FROM classes WHERE LOWER(name) = LOWER(?) ORDER BY source LIMIT 1',
+  ).get(className) as { raw_json: string } | undefined;
+  if (!row) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cls = JSON.parse(row.raw_json) as any;
+  if (cls.subclassTitle !== featureName) return [];
+  const rows = d.prepare(
+    'SELECT name FROM subclasses WHERE LOWER(class_name) = LOWER(?) ORDER BY name',
+  ).all(className) as { name: string }[];
+  return rows.map((r) => r.name);
+}
+
 export function getSubclasses(className: string): CompendiumSearchResult[] {
   const d = db();
   const rows = d.prepare(
@@ -905,6 +925,8 @@ export interface ClassFeatureRaw {
   isSubclass: boolean;
   grantedLanguages?: string[];
   grantedSpells?: import('@aplus-compendium/types').Spell[];
+  /** Pre-resolved list of choice option names (e.g. subclass names for archetype features). */
+  knownChoiceOptions?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -1095,16 +1117,30 @@ export function getClassFeaturesByLevel(
     const cls = JSON.parse(classRow.raw_json) as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const entries: any[] = cls._classFeatureEntries ?? [];
+    const subclassTitle: string | undefined = cls.subclassTitle;
+
     for (const f of entries) {
       if (f.level === classLevel) {
         const featureName = f.name as string;
         const lang = getFeatureLanguageGrant(featureName);
+
+        // If this feature is the subclass-selection gate (e.g. "Martial Archetype"),
+        // pull available subclass names so the frontend can show them as chips.
+        let knownChoiceOptions: string[] | undefined;
+        if (subclassTitle && featureName === subclassTitle) {
+          const rows = d.prepare(
+            'SELECT name FROM subclasses WHERE class_name = ? ORDER BY name',
+          ).all(className) as { name: string }[];
+          knownChoiceOptions = rows.map((r) => r.name);
+        }
+
         results.push({
           name: featureName,
           entries: Array.isArray(f.entries) ? (f.entries as unknown[]) : [],
           source: (f.source as string) ?? '',
           isSubclass: false,
           grantedLanguages: lang ? [lang] : undefined,
+          knownChoiceOptions: knownChoiceOptions?.length ? knownChoiceOptions : undefined,
         });
       }
     }

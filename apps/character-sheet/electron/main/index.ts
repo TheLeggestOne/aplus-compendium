@@ -19,6 +19,7 @@ import {
   getSubraces,
   getSubclasses,
   getClassFeaturesByLevel,
+  getSubclassNamesIfGate,
   getRaceSpellGrants,
   debugSpellClasses,
   loadSpellClassesFromSources,
@@ -108,6 +109,10 @@ function registerCompendiumHandlers(): void {
       charLevel as number,
       (exactLevelOnly as boolean | undefined) ?? false,
     ),
+  );
+
+  ipcHandle('compendium:get-subclasses-if-gate', async (className, featureName) =>
+    getSubclassNamesIfGate(className as string, featureName as string),
   );
 
   ipcHandle('compendium:get-class-features', async (className, classLevel, subclassName) =>

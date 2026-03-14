@@ -324,7 +324,7 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
 
 /** Convert a raw class/subclass feature entry (from IPC getClassFeatures) to a Feature. */
 export function classFeatureEntryToFeature(
-  entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[] },
+  entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[]; knownChoiceOptions?: string[] },
   dndClass: string,
   classLevel: number,
 ): Feature {
@@ -337,6 +337,7 @@ export function classFeatureEntryToFeature(
     rawEntries: entry.entries.length > 0 ? entry.entries : undefined,
     grantedLanguages: entry.grantedLanguages?.length ? entry.grantedLanguages : undefined,
     grantedSpells: entry.grantedSpells?.length ? entry.grantedSpells : undefined,
+    knownChoiceOptions: entry.knownChoiceOptions?.length ? entry.knownChoiceOptions : undefined,
   };
 }
 
