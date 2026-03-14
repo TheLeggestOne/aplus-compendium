@@ -59,10 +59,6 @@ function createContentViewerStore() {
     setMode(m: ViewerMode): void {
       mode = m;
     },
-
-    toggleMode(): void {
-      mode = mode === 'view' ? 'edit' : 'view';
-    },
   };
 }
 

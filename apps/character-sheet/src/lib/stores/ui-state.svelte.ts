@@ -11,7 +11,6 @@ const ACTIVE_CHAR_KEY = 'aplus:activeCharacterId';
 
 function createUiStore() {
   let activeTab = $state<CharacterSheetTab>('core-stats');
-  let isEditMode = $state(false);
   let hpDialogOpen = $state(false);
   let activeCharacterId = $state<string | null>(
     typeof localStorage !== 'undefined' ? localStorage.getItem(ACTIVE_CHAR_KEY) : null,
@@ -19,15 +18,11 @@ function createUiStore() {
 
   return {
     get activeTab() { return activeTab; },
-    get isEditMode() { return isEditMode; },
     get hpDialogOpen() { return hpDialogOpen; },
     get activeCharacterId() { return activeCharacterId; },
 
     setActiveTab(tab: CharacterSheetTab): void {
       activeTab = tab;
-    },
-    toggleEditMode(): void {
-      isEditMode = !isEditMode;
     },
     setHpDialogOpen(open: boolean): void {
       hpDialogOpen = open;

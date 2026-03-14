@@ -8,11 +8,8 @@
   import ContentViewerBackground from './content-viewer-background.svelte';
   import ContentViewerItem from './content-viewer-item.svelte';
   import XIcon from '@lucide/svelte/icons/x';
-  import PencilIcon from '@lucide/svelte/icons/pencil';
-  import EyeIcon from '@lucide/svelte/icons/eye';
 
   const content = $derived(contentViewerStore.content);
-  const mode = $derived(contentViewerStore.mode);
 
   const title = $derived(content?.data.name ?? '');
   const typeLabel = $derived(content?.type ?? '');
@@ -27,22 +24,6 @@
         <p class="text-sm font-semibold truncate">{title}</p>
         <p class="text-[10px] text-muted-foreground capitalize">{typeLabel}</p>
       </div>
-
-      <!-- View/Edit toggle (not shown for race, class, or background) -->
-      {#if content.type !== 'race' && content.type !== 'class' && content.type !== 'background'}
-        <button
-          class="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          onclick={() => contentViewerStore.toggleMode()}
-          title={mode === 'view' ? 'Edit' : 'View'}
-          aria-label={mode === 'view' ? 'Switch to edit mode' : 'Switch to view mode'}
-        >
-          {#if mode === 'view'}
-            <PencilIcon class="size-3.5" />
-          {:else}
-            <EyeIcon class="size-3.5" />
-          {/if}
-        </button>
-      {/if}
 
       <!-- Close -->
       <button

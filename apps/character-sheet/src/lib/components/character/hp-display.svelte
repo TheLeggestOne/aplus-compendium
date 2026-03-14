@@ -11,10 +11,8 @@
   let hpInput = $state('');
 
   function openDialog() {
-    if (!uiStore.isEditMode) {
-      hpInput = String(character.combat.currentHitPoints);
-      uiStore.setHpDialogOpen(true);
-    }
+    hpInput = String(character.combat.currentHitPoints);
+    uiStore.setHpDialogOpen(true);
   }
 
   function adjust(delta: number) {

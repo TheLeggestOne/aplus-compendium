@@ -7,7 +7,7 @@
   import KeyStatPill from './key-stat-pill.svelte';
   import HpDisplay from './hp-display.svelte';
   import DeathSavesTracker from './death-saves-tracker.svelte';
-  import EditModeToggle from './edit-mode-toggle.svelte';
+
   import InspirationBadge from './inspiration-badge.svelte';
   import XpTracker from './xp-tracker.svelte';
 
@@ -55,7 +55,6 @@
     <!-- Actions -->
     <div class="flex items-center gap-2">
       <InspirationBadge />
-      <EditModeToggle />
       <Separator orientation="vertical" class="h-6" />
       <Button
         variant={panelOpen ? 'secondary' : 'ghost'}
