@@ -3,6 +3,8 @@
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
   import ContentViewerSpell from './content-viewer-spell.svelte';
+  import ContentViewerRace from './content-viewer-race.svelte';
+  import ContentViewerClass from './content-viewer-class.svelte';
   import XIcon from '@lucide/svelte/icons/x';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import EyeIcon from '@lucide/svelte/icons/eye';
@@ -24,19 +26,21 @@
         <p class="text-[10px] text-muted-foreground capitalize">{typeLabel}</p>
       </div>
 
-      <!-- View/Edit toggle -->
-      <button
-        class="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-        onclick={() => contentViewerStore.toggleMode()}
-        title={mode === 'view' ? 'Edit' : 'View'}
-        aria-label={mode === 'view' ? 'Switch to edit mode' : 'Switch to view mode'}
-      >
-        {#if mode === 'view'}
-          <PencilIcon class="size-3.5" />
-        {:else}
-          <EyeIcon class="size-3.5" />
-        {/if}
-      </button>
+      <!-- View/Edit toggle (not shown for race) -->
+      {#if content.type !== 'race' && content.type !== 'class'}
+        <button
+          class="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          onclick={() => contentViewerStore.toggleMode()}
+          title={mode === 'view' ? 'Edit' : 'View'}
+          aria-label={mode === 'view' ? 'Switch to edit mode' : 'Switch to view mode'}
+        >
+          {#if mode === 'view'}
+            <PencilIcon class="size-3.5" />
+          {:else}
+            <EyeIcon class="size-3.5" />
+          {/if}
+        </button>
+      {/if}
 
       <!-- Close -->
       <button
@@ -58,6 +62,10 @@
           spell={content.data}
           dndClass={content.context?.dndClass}
         />
+      {:else if content.type === 'race'}
+        <ContentViewerRace race={content.data} />
+      {:else if content.type === 'class'}
+        <ContentViewerClass classData={content.data} />
       {/if}
     </ScrollArea>
 

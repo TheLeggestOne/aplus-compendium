@@ -190,6 +190,19 @@ function createCompendiumStore() {
       pickMode = null;
     },
 
+    // --- Class detail view ---
+    showClass(name: string): void {
+      activeType = 'class';
+      query = name;
+      filters = {};
+      panelOpen = true;
+      pickMode = null;
+      selectedId = null;
+      selectedEntry = null;
+      void _loadSources();
+      queueSearch();
+    },
+
     // --- Spell detail view ---
     showSpell(id: string, name: string): void {
       activeType = 'spell';
