@@ -160,6 +160,7 @@ function createCompendiumStore() {
         results = [];
         selectedId = null;
         selectedEntry = null;
+        pickMode = null;
       }
       panelOpen = true;
       void _loadSources();
@@ -168,6 +169,7 @@ function createCompendiumStore() {
 
     closePanel(): void {
       panelOpen = false;
+      pickMode = null;
     },
 
     // --- Pick mode (level-up spell selection) ---
