@@ -77,8 +77,21 @@
         onclick={() => compendiumStore.openPanel('race')}
       >No race set</button>
     {/if}
+    ·
     {#if character.background}
-      · {character.background}
+      {#if character.backgroundData}
+        <button
+          class="hover:underline hover:text-foreground transition-colors"
+          onclick={() => contentViewerStore.open({ type: 'background', data: character.backgroundData! })}
+        >{character.background}</button>
+      {:else}
+        {character.background}
+      {/if}
+    {:else}
+      <button
+        class="italic text-amber-400/80 hover:text-amber-400 transition-colors"
+        onclick={() => compendiumStore.openPanel('background')}
+      >No background</button>
     {/if}
   </p>
 </div>

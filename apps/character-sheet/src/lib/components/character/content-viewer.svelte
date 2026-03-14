@@ -5,6 +5,7 @@
   import ContentViewerSpell from './content-viewer-spell.svelte';
   import ContentViewerRace from './content-viewer-race.svelte';
   import ContentViewerClass from './content-viewer-class.svelte';
+  import ContentViewerBackground from './content-viewer-background.svelte';
   import XIcon from '@lucide/svelte/icons/x';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import EyeIcon from '@lucide/svelte/icons/eye';
@@ -26,8 +27,8 @@
         <p class="text-[10px] text-muted-foreground capitalize">{typeLabel}</p>
       </div>
 
-      <!-- View/Edit toggle (not shown for race) -->
-      {#if content.type !== 'race' && content.type !== 'class'}
+      <!-- View/Edit toggle (not shown for race, class, or background) -->
+      {#if content.type !== 'race' && content.type !== 'class' && content.type !== 'background'}
         <button
           class="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           onclick={() => contentViewerStore.toggleMode()}
@@ -66,6 +67,8 @@
         <ContentViewerRace race={content.data} />
       {:else if content.type === 'class'}
         <ContentViewerClass classData={content.data} />
+      {:else if content.type === 'background'}
+        <ContentViewerBackground background={content.data} />
       {/if}
     </ScrollArea>
 

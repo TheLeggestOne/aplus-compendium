@@ -2,10 +2,10 @@ import type {
   Character, Spell, Weapon, Armor, EquipmentItem, Feature, FeatureChoice,
   AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, ProficiencyLevel,
   CharacterClass, ClassLevel, ClassSpellcasting, DndClass, DieType, HitDicePool, AsiChoice,
-  InventoryItem, InventoryContainer, InventoryWeapon, InventoryArmor,
+  InventoryItem, InventoryContainer, InventoryWeapon, InventoryArmor, CharacterBackground,
 } from '@aplus-compendium/types';
 import {
-  abilityModifier, SKILL_ABILITY_MAP,
+  abilityModifier, SKILL_ABILITY_MAP, SKILL_NAMES,
   CLASS_HIT_DICE, CLASS_CASTER_PROGRESSION, CLASS_SPELLCASTING_ABILITY, CLASS_SUBCLASS_LEVEL, CLASS_SAVING_THROWS, CLASS_SKILL_CHOICES,
   proficiencyBonusForLevel, combinedCasterLevel, multiclassSpellSlots,
   cantripCapacity, spellCapacity,
@@ -610,6 +610,89 @@ function createCharacterStore(initial: Character) {
 
     recalculateSkillsAndSaves();
     recomputeHp();
+    queueSave();
+  }
+
+  interface BackgroundChoices {
+    languages?: string[];
+    toolProficiency?: string;
+    equipmentItems?: { name: string; quantity: number }[];
+    startingGold?: number;
+  }
+
+  function setBackground(data: CharacterBackground, choices?: BackgroundChoices): void {
+    // Remove existing background skill grants, add new one for this background
+    const existingGrants = (character.skillProficiencyGrants ?? []).filter(
+      (g) => g.source !== 'background',
+    );
+
+    const newGrants = [...existingGrants];
+    if (data.skillProficiencies.length > 0) {
+      const normalizedSkills = data.skillProficiencies
+        .map((s) => s.toLowerCase().replace(/\s+/g, '-') as SkillName)
+        .filter((s) => SKILL_NAMES.includes(s));
+
+      if (normalizedSkills.length > 0) {
+        newGrants.push({
+          id: `background-${data.name.toLowerCase().replace(/\s+/g, '-')}`,
+          source: 'background',
+          sourceLabel: data.name,
+          count: normalizedSkills.length,
+          choices: normalizedSkills,
+          selected: normalizedSkills,
+        });
+      }
+    }
+
+    // Languages — merge into character.languages (deduplicated)
+    const newLangs = choices?.languages ?? [];
+    const mergedLangs = newLangs.length > 0
+      ? [...new Set([...(character.languages ?? []), ...newLangs])]
+      : character.languages;
+
+    // Tool proficiencies — merge into otherProficiencies
+    const newTools: string[] = [
+      ...(data.toolProficiencies ?? []),
+      ...(choices?.toolProficiency ? [choices.toolProficiency] : []),
+    ];
+    const mergedProfs = newTools.length > 0
+      ? [...new Set([...(character.otherProficiencies ?? []), ...newTools])]
+      : character.otherProficiencies;
+
+    // Preset equipment items (name-only, weight unknown) — added as generic equipment
+    const existingInventory = character.inventoryItems ?? [];
+    const presetItems = (choices?.equipmentItems ?? []).map((e) => ({
+      type: 'equipment' as const,
+      id: `bg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: e.name,
+      quantity: e.quantity,
+      weight: 0,
+      description: `Starting equipment from ${data.name} background.`,
+      containerId: 'default',
+      requiresAttunement: false,
+      attuned: false,
+    }));
+    const allNewItems = [...presetItems];
+
+    // Starting gold — add to currency
+    const goldToAdd = choices?.startingGold ?? 0;
+
+    character = {
+      ...character,
+      background: data.name,
+      backgroundData: data,
+      skillProficiencyGrants: newGrants,
+      languages: mergedLangs,
+      otherProficiencies: mergedProfs,
+      inventoryItems: allNewItems.length > 0
+        ? [...existingInventory, ...allNewItems]
+        : existingInventory,
+      currency: goldToAdd > 0
+        ? { ...character.currency, gold: (character.currency.gold ?? 0) + goldToAdd }
+        : character.currency,
+    };
+
+    recalculateSkillsAndSaves();
     queueSave();
   }
 
@@ -1244,6 +1327,7 @@ function createCharacterStore(initial: Character) {
     reinit,
     setAbilityScores,
     setRace,
+    setBackground,
     refreshRaceSpellGrants,
     addRaceSpellGrantsForLevel,
     addWeapon,

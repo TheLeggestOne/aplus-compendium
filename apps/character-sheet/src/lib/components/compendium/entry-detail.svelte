@@ -12,12 +12,15 @@
     entryToSpell,
     entryToFeature,
     extractRaceData,
+    extractBackgroundData,
     entryToInventoryWeapon,
     entryToInventoryArmor,
     entryToInventoryEquipment,
   } from '$lib/utils/compendium-to-character.js';
 
   import RaceAsiChooser from './race-asi-chooser.svelte';
+  import BackgroundChooserDialog from './background-chooser-dialog.svelte';
+  import type { BackgroundChoices } from './background-chooser-dialog.svelte';
   import {
     extractHitDie,
     extractSavingThrows,
@@ -138,6 +141,23 @@
     };
     return props.map(p => map[p] ?? p).join(', ');
   });
+
+  // --- Background detail helpers ---
+  const isBackground = $derived(entry.contentType === 'background');
+  const backgroundData = $derived(isBackground ? extractBackgroundData(entry) : null);
+
+  let showBackgroundChooser = $state(false);
+
+  function openBackgroundChooser() {
+    if (!backgroundData) return;
+    showBackgroundChooser = true;
+  }
+
+  function confirmBackground(choices: BackgroundChoices) {
+    if (!backgroundData) return;
+    characterStore.setBackground(backgroundData, choices);
+    flash('Background set!');
+  }
 
   // --- Race detail helpers ---
   const isRace = $derived(entry.contentType === 'race');
@@ -581,6 +601,24 @@
         <Separator />
       {/if}
     {/if}
+  {/if}
+
+  <!-- Set as Background -->
+  {#if isBackground}
+    <div class="flex items-center gap-2 pt-1">
+      <Button size="sm" class="h-7 text-xs flex-1" onclick={openBackgroundChooser} disabled={!!addedLabel}>
+        {addedLabel ?? 'Set as Background'}
+      </Button>
+    </div>
+    <Separator />
+  {/if}
+
+  {#if backgroundData && showBackgroundChooser}
+    <BackgroundChooserDialog
+      background={backgroundData}
+      bind:open={showBackgroundChooser}
+      onconfirm={confirmBackground}
+    />
   {/if}
 
   <!-- Re-import control -->

@@ -28,6 +28,28 @@ export interface CharacterNarrative {
   notes?: string;
 }
 
+export interface BackgroundEquipmentItem {
+  name: string;
+  quantity: number;
+  /** Set (in gp) when this item is a pure currency amount with no physical form (e.g. "50 gp"). */
+  gpValue?: number;
+  /** Set (in gp) when a physical item contains a coin amount (e.g. a pouch with 15 gp inside). */
+  containedGold?: number;
+}
+
+export interface CharacterBackground {
+  name: string;
+  source: string;
+  skillProficiencies: string[];
+  languageCount: number;
+  toolProficiencies?: string[];
+  toolChoices?: { from: string[]; count: number };
+  fixedEquipment?: BackgroundEquipmentItem[];
+  equipmentChoiceA?: BackgroundEquipmentItem[];
+  equipmentChoiceB?: BackgroundEquipmentItem[];
+  rawEntries?: unknown[];
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -38,6 +60,7 @@ export interface Character {
   subrace?: string;
   size: string;
   background: string;
+  backgroundData?: CharacterBackground;
   alignment: Alignment;
 
   // Progression

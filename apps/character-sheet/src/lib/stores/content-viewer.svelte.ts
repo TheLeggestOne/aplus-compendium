@@ -1,4 +1,4 @@
-import type { Spell, InventoryItem, DndClass, Feature, DieType } from '@aplus-compendium/types';
+import type { Spell, InventoryItem, DndClass, Feature, DieType, CharacterBackground } from '@aplus-compendium/types';
 import type { AbilityScore, CasterProgression } from '@aplus-compendium/types';
 import { compendiumStore } from './compendium.svelte.js';
 
@@ -28,7 +28,8 @@ export type ViewerContent =
   | { type: 'spell'; data: Spell; context?: { dndClass: DndClass } }
   | { type: 'item'; data: InventoryItem }
   | { type: 'race'; data: RaceData }
-  | { type: 'class'; data: ClassData };
+  | { type: 'class'; data: ClassData }
+  | { type: 'background'; data: CharacterBackground };
 
 export type ViewerMode = 'view' | 'edit';
 

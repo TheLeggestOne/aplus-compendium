@@ -20,6 +20,8 @@ import type {
   InventoryWeapon,
   InventoryArmor,
   InventoryEquipment,
+  CharacterBackground,
+  BackgroundEquipmentItem,
 } from '@aplus-compendium/types';
 
 // ---------------------------------------------------------------------------
@@ -338,6 +340,140 @@ export function classFeatureEntryToFeature(
     grantedLanguages: entry.grantedLanguages?.length ? entry.grantedLanguages : undefined,
     grantedSpells: entry.grantedSpells?.length ? entry.grantedSpells : undefined,
     knownChoiceOptions: entry.knownChoiceOptions?.length ? entry.knownChoiceOptions : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Background data extraction
+// ---------------------------------------------------------------------------
+
+function _capitalizeWords(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Convert a raw 5etools equipment entry to a BackgroundEquipmentItem, or null if unrecognisable. */
+function _parseEquipmentItem(raw: unknown): BackgroundEquipmentItem | null {
+  if (typeof raw === 'string') {
+    // "item name|source" shorthand
+    const name = _capitalizeWords(raw.split('|')[0]?.trim() ?? raw);
+    return { name, quantity: 1 };
+  }
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+
+  // Pure GP value: { "value": 5000 } → 50 gp (no physical item)
+  if ('value' in obj && !('item' in obj) && !('special' in obj)) {
+    const gp = Math.floor((obj['value'] as number) / 100);
+    return { name: `${gp} gp`, quantity: 1, gpValue: gp };
+  }
+
+  const quantity = (obj['quantity'] as number | undefined) ?? 1;
+  const displayName = obj['displayName'] as string | undefined;
+
+  if ('special' in obj) {
+    const name = displayName ?? _capitalizeWords(String(obj['special']));
+    return { name, quantity };
+  }
+
+  if ('item' in obj) {
+    const rawName = (obj['item'] as string).split('|')[0]?.trim() ?? (obj['item'] as string);
+    const name = displayName ?? _capitalizeWords(rawName);
+    // containsValue — physical item that also holds gold
+    const cv = obj['containsValue'] as number | undefined;
+    const containedGold = cv !== undefined ? Math.floor(cv / 100) : undefined;
+    const label = containedGold !== undefined ? `${name} (${containedGold} gp)` : name;
+    return { name: label, quantity, containedGold };
+  }
+
+  return null;
+}
+
+/** Parse a startingEquipment array into fixed items and A/B choice groups. */
+function _parseStartingEquipment(raw: unknown): {
+  fixed: BackgroundEquipmentItem[];
+  choiceA?: BackgroundEquipmentItem[];
+  choiceB?: BackgroundEquipmentItem[];
+} {
+  const fixed: BackgroundEquipmentItem[] = [];
+  let choiceA: BackgroundEquipmentItem[] | undefined;
+  let choiceB: BackgroundEquipmentItem[] | undefined;
+
+  if (!Array.isArray(raw)) return { fixed };
+
+  for (const group of raw) {
+    if (typeof group !== 'object' || group === null) continue;
+    const g = group as Record<string, unknown>;
+
+    // Fixed items — keyed by "_"
+    if ('_' in g && Array.isArray(g['_'])) {
+      for (const item of g['_']) {
+        const eq = _parseEquipmentItem(item);
+        if (eq) fixed.push(eq);
+      }
+      continue;
+    }
+
+    // A/B choice (lowercase or uppercase)
+    const keyA = 'a' in g ? 'a' : 'A' in g ? 'A' : null;
+    const keyB = 'b' in g ? 'b' : 'B' in g ? 'B' : null;
+    if (keyA && keyB) {
+      choiceA = (g[keyA] as unknown[]).map(_parseEquipmentItem).filter((x): x is BackgroundEquipmentItem => !!x);
+      choiceB = (g[keyB] as unknown[]).map(_parseEquipmentItem).filter((x): x is BackgroundEquipmentItem => !!x);
+    }
+  }
+
+  return { fixed, choiceA, choiceB };
+}
+
+export function extractBackgroundData(entry: CompendiumEntry): CharacterBackground {
+  const raw = entry.raw;
+
+  // Skill proficiencies — 5etools format: [{ "insight": true, "religion": true }]
+  const skillProfs = raw['skillProficiencies'] as Record<string, unknown>[] | undefined;
+  const skillProficiencies: string[] = [];
+  if (skillProfs?.[0]) {
+    for (const [key, value] of Object.entries(skillProfs[0])) {
+      if (value === true) skillProficiencies.push(key);
+    }
+  }
+
+  // Language count — 5etools format: [{ "anyStandard": 2 }]
+  const langProfs = raw['languageProficiencies'] as Record<string, unknown>[] | undefined;
+  const languageCount = (langProfs?.[0]?.['anyStandard'] as number | undefined) ?? 0;
+
+  // Tool proficiencies
+  const toolProfs = raw['toolProficiencies'] as Record<string, unknown>[] | undefined;
+  const toolProficiencies: string[] = [];
+  let toolChoices: { from: string[]; count: number } | undefined;
+  if (toolProfs?.[0]) {
+    for (const [key, value] of Object.entries(toolProfs[0])) {
+      if (key === 'choose' && typeof value === 'object' && value !== null) {
+        const c = value as Record<string, unknown>;
+        const from = (c['from'] as string[] | undefined) ?? [];
+        const count = (c['count'] as number | undefined) ?? 1;
+        if (from.length > 0) toolChoices = { from, count };
+      } else if (value === true) {
+        toolProficiencies.push(_capitalizeWords(key));
+      }
+    }
+  }
+
+  // Starting equipment
+  const { fixed, choiceA, choiceB } = _parseStartingEquipment(raw['startingEquipment']);
+
+  const rawEntries = Array.isArray(raw['entries']) ? (raw['entries'] as unknown[]) : undefined;
+
+  return {
+    name: entry.name,
+    source: entry.source,
+    skillProficiencies,
+    languageCount,
+    toolProficiencies: toolProficiencies.length > 0 ? toolProficiencies : undefined,
+    toolChoices,
+    fixedEquipment: fixed.length > 0 ? fixed : undefined,
+    equipmentChoiceA: choiceA,
+    equipmentChoiceB: choiceB,
+    rawEntries,
   };
 }
 
