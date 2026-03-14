@@ -3,6 +3,7 @@
   import { Badge } from '$lib/components/ui/badge/index.js';
   import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
   import { cn } from '$lib/utils.js';
+  import LockIcon from '@lucide/svelte/icons/lock';
 
   interface Props {
     spell: Spell;
@@ -40,6 +41,12 @@
   <span class="flex-1 text-sm font-medium">{spell.name}</span>
 
   <div class="flex items-center gap-1 shrink-0">
+    {#if spell.grantedByFeatureName}
+      <span class="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
+        <LockIcon class="size-2.5" />
+        {spell.grantedByFeatureName}
+      </span>
+    {/if}
     {#if spell.concentration}
       <Badge variant="secondary" class="text-[10px] px-1 py-0">C</Badge>
     {/if}

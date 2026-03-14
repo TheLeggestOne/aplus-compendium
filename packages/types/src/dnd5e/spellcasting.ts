@@ -33,6 +33,10 @@ export interface Spell {
   description: string;
   rawEntries?: unknown[];
   prepared?: boolean;
+  /** Set when this spell was granted by a class feature (not chosen by the player) */
+  grantedByFeatureId?: string;
+  /** Display name of the granting feature, e.g. "Circle Spells" */
+  grantedByFeatureName?: string;
 }
 
 export interface SpellSlot {

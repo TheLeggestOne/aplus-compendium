@@ -550,7 +550,7 @@ async function importClasses(d: Database.Database, dirPath: string, onProgress: 
       const raw = await readFile(join(classDir, file), 'utf-8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.class)) allClasses.push(...parsed.class.filter((x: { name?: string }) => x.name));
-      if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass.filter((x: { name?: string }) => x.name));
+      if (Array.isArray(parsed.subclass)) allSubclasses.push(...parsed.subclass.filter((x: { name?: string; _copy?: unknown }) => x.name && !x._copy));
       if (Array.isArray(parsed.classFeature)) allClassFeatures.push(...parsed.classFeature);
       if (Array.isArray(parsed.subclassFeature)) allSubclassFeatures.push(...parsed.subclassFeature);
     } catch { /* skip */ }
@@ -903,6 +903,177 @@ export interface ClassFeatureRaw {
   entries: unknown[];
   source: string;
   isSubclass: boolean;
+  grantedLanguages?: string[];
+  grantedSpells?: import('@aplus-compendium/types').Spell[];
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for language and spell grants
+// ---------------------------------------------------------------------------
+
+// 5etools stores language grants in description text, not in structured fields on feature entries.
+// Map feature names to the languages they grant.
+const FEATURE_LANGUAGE_GRANTS: Record<string, string> = {
+  'druidic': 'Druidic',
+  "thieves' cant": "Thieves' Cant",
+};
+
+function getFeatureLanguageGrant(featureName: string): string | undefined {
+  return FEATURE_LANGUAGE_GRANTS[featureName.toLowerCase()];
+}
+
+const SPELL_SCHOOL_MAP: Record<string, string> = {
+  A: 'abjuration', C: 'conjuration', D: 'divination', E: 'enchantment',
+  V: 'evocation',  I: 'illusion',    N: 'necromancy',  T: 'transmutation',
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rawJsonToSpell(raw: any, id: string, name: string): import('@aplus-compendium/types').Spell {
+  const m = (raw['components'] as Record<string, unknown> | undefined)?.['m'];
+  const components = {
+    verbal:   !!((raw['components'] as Record<string, unknown> | undefined)?.['v']),
+    somatic:  !!((raw['components'] as Record<string, unknown> | undefined)?.['s']),
+    material: !!m,
+    materialDescription: typeof m === 'string' ? m
+      : ((m as Record<string, unknown> | undefined)?.['text'] as string | undefined),
+  };
+
+  const rng = raw['range'] as Record<string, unknown> | undefined;
+  let range = '';
+  if (rng) {
+    if (rng['type'] === 'touch') range = 'Touch';
+    else if (rng['type'] === 'self') range = 'Self';
+    else if (rng['type'] === 'special') range = 'Special';
+    else {
+      const dist = rng['distance'] as Record<string, unknown> | undefined;
+      if (dist) range = `${dist['amount'] ?? ''} ${dist['type'] ?? ''}`.trim();
+    }
+  }
+
+  const t0 = (raw['time'] as Array<Record<string, unknown>> | undefined)?.[0];
+  const castingTime = t0 ? `${t0['number']} ${t0['unit']}` : '1 action';
+
+  const durs = raw['duration'] as Array<Record<string, unknown>> | undefined;
+  const d0 = durs?.[0];
+  let duration = 'Instantaneous';
+  if (d0) {
+    if (d0['type'] === 'instant') duration = 'Instantaneous';
+    else if (d0['type'] === 'permanent') duration = 'Until dispelled';
+    else if (d0['concentration']) {
+      const dl = d0['duration'] as Record<string, unknown> | undefined;
+      duration = dl ? `Concentration, up to ${dl['amount']} ${dl['type']}` : 'Concentration';
+    } else {
+      const dl = d0['duration'] as Record<string, unknown> | undefined;
+      if (dl) duration = `${dl['amount']} ${dl['type']}`;
+    }
+  }
+
+  return {
+    id,
+    name,
+    level: ((raw['level'] as number | undefined) ?? 0) as import('@aplus-compendium/types').SpellLevel,
+    school: (SPELL_SCHOOL_MAP[raw['school'] as string] ?? 'evocation') as import('@aplus-compendium/types').SpellSchool,
+    castingTime,
+    range,
+    components,
+    duration,
+    concentration: durs?.some(d => d['concentration']) ?? false,
+    ritual: (raw['meta'] as Record<string, unknown> | undefined)?.['ritual'] === true,
+    description: '',
+    rawEntries: Array.isArray(raw['entries']) ? (raw['entries'] as unknown[]) : undefined,
+    prepared: false,
+  };
+}
+
+// Find the display name for a subclass's spell-grant feature (e.g. "Circle Spells", "Oath Spells").
+// Looks for a feature entry whose name contains "spell", falling back to "<shortName> Spells".
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findSpellFeatureName(sc: any): string {
+  const entries = (sc._subclassFeatureEntries as unknown[] | undefined) ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hit = (entries as any[]).find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (e: any) => typeof e.name === 'string' && (e.name as string).toLowerCase().includes('spell'),
+  );
+  return (hit?.name as string | undefined) ?? `${(sc.shortName ?? sc.name) as string} Spells`;
+}
+
+// Extract spell grants from an object's additionalSpells for a specific class level.
+// 5etools stores additionalSpells on class/subclass objects (not on individual feature entries);
+// the keys are class levels (e.g. "3", "5") indicating when each batch of spells unlocks.
+// Refs are plain spell names without source (e.g. "blindness/deafness"), with source
+// (e.g. "blindness/deafness|phb"), objects ({ "spell": "name|source" }), and may carry a
+// "#c" cantrip marker that must be stripped. Choice objects ({ "choose": ... }) are skipped.
+function extractSpellGrantsAtLevel(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  obj: any,
+  classLevel: number,
+  featureId: string,
+  featureName: string,
+  d: ReturnType<typeof db>,
+): import('@aplus-compendium/types').Spell[] {
+  const blocks = obj.additionalSpells as Record<string, unknown>[] | undefined;
+  if (!Array.isArray(blocks) || blocks.length === 0) return [];
+
+  const spells: import('@aplus-compendium/types').Spell[] = [];
+  const seen = new Set<string>();
+  const levelStr = classLevel.toString();
+
+  // Prefer exact id match (name|source), fall back to name-only
+  const queryById   = d.prepare('SELECT raw_json, name, id FROM spells WHERE lower(id) = ? LIMIT 1');
+  const queryByName = d.prepare('SELECT raw_json, name, id FROM spells WHERE lower(name) = ? LIMIT 1');
+
+  for (const block of blocks) {
+    for (const category of ['prepared', 'known'] as const) {
+      const categoryBlock = block[category] as Record<string, unknown> | undefined;
+      if (!categoryBlock) continue;
+
+      const refs = categoryBlock[levelStr];
+      if (!Array.isArray(refs)) continue;
+
+      for (const ref of refs) {
+        // Resolve ref to a "name|source?" string, skipping choice objects
+        let refStr: string | undefined;
+        if (typeof ref === 'string') {
+          refStr = ref;
+        } else if (typeof ref === 'object' && ref !== null) {
+          const r = ref as Record<string, unknown>;
+          // { "spell": "name|source" } — conditional spell grant
+          if (typeof r['spell'] === 'string') refStr = r['spell'] as string;
+          // { "choose": ... } — player choice, skip
+          else continue;
+        }
+        if (!refStr) continue;
+
+        // Strip optional type markers like "#c" (cantrip)
+        const cleanRef = refStr.split('#')[0]!.trim();
+        const [rawName, rawSource] = cleanRef.split('|');
+        if (!rawName) continue;
+
+        const nameKey = rawName.toLowerCase();
+        if (seen.has(nameKey)) continue;
+        seen.add(nameKey);
+
+        let row: { raw_json: string; name: string; id: string } | undefined;
+        if (rawSource) {
+          row = queryById.get(`${rawName}|${rawSource}`.toLowerCase()) as typeof row;
+        }
+        if (!row) {
+          row = queryByName.get(nameKey) as typeof row;
+        }
+        if (!row) continue;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const raw = JSON.parse(row.raw_json) as any;
+        const spell = rawJsonToSpell(raw, row.id, row.name);
+        spell.grantedByFeatureId = featureId;
+        spell.grantedByFeatureName = featureName;
+        spells.push(spell);
+      }
+    }
+  }
+
+  return spells;
 }
 
 // Fetch class (and optionally subclass) features for a specific class level
@@ -926,13 +1097,31 @@ export function getClassFeaturesByLevel(
     const entries: any[] = cls._classFeatureEntries ?? [];
     for (const f of entries) {
       if (f.level === classLevel) {
+        const featureName = f.name as string;
+        const lang = getFeatureLanguageGrant(featureName);
         results.push({
-          name: f.name as string,
+          name: featureName,
           entries: Array.isArray(f.entries) ? (f.entries as unknown[]) : [],
           source: (f.source as string) ?? '',
           isSubclass: false,
+          grantedLanguages: lang ? [lang] : undefined,
         });
       }
+    }
+
+    // Extract level-keyed spell grants from class.additionalSpells.
+    // Some classes (e.g. 2024 Ranger) grant spells automatically at certain levels.
+    const classSpellFeatureName = `${className} Spells`;
+    const classSpellFeatureId = `class-feat::${className.toLowerCase()}::${classLevel}::${classSpellFeatureName.toLowerCase().replace(/\s+/g, '-')}`;
+    const classSpells = extractSpellGrantsAtLevel(cls, classLevel, classSpellFeatureId, classSpellFeatureName, d);
+    if (classSpells.length > 0) {
+      results.push({
+        name: classSpellFeatureName,
+        entries: [],
+        source: (cls.source as string) ?? '',
+        isSubclass: false,
+        grantedSpells: classSpells,
+      });
     }
   }
 
@@ -949,13 +1138,35 @@ export function getClassFeaturesByLevel(
       const entries: any[] = sc._subclassFeatureEntries ?? [];
       for (const f of entries) {
         if (f.level === classLevel) {
+          const featureEntries = Array.isArray(f.entries) ? (f.entries as unknown[]) : [];
+          const featureName = f.name as string;
+          const lang = getFeatureLanguageGrant(featureName);
+          // Skip content-less header entries with no grants
+          // (subclass name repeated at each level with no body)
+          if (featureEntries.length === 0 && !lang) continue;
           results.push({
-            name: f.name as string,
-            entries: Array.isArray(f.entries) ? (f.entries as unknown[]) : [],
+            name: featureName,
+            entries: featureEntries,
             source: (f.source as string) ?? '',
             isSubclass: true,
+            grantedLanguages: lang ? [lang] : undefined,
           });
         }
+      }
+
+      // Extract level-keyed spell grants from subclass.additionalSpells.
+      // These live on the subclass object itself (not on individual feature entries).
+      const spellFeatureName = findSpellFeatureName(sc);
+      const spellFeatureId = `class-feat::${className.toLowerCase()}::${classLevel}::${spellFeatureName.toLowerCase().replace(/\s+/g, '-')}`;
+      const subclassSpells = extractSpellGrantsAtLevel(sc, classLevel, spellFeatureId, spellFeatureName, d);
+      if (subclassSpells.length > 0) {
+        results.push({
+          name: spellFeatureName,
+          entries: [],
+          source: (sc.source as string) ?? '',
+          isSubclass: true,
+          grantedSpells: subclassSpells,
+        });
       }
     }
   }

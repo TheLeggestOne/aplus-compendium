@@ -69,4 +69,8 @@ export interface ClassSpellcasting {
 
   /** Whether currently concentrating on a spell from this class */
   concentrating?: string;
+
+  /** Spells granted by class features (e.g. Circle Spells, Oath Spells).
+   *  Kept separate from spellsKnown — not counted against capacity, not removable by the player. */
+  grantedSpells?: Spell[];
 }

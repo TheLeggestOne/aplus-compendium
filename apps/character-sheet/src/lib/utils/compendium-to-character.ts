@@ -324,7 +324,7 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
 
 /** Convert a raw class/subclass feature entry (from IPC getClassFeatures) to a Feature. */
 export function classFeatureEntryToFeature(
-  entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean },
+  entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[] },
   dndClass: string,
   classLevel: number,
 ): Feature {
@@ -335,6 +335,8 @@ export function classFeatureEntryToFeature(
     sourceType: entry.isSubclass ? 'subclass' : 'class',
     description: '',
     rawEntries: entry.entries.length > 0 ? entry.entries : undefined,
+    grantedLanguages: entry.grantedLanguages?.length ? entry.grantedLanguages : undefined,
+    grantedSpells: entry.grantedSpells?.length ? entry.grantedSpells : undefined,
   };
 }
 
@@ -421,7 +423,7 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
         ? ((rawSpeed as Record<string, unknown>)['walk'] as number) ?? 30
         : 30;
 
-  // Darkvision
+  // Darkvision range in feet
   const darkvision = (raw['darkvision'] as number) ?? undefined;
 
   // Languages
@@ -494,7 +496,7 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
     }
   }
 
-  // Add darkvision as a feature if present
+  // Add darkvision as a synthetic feature if present (may be superseded by an entry-based one below)
   if (darkvision) {
     features.unshift({
       id: `${entry.id}::darkvision`,
@@ -503,6 +505,19 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
       sourceType: 'race',
       description: `You can see in dim light within ${darkvision} feet of you as if it were bright light, and in darkness as if it were dim light.`,
     });
+  }
+
+  // Deduplicate by name. Synthetic features are unshifted to the front; entry-based
+  // features are pushed later and have richer content, so iterating in reverse and
+  // keeping the last occurrence of each name preserves the entry-based version.
+  const seenNames = new Set<string>();
+  const dedupedFeatures: Feature[] = [];
+  for (let i = features.length - 1; i >= 0; i--) {
+    const f = features[i]!;
+    if (!seenNames.has(f.name)) {
+      seenNames.add(f.name);
+      dedupedFeatures.unshift(f);
+    }
   }
 
   return {
@@ -517,6 +532,6 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
     abilityBonuses,
     abilityBonusChoices: abilityBonusChoices.length > 0 ? abilityBonusChoices : undefined,
     abilityBonusWeightedChoices: abilityBonusWeightedChoices.length > 0 ? abilityBonusWeightedChoices : undefined,
-    features,
+    features: dedupedFeatures,
   };
 }

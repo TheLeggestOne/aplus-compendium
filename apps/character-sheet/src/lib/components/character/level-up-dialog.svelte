@@ -140,6 +140,8 @@
     featQuery = '';
     featResults = [];
     selectedFeatName = '';
+    summaryFeaturesPromise = null;
+    summaryFeaturesLoading = false;
   }
 
   // ---- Navigation ----
@@ -169,6 +171,12 @@
     }
     if (step === 'asi') {
       buildAsiChoice();
+    }
+    if (step === 'summary') {
+      summaryFeaturesLoading = true;
+      const p = fetchFeaturesForSummary();
+      summaryFeaturesPromise = p;
+      p.then(() => { summaryFeaturesLoading = false; }, () => { summaryFeaturesLoading = false; });
     }
   }
 
@@ -274,35 +282,47 @@
     selectedFeatName = sr.name;
   }
 
+  // ---- Summary: pre-fetched features ----
+  // Use a Promise stored in state so {#await} in the template handles pending/resolved/rejected
+  // cleanly without relying on $state mutations from async callbacks.
+  let summaryFeaturesPromise = $state<Promise<Feature[]> | null>(null);
+  let summaryFeaturesLoading = $state(false);
+
+  async function fetchFeaturesForSummary(): Promise<Feature[]> {
+    const cls = selectedClass;
+    if (!cls) return [];
+    const api = window.electronAPI;
+    if (!api) return [];
+
+    try {
+      const existingSubclass = stack
+        .filter((lv) => lv.class === cls)
+        .find((lv) => lv.subclassChoice)?.subclassChoice;
+      const effectiveSubclass = subclassChoice ?? existingSubclass;
+      const className = capitalize(cls);
+
+      const result = await api.compendium.getClassFeatures(className, newClassLevel, effectiveSubclass);
+
+      if (result.ok) {
+        return result.data.map((f) => classFeatureEntryToFeature(f, cls, newClassLevel));
+      }
+    } catch (e) {
+      console.warn('[level-up] Failed to fetch features for summary:', e);
+    }
+    return [];
+  }
+
   // ---- Confirm ----
   let confirming = $state(false);
 
   async function confirmLevelUp() {
     const cls = selectedClass;
-    if (!cls || confirming) return;
+    if (!cls || confirming || summaryFeaturesLoading) return;
+
+    const features = summaryFeaturesPromise ? await summaryFeaturesPromise : [];
 
     confirming = true;
     try {
-      const api = window.electronAPI;
-      let features: Feature[] = [];
-
-      if (api) {
-        const existingSubclass = stack
-          .filter(lv => lv.class === cls)
-          .find(lv => lv.subclassChoice)?.subclassChoice;
-        const effectiveSubclass = subclassChoice ?? existingSubclass;
-        const className = capitalize(cls);
-
-        try {
-          const result = await api.compendium.getClassFeatures(className, newClassLevel, effectiveSubclass);
-          if (result.ok) {
-            features = result.data.map(f => classFeatureEntryToFeature(f, cls, newClassLevel));
-          }
-        } catch (e) {
-          console.warn('[level-up] Failed to fetch class features:', e);
-        }
-      }
-
       characterStore.addClassLevel({
         class: cls,
         hpRoll,
@@ -625,6 +645,25 @@
               </div>
             {/if}
 
+            {#if summaryFeaturesPromise}
+              {#await summaryFeaturesPromise}
+                <div class="col-span-2 text-xs text-muted-foreground italic">Loading features…</div>
+              {:then features}
+                {@const grantedLangs = features.flatMap((f) => f.grantedLanguages ?? [])}
+                {@const grantedSpells = features.flatMap((f) => f.grantedSpells ?? [])}
+                {#if grantedLangs.length > 0}
+                  <div class="text-muted-foreground">Languages Granted</div>
+                  <div class="font-medium">{grantedLangs.join(', ')}</div>
+                {/if}
+                {#if grantedSpells.length > 0}
+                  <div class="text-muted-foreground">Spells Granted</div>
+                  <div class="font-medium">{grantedSpells.map((s) => s.name).join(', ')}</div>
+                {/if}
+              {:catch}
+                <!-- silently ignore fetch errors in preview -->
+              {/await}
+            {/if}
+
           </div>
         </div>
       {/if}
@@ -645,7 +684,7 @@
           <Button variant="outline" size="sm" class="text-xs">Cancel</Button>
         </Dialog.Close>
         {#if currentStep === 'summary'}
-          <Button size="sm" class="text-xs gap-1" onclick={confirmLevelUp} disabled={confirming}>
+          <Button size="sm" class="text-xs gap-1" onclick={confirmLevelUp} disabled={confirming || summaryFeaturesLoading}>
             <CheckIcon class="size-3.5" />
             {confirming ? 'Leveling up…' : 'Confirm Level Up'}
           </Button>

@@ -6,6 +6,7 @@ import type {
   CompendiumSearchResult,
   CompendiumStatus,
   ImportProgress,
+  Spell,
 } from '@aplus-compendium/types';
 
 type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -44,7 +45,7 @@ declare global {
         listSources: (contentType: CompendiumContentType) => Promise<IpcResult<string[]>>;
         getSubraces: (raceName: string) => Promise<IpcResult<CompendiumSearchResult[]>>;
         getSubclasses: (className: string) => Promise<IpcResult<CompendiumSearchResult[]>>;
-        getClassFeatures: (className: string, classLevel: number, subclassName?: string) => Promise<IpcResult<{ name: string; entries: unknown[]; source: string; isSubclass: boolean }[]>>;
+        getClassFeatures: (className: string, classLevel: number, subclassName?: string) => Promise<IpcResult<{ name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[] }[]>>;
         onProgress: (callback: (progress: ImportProgress) => void) => void;
         offProgress: () => void;
         clear: () => Promise<IpcResult<void>>;

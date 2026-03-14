@@ -641,6 +641,29 @@ function createCharacterStore(initial: Character) {
       sourceClassLevel: newClassLevel,
     }));
 
+    // Apply language grants from new features
+    const grantedLangs = newFeatures.flatMap((f) => f.grantedLanguages ?? []);
+    const newLanguages = grantedLangs.length > 0
+      ? [...character.languages, ...grantedLangs.filter((l) => !character.languages.includes(l))]
+      : character.languages;
+
+    // Apply spell grants from new features to the matching ClassSpellcasting entry
+    const allGrantedSpells = newFeatures.flatMap((f) => f.grantedSpells ?? []);
+    if (allGrantedSpells.length > 0) {
+      const csIdx = classSpellcasting.findIndex((cs) => cs.class === params.class);
+      if (csIdx !== -1) {
+        const existing = classSpellcasting[csIdx]!;
+        const existingIds = new Set((existing.grantedSpells ?? []).map((s) => s.id));
+        classSpellcasting[csIdx] = {
+          ...existing,
+          grantedSpells: [
+            ...(existing.grantedSpells ?? []),
+            ...allGrantedSpells.filter((s) => !existingIds.has(s.id)),
+          ],
+        };
+      }
+    }
+
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
 
     // First class ever → set saving throw proficiencies + add skill grant
@@ -681,6 +704,7 @@ function createCharacterStore(initial: Character) {
       classes: updatedClasses,
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
+      languages: newLanguages,
       features: [...character.features, ...newFeatures],
       combat: {
         ...character.combat,
@@ -702,7 +726,14 @@ function createCharacterStore(initial: Character) {
 
     // Remove features gained at this level
     const removedFeatureIds = new Set(removed.featureIds);
+    const removedFeatures = character.features.filter((f) => removedFeatureIds.has(f.id));
     const features = character.features.filter((f) => !removedFeatureIds.has(f.id));
+
+    // Revert language grants from removed features
+    const removedLangs = new Set(removedFeatures.flatMap((f) => f.grantedLanguages ?? []));
+    const languages = removedLangs.size > 0
+      ? character.languages.filter((l) => !removedLangs.has(l))
+      : character.languages;
 
     // ASI revert is automatic — effectiveAbilityScores derives from the remaining stack
 
@@ -714,7 +745,7 @@ function createCharacterStore(initial: Character) {
     if (remainingClassLevels === 0) {
       classSpellcasting = classSpellcasting.filter((cs) => cs.class !== removed.class);
     } else {
-      // Trim spells/cantrips that exceed the new (lower) capacity
+      // Trim spells/cantrips that exceed the new (lower) capacity; strip reverted granted spells
       const newSummary = deriveClassesSummary(newStack);
       classSpellcasting = classSpellcasting.map((cs) => {
         if (cs.class !== removed.class) return cs;
@@ -726,6 +757,9 @@ function createCharacterStore(initial: Character) {
           ...cs,
           cantrips: cs.cantrips.slice(0, cCap),
           spellsKnown: cs.spellsKnown.slice(0, sCap),
+          grantedSpells: cs.grantedSpells?.filter(
+            (s) => !removedFeatureIds.has(s.grantedByFeatureId ?? ''),
+          ),
         };
       });
     }
@@ -753,6 +787,7 @@ function createCharacterStore(initial: Character) {
       classes: updatedClasses,
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
+      languages,
       features,
       skillProficiencyGrants: skillProficiencyGrants.length > 0 ? skillProficiencyGrants : [],
       combat: {
