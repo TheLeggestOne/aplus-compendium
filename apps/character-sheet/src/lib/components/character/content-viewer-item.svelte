@@ -1,15 +1,29 @@
 <script lang="ts">
-  import type { InventoryItem, InventoryWeapon, InventoryArmor } from '@aplus-compendium/types';
+  import type { InventoryItem, InventoryWeapon, InventoryArmor, ItemTier } from '@aplus-compendium/types';
   import type { ItemRarity, WeaponCategory, WeaponProperty, DamageType, ArmorCategory, DieType } from '@aplus-compendium/types';
   import type { AbilityScore } from '@aplus-compendium/types';
   import { contentViewerStore } from '$lib/stores/content-viewer.svelte.js';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import { compendiumStore } from '$lib/stores/compendium.svelte.js';
+  import { normalizeTier, normalizeItemType } from '$lib/utils/compendium-to-character.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
+  import * as Popover from '$lib/components/ui/popover/index.js';
   import EntryRenderer from '$lib/components/ui/entry-renderer.svelte';
   import RefreshCcwIcon from '@lucide/svelte/icons/refresh-ccw';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+  import XIcon from '@lucide/svelte/icons/x';
+
+  const ALL_ITEM_TYPES = [
+    'Adventuring Gear', 'Ammunition', "Artisan's Tools", 'Explosive',
+    'Gaming Set', 'Generic Variant', 'Instrument', 'Mount',
+    'Potion', 'Rod', 'Ring', 'Scroll', 'Spellcasting Focus', 'Staff',
+    'Tack and Harness', 'Tool', 'Trade Good', 'Wand', 'Wondrous Item',
+    'Simple Weapon', 'Martial Weapon', 'Melee Weapon', 'Ranged Weapon',
+    'Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield',
+    'Vehicle (land)', 'Vehicle (water)', 'Other',
+  ];
 
   interface Props {
     item: InventoryItem;
@@ -109,6 +123,8 @@
   let editCostGp         = $state(item.costGp ?? 0);
   let editRarity         = $state<ItemRarity | ''>(item.rarity ?? '');
   let editWondrous       = $state(item.type === 'equipment' ? !!(item as InventoryItem & { wondrous?: boolean }).wondrous : false);
+  let editTier           = $state<ItemTier | ''>(item.tier ?? '');
+  let editItemType       = $state(item.itemType ?? '');
   let editRequiresAttune = $state(item.requiresAttunement ?? false);
   let editDescription    = $state(item.description ?? '');
 
@@ -125,6 +141,8 @@
     editWeight         = item.weight;
     editCostGp         = item.costGp ?? 0;
     editRarity         = item.rarity ?? '';
+    editTier           = item.tier ?? '';
+    editItemType       = item.itemType ?? '';
     editRequiresAttune = item.requiresAttunement ?? false;
     editDescription    = item.description ?? '';
     ew = item.type === 'weapon' ? initWeapon() : { ...WEAPON_DEFAULTS };
@@ -136,6 +154,26 @@
     // Reset sub-states to defaults when switching away from their type
     if (editType !== 'weapon') ew = { ...WEAPON_DEFAULTS };
     if (editType !== 'armor')  ea = { ...ARMOR_DEFAULTS };
+  }
+
+  // Item type combobox state
+  let itemTypeOpen = $state(false);
+  let itemTypeSearch = $state('');
+  const filteredItemTypes = $derived(
+    itemTypeSearch
+      ? ALL_ITEM_TYPES.filter((t) => t.toLowerCase().includes(itemTypeSearch.toLowerCase()))
+      : ALL_ITEM_TYPES,
+  );
+
+  function selectItemType(value: string) {
+    editItemType = value;
+    itemTypeSearch = '';
+    itemTypeOpen = false;
+  }
+
+  function clearItemType() {
+    editItemType = '';
+    itemTypeSearch = '';
   }
 
   function toggleProperty(prop: WeaponProperty) {
@@ -156,6 +194,8 @@
       weight:             editWeight,
       costGp:             editCostGp || undefined,
       rarity:             editRarity || undefined,
+      tier:               editTier || undefined,
+      itemType:           editItemType || undefined,
       requiresAttunement: editRequiresAttune,
       description:        editDescription,
       rawEntries:         descriptionChanged ? undefined : item.rawEntries,
@@ -257,7 +297,12 @@
         ? (raw['entries'] as unknown[])
         : undefined;
       const costGp = typeof raw['value'] === 'number' ? (raw['value'] as number) / 100 : item.costGp;
-      const patch = { rawEntries, costGp, wondrous: !!raw['wondrous'] };
+      const patch = {
+        rawEntries, costGp,
+        wondrous: !!raw['wondrous'],
+        tier: normalizeTier(raw['tier']),
+        itemType: normalizeItemType(raw),
+      };
       characterStore.updateInventoryItem(item.id, patch);
       await characterStore.saveNow();
       // Sync the viewer store — it holds a snapshot and won't see character store changes otherwise
@@ -276,14 +321,19 @@
   // Italic subtitle in D&D stat-block style
   const subtitle = $derived(() => {
     const parts: string[] = [];
-    if (item.wondrous) parts.push('Wondrous Item');
-    else if (item.type === 'weapon') parts.push(`${capitalize((item as InventoryWeapon).category)} weapon`);
-    else if (item.type === 'armor') {
+    if (item.itemType) {
+      parts.push(item.itemType);
+    } else if (item.wondrous) {
+      parts.push('Wondrous Item');
+    } else if (item.type === 'weapon') {
+      parts.push(`${capitalize((item as InventoryWeapon).category)} weapon`);
+    } else if (item.type === 'armor') {
       const cat = (item as InventoryArmor).category;
       parts.push(cat === 'shield' ? 'Shield' : `${capitalize(cat)} armor`);
     } else {
       parts.push('Adventuring Gear');
     }
+    if (item.tier) parts.push(capitalize(item.tier));
     if (item.rarity && item.rarity !== 'common') parts.push(capitalize(item.rarity));
     if (item.requiresAttunement) parts.push('requires attunement');
     return parts.join(', ');
@@ -438,31 +488,94 @@
       </div>
     </div>
 
-    <!-- Item type -->
-    <div class="space-y-1">
-      <p class="text-xs font-medium text-muted-foreground">Item Type</p>
-      <select
-        bind:value={editType}
-        onchange={onTypeChange}
-        class="w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        <option value="equipment">Adventuring Gear</option>
-        <option value="weapon">Weapon</option>
-        <option value="armor">Armor / Shield</option>
-      </select>
+    <!-- Base type + Category -->
+    <div class="grid grid-cols-2 gap-2">
+      <div class="space-y-1">
+        <p class="text-xs font-medium text-muted-foreground">Base Type</p>
+        <select
+          bind:value={editType}
+          onchange={onTypeChange}
+          class="w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="equipment">Equipment</option>
+          <option value="weapon">Weapon</option>
+          <option value="armor">Armor / Shield</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <p class="text-xs font-medium text-muted-foreground">Category</p>
+        <Popover.Root bind:open={itemTypeOpen}>
+          <Popover.Trigger
+            class="flex items-center justify-between w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <span class="truncate {editItemType ? 'text-foreground' : 'text-muted-foreground'}">
+              {editItemType || 'Select…'}
+            </span>
+            <span class="flex items-center gap-0.5 shrink-0">
+              {#if editItemType}
+                <button
+                  type="button"
+                  onclick={(e) => { e.stopPropagation(); clearItemType(); }}
+                  class="p-0.5 text-muted-foreground hover:text-foreground"
+                >
+                  <XIcon class="size-3" />
+                </button>
+              {/if}
+              <ChevronDownIcon class="size-3 text-muted-foreground" />
+            </span>
+          </Popover.Trigger>
+          <Popover.Content align="start" side="bottom" avoidCollisions class="w-56 p-0">
+            <div class="p-1.5 border-b border-border">
+              <input
+                type="text"
+                placeholder="Search types…"
+                bind:value={itemTypeSearch}
+                class="w-full h-6 rounded bg-transparent px-1.5 text-xs outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div class="max-h-48 overflow-y-auto p-1">
+              {#each filteredItemTypes as t}
+                <button
+                  type="button"
+                  onclick={() => selectItemType(t)}
+                  class="w-full text-left px-2 py-1 rounded text-xs hover:bg-muted transition-colors {t === editItemType ? 'bg-muted font-medium' : ''}"
+                >
+                  {t}
+                </button>
+              {/each}
+              {#if filteredItemTypes.length === 0}
+                <p class="px-2 py-1 text-xs text-muted-foreground italic">No matches</p>
+              {/if}
+            </div>
+          </Popover.Content>
+        </Popover.Root>
+      </div>
     </div>
 
-    <!-- Rarity -->
-    <div class="space-y-1">
-      <p class="text-xs font-medium text-muted-foreground">Rarity</p>
-      <select
-        bind:value={editRarity}
-        class="w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        {#each ALL_RARITIES as r}
-          <option value={r.value}>{r.label}</option>
-        {/each}
-      </select>
+    <!-- Rarity / Tier -->
+    <div class="grid grid-cols-2 gap-2">
+      <div class="space-y-1">
+        <p class="text-xs font-medium text-muted-foreground">Rarity</p>
+        <select
+          bind:value={editRarity}
+          class="w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          {#each ALL_RARITIES as r}
+            <option value={r.value}>{r.label}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="space-y-1">
+        <p class="text-xs font-medium text-muted-foreground">Tier</p>
+        <select
+          bind:value={editTier}
+          class="w-full h-7 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">None</option>
+          <option value="minor">Minor</option>
+          <option value="major">Major</option>
+        </select>
+      </div>
     </div>
 
     <!-- Flags row -->

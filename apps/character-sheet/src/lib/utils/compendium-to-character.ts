@@ -13,6 +13,7 @@ import type {
   ArmorCategory,
   EquipmentItem,
   ItemRarity,
+  ItemTier,
   Feature,
   FeatureSourceType,
   CompendiumContentType,
@@ -33,6 +34,32 @@ function normalizeRarity(raw: unknown): ItemRarity | undefined {
   const s = raw.toLowerCase().replace(' ', '-');
   const valid: ItemRarity[] = ['common', 'uncommon', 'rare', 'very-rare', 'legendary', 'artifact'];
   return valid.includes(s as ItemRarity) ? (s as ItemRarity) : undefined;
+}
+
+export function normalizeTier(raw: unknown): ItemTier | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const s = raw.toLowerCase();
+  if (s === 'minor') return 'minor';
+  if (s === 'major') return 'major';
+  return undefined;
+}
+
+const ITEM_TYPE_LABEL: Record<string, string> = {
+  A: 'Ammunition', AF: 'Ammunition (futuristic)', AT: "Artisan's Tools",
+  EXP: 'Explosive', G: 'Adventuring Gear', GS: 'Gaming Set',
+  GV: 'Generic Variant', HA: 'Heavy Armor', INS: 'Instrument',
+  LA: 'Light Armor', M: 'Melee Weapon', MA: 'Medium Armor',
+  MNT: 'Mount', OTH: 'Other', P: 'Potion', R: 'Ranged Weapon',
+  RD: 'Rod', RG: 'Ring', S: 'Shield', SC: 'Scroll', SCF: 'Spellcasting Focus',
+  SHP: 'Vehicle (water)', ST: 'Staff', T: 'Tool', TAH: 'Tack and Harness',
+  TG: 'Trade Good', VEH: 'Vehicle (land)', W: 'Weapon', WD: 'Wand',
+};
+
+export function normalizeItemType(raw: Record<string, unknown>): string | undefined {
+  if (raw['wondrous']) return 'Wondrous Item';
+  const code = raw['type'] as string | undefined;
+  if (!code) return undefined;
+  return ITEM_TYPE_LABEL[code] ?? undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -260,6 +287,8 @@ export function entryToInventoryWeapon(entry: CompendiumEntry): InventoryWeapon 
     rarity:              w.rarity,
     description:         w.description,
     rawEntries:          _rawEntries(entry.raw),
+    tier:                normalizeTier(entry.raw['tier']),
+    itemType:            normalizeItemType(entry.raw),
     containerId:         'default',
     requiresAttunement:  w.requiresAttunement,
     attuned:             false,
@@ -288,6 +317,8 @@ export function entryToInventoryArmor(entry: CompendiumEntry): InventoryArmor {
     rarity:              a.rarity,
     description:         a.description,
     rawEntries:          _rawEntries(entry.raw),
+    tier:                normalizeTier(entry.raw['tier']),
+    itemType:            normalizeItemType(entry.raw),
     containerId:         'default',
     requiresAttunement:  a.requiresAttunement,
     attuned:             false,
@@ -312,6 +343,8 @@ export function entryToInventoryEquipment(entry: CompendiumEntry): InventoryEqui
     description:        e.description,
     rawEntries:         _rawEntries(entry.raw),
     wondrous:           !!entry.raw['wondrous'],
+    tier:               normalizeTier(entry.raw['tier']),
+    itemType:           normalizeItemType(entry.raw),
     containerId:        'default',
     requiresAttunement: e.requiresAttunement,
     attuned:            false,

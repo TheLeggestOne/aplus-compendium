@@ -4,6 +4,8 @@ import type { DieType } from './classes.js';
 
 export type EquipSlot = 'armor' | 'mainhand' | 'offhand' | 'misc';
 
+export type ItemTier = 'minor' | 'major';
+
 export interface InventoryContainer {
   id: string;
   name: string;
@@ -35,6 +37,10 @@ interface InventoryItemBase {
   attuned?: boolean;
   /** True if this is a wondrous item (5etools `wondrous` flag). */
   wondrous?: boolean;
+  /** 5etools item tier (minor or major). */
+  tier?: ItemTier;
+  /** 5etools item type label (e.g. "Potion", "Wondrous Item", "Martial Weapon"). Cosmetic only. */
+  itemType?: string;
   /** Raw 5etools entries for rich-text rendering. Cleared if description is manually edited. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawEntries?: unknown[];

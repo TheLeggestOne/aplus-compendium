@@ -23,10 +23,10 @@
 
   const miscItems = $derived(wornItems.filter((i) => i.equipSlot === 'misc'));
 
-  // DnD drop zone — synced via $effect, updated immediately in finalize
+  // DnD drop zone — synced from miscItems only (slot items render in the grid above)
   let dndItems = $state<DndItem[]>([]);
   $effect(() => {
-    dndItems = wornItems.map((i) => ({ id: i.id, item: i }));
+    dndItems = miscItems.map((i) => ({ id: i.id, item: i }));
   });
 
   function handleDndConsider(e: CustomEvent<{ items: DndItem[] }>) {
@@ -34,11 +34,10 @@
   }
 
   function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
-    // Update dndzone state immediately so items stay draggable
     dndItems = e.detail.items;
-    const previousWornIds = new Set(wornItems.map((i) => i.id));
+    const previousIds = new Set(miscItems.map((i) => i.id));
     for (const d of e.detail.items) {
-      if (!previousWornIds.has(d.id)) {
+      if (!previousIds.has(d.id)) {
         characterStore.moveItemToContainer(d.id, 'worn');
       }
     }
@@ -111,15 +110,15 @@
 
   <!-- Misc worn items (equipment items) + drop target for the whole container -->
   <div
-    use:dndzone={{ items: dndItems, dropFromOthersDisabled: false, dragDisabled: true }}
+    use:dndzone={{ items: dndItems, dropFromOthersDisabled: false }}
     onconsider={handleDndConsider}
     onfinalize={handleDndFinalize}
     class="min-h-[2rem] px-1 py-1"
   >
-    {#if miscItems.length > 0}
+    {#if dndItems.length > 0}
       <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-0.5">Worn Items</p>
-      {#each miscItems as wornItem (wornItem.id)}
-        <InventoryItemRow item={wornItem} />
+      {#each dndItems as d (d.id)}
+        <InventoryItemRow item={d.item} />
       {/each}
     {:else}
       <p class="text-xs text-muted-foreground/40 text-center py-1">Drop items here to equip</p>

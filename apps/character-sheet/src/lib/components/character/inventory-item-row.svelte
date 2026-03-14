@@ -65,6 +65,9 @@
   <!-- Name + summary -->
   <div class="flex-1 min-w-0">
     <span class="text-xs truncate {rarityColor}">{item.name}</span>
+    {#if item.tier}
+      <span class="ml-1 text-[9px] uppercase tracking-wider text-muted-foreground/60">{item.tier}</span>
+    {/if}
     {#if weaponSummary}
       <span class="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{weaponSummary}</span>
     {/if}
