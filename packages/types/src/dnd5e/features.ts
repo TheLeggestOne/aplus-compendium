@@ -22,6 +22,8 @@ export interface FeatureChoice {
   /** Valid options to pick from. Empty array means free-text entry. */
   options: string[];
   selected: string;
+  /** When set, changing `selected` also adds/removes from the character's language or proficiency list. */
+  grantType?: 'language' | 'proficiency';
 }
 
 export interface Feature {
@@ -41,6 +43,8 @@ export interface Feature {
 
   /** Languages granted by this feature (e.g. Druidic, Thieves' Cant) */
   grantedLanguages?: string[];
+  /** Tool / weapon / armor proficiencies granted by this feature */
+  grantedProficiencies?: string[];
   /** Spells granted by this feature (e.g. Circle Spells, Oath Spells), pre-resolved from compendium */
   grantedSpells?: Spell[];
   /** Pre-resolved option names for features whose choices aren't embedded in rawEntries (e.g. subclass archetypes). */

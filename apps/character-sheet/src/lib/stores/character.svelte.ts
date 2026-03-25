@@ -597,6 +597,10 @@ function createCharacterStore(initial: Character) {
   }
 
   function updateFeatureChoice(featureId: string, choiceId: string, selected: string): void {
+    // Find the old choice to check for proficiency grant reverts
+    const oldFeature = character.features.find((f) => f.id === featureId);
+    const oldChoice = oldFeature?.choices?.find((c) => c.id === choiceId);
+
     const features = character.features.map((f) => {
       if (f.id !== featureId) return f;
       return {
@@ -605,6 +609,23 @@ function createCharacterStore(initial: Character) {
       };
     });
     character = { ...character, features };
+
+    // Apply proficiency grant changes when a grantType choice is updated
+    if (oldChoice?.grantType) {
+      const oldVal = oldChoice.selected;
+      if (oldChoice.grantType === 'language') {
+        let langs = [...character.languages];
+        if (oldVal) langs = langs.filter((l) => l !== oldVal);
+        if (selected && !langs.includes(selected)) langs.push(selected);
+        character = { ...character, languages: langs };
+      } else if (oldChoice.grantType === 'proficiency') {
+        let profs = [...character.otherProficiencies];
+        if (oldVal) profs = profs.filter((p) => p !== oldVal);
+        if (selected && !profs.includes(selected)) profs.push(selected);
+        character = { ...character, otherProficiencies: profs };
+      }
+    }
+
     queueSave();
   }
 
@@ -621,11 +642,25 @@ function createCharacterStore(initial: Character) {
   }
 
   function removeFeatureChoice(featureId: string, choiceId: string): void {
+    // Find the choice being removed to check for proficiency grant reverts
+    const oldFeature = character.features.find((f) => f.id === featureId);
+    const oldChoice = oldFeature?.choices?.find((c) => c.id === choiceId);
+
     const features = character.features.map((f) => {
       if (f.id !== featureId) return f;
       return { ...f, choices: (f.choices ?? []).filter((c) => c.id !== choiceId) };
     });
     character = { ...character, features };
+
+    // Revert proficiency grant when a grantType choice is removed
+    if (oldChoice?.grantType && oldChoice.selected) {
+      if (oldChoice.grantType === 'language') {
+        character = { ...character, languages: character.languages.filter((l) => l !== oldChoice.selected) };
+      } else if (oldChoice.grantType === 'proficiency') {
+        character = { ...character, otherProficiencies: character.otherProficiencies.filter((p) => p !== oldChoice.selected) };
+      }
+    }
+
     queueSave();
   }
 
@@ -888,31 +923,9 @@ function createCharacterStore(initial: Character) {
       sourceClassLevel: newClassLevel,
     }));
 
-    // Apply language grants from new features
-    const grantedLangs = newFeatures.flatMap((f) => f.grantedLanguages ?? []);
-    const newLanguages = grantedLangs.length > 0
-      ? [...character.languages, ...grantedLangs.filter((l) => !character.languages.includes(l))]
-      : character.languages;
-
-    // Apply spell grants from new features to the matching ClassSpellcasting entry
-    const allGrantedSpells = newFeatures.flatMap((f) => f.grantedSpells ?? []);
-    if (allGrantedSpells.length > 0) {
-      const csIdx = classSpellcasting.findIndex((cs) => cs.class === params.class);
-      if (csIdx !== -1) {
-        const existing = classSpellcasting[csIdx]!;
-        const existingIds = new Set((existing.grantedSpells ?? []).map((s) => s.id));
-        classSpellcasting[csIdx] = {
-          ...existing,
-          grantedSpells: [
-            ...(existing.grantedSpells ?? []),
-            ...allGrantedSpells.filter((s) => !existingIds.has(s.id)),
-          ],
-        };
-      }
-    }
-
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
     // If the ASI choice is a feat, also add it as a Feature so it appears on the sheet
+    // (must come before grant computation so feat-granted proficiencies/languages are picked up)
     if (params.asiChoice?.type === 'feat') {
       const featFeatureId = `asi-feat-${params.asiChoice.featId}`;
       const base = params.asiFeatFeature ?? {
@@ -930,6 +943,40 @@ function createCharacterStore(initial: Character) {
         sourceClassLevel: newClassLevel,
       });
       newLevel.featureIds = [...newLevel.featureIds, featFeatureId];
+    }
+
+    // Apply language grants from new features
+    const grantedLangs = newFeatures.flatMap((f) => f.grantedLanguages ?? []);
+    const newLanguages = grantedLangs.length > 0
+      ? [...character.languages, ...grantedLangs.filter((l) => !character.languages.includes(l))]
+      : character.languages;
+
+    // Apply proficiency grants from new features (tool/weapon/armor proficiencies)
+    const grantedProfs = newFeatures.flatMap((f) => f.grantedProficiencies ?? []);
+    if (grantedProfs.length > 0) {
+      const existing = new Set(character.otherProficiencies);
+      const merged = [
+        ...character.otherProficiencies,
+        ...grantedProfs.filter((p) => !existing.has(p)),
+      ];
+      character = { ...character, otherProficiencies: merged };
+    }
+
+    // Apply spell grants from new features to the matching ClassSpellcasting entry
+    const allGrantedSpells = newFeatures.flatMap((f) => f.grantedSpells ?? []);
+    if (allGrantedSpells.length > 0) {
+      const csIdx = classSpellcasting.findIndex((cs) => cs.class === params.class);
+      if (csIdx !== -1) {
+        const existing = classSpellcasting[csIdx]!;
+        const existingIds = new Set((existing.grantedSpells ?? []).map((s) => s.id));
+        classSpellcasting[csIdx] = {
+          ...existing,
+          grantedSpells: [
+            ...(existing.grantedSpells ?? []),
+            ...allGrantedSpells.filter((s) => !existingIds.has(s.id)),
+          ],
+        };
+      }
     }
 
     // First class ever → set saving throw proficiencies + add skill grant
@@ -1042,6 +1089,19 @@ function createCharacterStore(initial: Character) {
       ? character.languages.filter((l) => !removedLangs.has(l))
       : character.languages;
 
+    // Revert proficiency grants from removed features
+    const removedProfs = new Set(removedFeatures.flatMap((f) => f.grantedProficiencies ?? []));
+    // Also revert any proficiency-type choices that were selected on the removed features
+    for (const f of removedFeatures) {
+      for (const c of f.choices ?? []) {
+        if (c.grantType === 'proficiency' && c.selected) removedProfs.add(c.selected);
+        if (c.grantType === 'language' && c.selected) removedLangs.add(c.selected);
+      }
+    }
+    const otherProficiencies = removedProfs.size > 0
+      ? character.otherProficiencies.filter((p) => !removedProfs.has(p))
+      : character.otherProficiencies;
+
     // ASI revert is automatic — effectiveAbilityScores derives from the remaining stack
 
     // If we removed the last level of a caster class, remove its ClassSpellcasting entry
@@ -1093,13 +1153,19 @@ function createCharacterStore(initial: Character) {
     const removedTotalLevel = stack.length; // before removal
     removeRaceSpellGrantsForLevel(removedTotalLevel);
 
+    // Re-filter languages in case choice-based grants were also added after initial filter
+    const finalLanguages = removedLangs.size > 0
+      ? character.languages.filter((l) => !removedLangs.has(l))
+      : languages;
+
     character = {
       ...character,
       levelStack: newStack,
       classes: updatedClasses,
       classSpellcasting: classSpellcasting.length > 0 ? classSpellcasting : undefined,
       proficiencyBonus: newProfBonus,
-      languages,
+      languages: finalLanguages,
+      otherProficiencies,
       features,
       skillProficiencyGrants: skillProficiencyGrants.length > 0 ? skillProficiencyGrants : [],
       combat: {
@@ -1140,8 +1206,22 @@ function createCharacterStore(initial: Character) {
       let featureIds = [...(updatedLevel.featureIds ?? [])];
 
       // Remove old feat Feature if previous choice was a feat
+      let languages = [...character.languages];
+      let otherProfs = [...character.otherProficiencies];
       if (level.asiChoice?.type === 'feat') {
         const oldFeatId = `asi-feat-${level.asiChoice.featId}`;
+        const oldFeat = features.find((f) => f.id === oldFeatId);
+        // Revert proficiency grants from old feat
+        if (oldFeat) {
+          const oldLangs = new Set(oldFeat.grantedLanguages ?? []);
+          const oldProfs = new Set(oldFeat.grantedProficiencies ?? []);
+          for (const c of oldFeat.choices ?? []) {
+            if (c.grantType === 'language' && c.selected) oldLangs.add(c.selected);
+            if (c.grantType === 'proficiency' && c.selected) oldProfs.add(c.selected);
+          }
+          if (oldLangs.size > 0) languages = languages.filter((l) => !oldLangs.has(l));
+          if (oldProfs.size > 0) otherProfs = otherProfs.filter((p) => !oldProfs.has(p));
+        }
         features = features.filter((f) => f.id !== oldFeatId);
         featureIds = featureIds.filter((id) => id !== oldFeatId);
       }
@@ -1157,18 +1237,30 @@ function createCharacterStore(initial: Character) {
           sourceType: 'feat' as const,
           description: '',
         };
-        features.push({
+        const newFeat: Feature = {
           ...base,
           id: featFeatureId,
           sourceType: 'feat' as const,
           sourceClass: level.class,
           sourceClassLevel: level.classLevel,
-        });
+        };
+        features.push(newFeat);
         featureIds.push(featFeatureId);
+        // Apply proficiency grants from new feat
+        const newLangs = newFeat.grantedLanguages ?? [];
+        const newProfs = newFeat.grantedProficiencies ?? [];
+        if (newLangs.length > 0) {
+          const langSet = new Set(languages);
+          languages = [...languages, ...newLangs.filter((l) => !langSet.has(l))];
+        }
+        if (newProfs.length > 0) {
+          const profSet = new Set(otherProfs);
+          otherProfs = [...otherProfs, ...newProfs.filter((p) => !profSet.has(p))];
+        }
       }
 
       updatedLevel.featureIds = featureIds;
-      character = { ...character, features };
+      character = { ...character, features, languages, otherProficiencies: otherProfs };
     }
 
     const newStack = [...stack];

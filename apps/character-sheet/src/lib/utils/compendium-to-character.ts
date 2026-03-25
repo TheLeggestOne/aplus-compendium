@@ -15,6 +15,7 @@ import type {
   ItemRarity,
   ItemTier,
   Feature,
+  FeatureChoice,
   FeatureSourceType,
   CompendiumContentType,
   AbilityScore,
@@ -368,7 +369,7 @@ const FEATURE_SOURCE_TYPE: Partial<Record<CompendiumContentType, FeatureSourceTy
 };
 
 export function entryToFeature(entry: CompendiumEntry): Feature {
-  return {
+  const base: Feature = {
     id:         entry.id,
     name:       entry.name,
     source:     entry.source,
@@ -376,6 +377,121 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
     description: '',
     rawEntries: _rawEntries(entry.raw),
   };
+
+  // Enrich feat/background entries with proficiency grants
+  if (entry.contentType === 'feat' || entry.contentType === 'background') {
+    const grant = extractFeatProficiencyGrant(entry.raw);
+    if (grant) {
+      if (grant.languages.length > 0) base.grantedLanguages = grant.languages;
+      if (grant.proficiencies.length > 0) base.grantedProficiencies = grant.proficiencies;
+      if (grant.choices.length > 0) base.choices = [...(base.choices ?? []), ...grant.choices];
+    }
+  }
+
+  return base;
+}
+
+// ---------------------------------------------------------------------------
+// Feat proficiency grants (tools, languages, other)
+// ---------------------------------------------------------------------------
+
+/** Parsed proficiency grants from a feat's raw 5etools data. */
+export interface FeatProficiencyGrant {
+  /** Fixed language proficiencies (e.g. "Common") */
+  languages: string[];
+  /** Fixed tool/weapon/armor proficiencies (e.g. "Cook's Utensils") */
+  proficiencies: string[];
+  /** Choice-based grants rendered as FeatureChoice entries */
+  choices: FeatureChoice[];
+}
+
+/**
+ * Parse `toolProficiencies`, `languageProficiencies`, and `weaponProficiencies`
+ * from a raw 5etools feat entry. Returns null if no proficiency grants found.
+ */
+export function extractFeatProficiencyGrant(raw: Record<string, unknown>): FeatProficiencyGrant | null {
+  const languages: string[] = [];
+  const proficiencies: string[] = [];
+  const choices: FeatureChoice[] = [];
+
+  // --- Tool proficiencies ---
+  const toolProfs = raw['toolProficiencies'] as Record<string, unknown>[] | undefined;
+  if (toolProfs?.[0]) {
+    for (const [key, value] of Object.entries(toolProfs[0])) {
+      if (key === 'choose') {
+        const c = value as Record<string, unknown>;
+        const from = (c['from'] as string[] | undefined) ?? [];
+        const count = (c['count'] as number | undefined) ?? 1;
+        for (let i = 0; i < count; i++) {
+          choices.push({
+            id: `tool-prof-choice-${i}`,
+            label: 'Tool Proficiency',
+            options: from.map(_capitalizeWords),
+            selected: '',
+            grantType: 'proficiency',
+          });
+        }
+      } else if (value === true) {
+        proficiencies.push(_capitalizeWords(key));
+      }
+    }
+  }
+
+  // --- Language proficiencies ---
+  const langProfs = raw['languageProficiencies'] as Record<string, unknown>[] | undefined;
+  if (langProfs?.[0]) {
+    for (const [key, value] of Object.entries(langProfs[0])) {
+      if (key === 'anyStandard' && typeof value === 'number') {
+        for (let i = 0; i < value; i++) {
+          choices.push({
+            id: `lang-choice-${i}`,
+            label: 'Language',
+            options: [],  // free-text entry for "any standard language"
+            selected: '',
+            grantType: 'language',
+          });
+        }
+      } else if (key === 'choose') {
+        const c = value as Record<string, unknown>;
+        const from = (c['from'] as string[] | undefined) ?? [];
+        const count = (c['count'] as number | undefined) ?? 1;
+        for (let i = 0; i < count; i++) {
+          choices.push({
+            id: `lang-choice-${i}`,
+            label: 'Language',
+            options: from.map(_capitalizeWords),
+            selected: '',
+            grantType: 'language',
+          });
+        }
+      } else if (value === true && key !== 'other') {
+        languages.push(_capitalizeWords(key));
+      }
+    }
+  }
+
+  // --- Weapon proficiencies ---
+  const weaponProfs = raw['weaponProficiencies'] as Record<string, unknown>[] | undefined;
+  if (weaponProfs?.[0]) {
+    for (const [key, value] of Object.entries(weaponProfs[0])) {
+      if (value === true) {
+        proficiencies.push(_capitalizeWords(key));
+      }
+    }
+  }
+
+  // --- Armor proficiencies ---
+  const armorProfs = raw['armorProficiencies'] as Record<string, unknown>[] | undefined;
+  if (armorProfs?.[0]) {
+    for (const [key, value] of Object.entries(armorProfs[0])) {
+      if (value === true) {
+        proficiencies.push(_capitalizeWords(key));
+      }
+    }
+  }
+
+  if (languages.length === 0 && proficiencies.length === 0 && choices.length === 0) return null;
+  return { languages, proficiencies, choices };
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +563,8 @@ export function classFeatureEntryToFeature(
 // ---------------------------------------------------------------------------
 
 function _capitalizeWords(s: string): string {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+  // Only capitalize after whitespace or start-of-string (not after apostrophes/hyphens)
+  return s.replace(/(^|\s)\w/g, (c) => c.toUpperCase());
 }
 
 /** Convert a raw 5etools equipment entry to a BackgroundEquipmentItem, or null if unrecognisable. */
