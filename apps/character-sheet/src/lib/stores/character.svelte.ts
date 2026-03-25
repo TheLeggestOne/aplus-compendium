@@ -130,12 +130,13 @@ function createCharacterStore(initial: Character) {
     const racial = character.raceAbilityBonuses ?? {};
     const overrides = character.abilityScoreOverrides ?? {};
 
-    // Sum ASI increases from level stack
+    // Sum ASI increases from level stack (both pure ASI and feat-granted)
     const asiTotals: Partial<Record<AbilityScore, number>> = {};
     if (character.levelStack) {
       for (const lv of character.levelStack) {
-        if (lv.asiChoice?.type === 'asi') {
-          for (const [ability, increase] of Object.entries(lv.asiChoice.increases)) {
+        const increases = lv.asiChoice?.increases;
+        if (increases) {
+          for (const [ability, increase] of Object.entries(increases)) {
             const key = ability as AbilityScore;
             asiTotals[key] = (asiTotals[key] ?? 0) + (increase ?? 0);
           }

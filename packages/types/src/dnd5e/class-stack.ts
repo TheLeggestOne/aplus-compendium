@@ -11,7 +11,7 @@ export type CasterProgression = 'full' | 'half' | 'third' | 'pact' | 'none';
  */
 export type AsiChoice =
   | { type: 'asi'; increases: Partial<Record<AbilityScore, 1 | 2>> }
-  | { type: 'feat'; featId: string; featName: string };
+  | { type: 'feat'; featId: string; featName: string; increases?: Partial<Record<AbilityScore, 1 | 2>> };
 
 /**
  * A single level in the character's progression history.

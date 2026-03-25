@@ -378,6 +378,51 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Feat ability score grants
+// ---------------------------------------------------------------------------
+
+/** Describes what ability score increases a feat offers. */
+export interface FeatAbilityGrant {
+  /** Fixed ability bonuses, e.g. Actor: { charisma: 1 } */
+  fixed: Partial<Record<AbilityScore, number>>;
+  /** "Choose N from these abilities for +amount each" */
+  choices: AbilityBonusChoice[];
+}
+
+/**
+ * Parse the `ability` array from a raw feat entry (5etools format) into a
+ * structured grant. Returns null if the feat has no ability score increases.
+ */
+export function extractFeatAbilityGrant(raw: Record<string, unknown>): FeatAbilityGrant | null {
+  const abilityArr = raw['ability'] as Record<string, unknown>[] | undefined;
+  if (!abilityArr?.[0]) return null;
+
+  const fixed: Partial<Record<AbilityScore, number>> = {};
+  const choices: AbilityBonusChoice[] = [];
+
+  for (const [abbr, val] of Object.entries(abilityArr[0])) {
+    if (abbr === 'choose') {
+      const choice = val as Record<string, unknown>;
+      const fromRaw = (choice['from'] as string[]) ?? [];
+      const from = fromRaw
+        .map((a) => ABILITY_ABBR_MAP[a])
+        .filter((a): a is AbilityScore => !!a);
+      const count = (choice['count'] as number) ?? 1;
+      const amount = (choice['amount'] as number) ?? 1;
+      if (from.length > 0) choices.push({ from, count, amount });
+      continue;
+    }
+    const fullName = ABILITY_ABBR_MAP[abbr];
+    if (fullName && typeof val === 'number') {
+      fixed[fullName] = val;
+    }
+  }
+
+  if (Object.keys(fixed).length === 0 && choices.length === 0) return null;
+  return { fixed, choices };
+}
+
 /** Convert a raw class/subclass feature entry (from IPC getClassFeatures) to a Feature. */
 export function classFeatureEntryToFeature(
   entry: { name: string; entries: unknown[]; source: string; isSubclass: boolean; grantedLanguages?: string[]; grantedSpells?: Spell[]; knownChoiceOptions?: string[] },

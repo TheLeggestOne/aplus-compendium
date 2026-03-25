@@ -7,7 +7,8 @@
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL,
     CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
   } from '@aplus-compendium/types';
-  import { entryToFeature } from '$lib/utils/compendium-to-character.js';
+  import { entryToFeature, extractFeatAbilityGrant } from '$lib/utils/compendium-to-character.js';
+  import type { FeatAbilityGrant } from '$lib/utils/compendium-to-character.js';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -55,7 +56,13 @@
   let featResults = $state<CompendiumSearchResult[]>([]);
   let featSearching = $state(false);
   let selectedFeatName = $state('');
+  let selectedFeatId = $state('');
   let skillSelections = $state<SkillName[]>([]);
+
+  // Feat ability grant state
+  let featAbilityGrant = $state<FeatAbilityGrant | null>(null);
+  let featFixedIncreases = $state<Partial<Record<AbilityScore, number>>>({});
+  let featChoiceSelections = $state<AbilityScore[][]>([]);
 
   // ---- Derived context ----
   const dndClass = $derived(level?.class);
@@ -115,9 +122,19 @@
       } else if (level.asiChoice?.type === 'feat') {
         asiMode = 'feat';
         selectedFeatName = level.asiChoice.featName ?? '';
+        selectedFeatId = level.asiChoice.featId ?? '';
+        // Load existing feat ability data from compendium
+        featAbilityGrant = null;
+        featFixedIncreases = {};
+        featChoiceSelections = [];
+        void loadFeatAbilityGrant(level.asiChoice.featId, level.asiChoice.increases);
       } else {
         asiMode = 'asi';
         selectedFeatName = '';
+        selectedFeatId = '';
+        featAbilityGrant = null;
+        featFixedIncreases = {};
+        featChoiceSelections = [];
       }
       // Load existing skill selections from grant
       if (hasSkillGrant && dndClass) {
@@ -205,10 +222,132 @@
     }
   }
 
-  function selectFeat(sr: CompendiumSearchResult) {
-    asiChoice = { type: 'feat', featId: sr.id, featName: sr.name };
+  async function selectFeat(sr: CompendiumSearchResult) {
     selectedFeatName = sr.name;
+    selectedFeatId = sr.id;
+    featAbilityGrant = null;
+    featFixedIncreases = {};
+    featChoiceSelections = [];
+
+    const api = window.electronAPI;
+    if (api) {
+      try {
+        const result = await api.compendium.get(sr.id, 'feat');
+        if (result.ok && result.data) {
+          const grant = extractFeatAbilityGrant(result.data.raw);
+          if (grant) {
+            featAbilityGrant = grant;
+            featFixedIncreases = { ...grant.fixed };
+            featChoiceSelections = grant.choices.map(() => []);
+            if (grant.choices.length === 0) {
+              const increases = { ...grant.fixed } as Partial<Record<AbilityScore, 1 | 2>>;
+              asiChoice = { type: 'feat', featId: sr.id, featName: sr.name, increases: Object.keys(increases).length > 0 ? increases : undefined };
+            } else {
+              asiChoice = undefined;
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[edit-level] Failed to fetch feat ability data:', e);
+      }
+    }
+
+    asiChoice = { type: 'feat', featId: sr.id, featName: sr.name };
   }
+
+  /** Load feat ability grant from compendium and pre-fill from existing increases */
+  async function loadFeatAbilityGrant(featId: string, existingIncreases?: Partial<Record<AbilityScore, 1 | 2>>) {
+    const api = window.electronAPI;
+    if (!api) return;
+    try {
+      const result = await api.compendium.get(featId, 'feat');
+      if (result.ok && result.data) {
+        const grant = extractFeatAbilityGrant(result.data.raw);
+        if (grant) {
+          featAbilityGrant = grant;
+          featFixedIncreases = { ...grant.fixed };
+          // Pre-fill choice selections from existing increases
+          if (existingIncreases && grant.choices.length > 0) {
+            const remaining = { ...existingIncreases };
+            // Remove fixed bonuses from remaining
+            for (const [ab] of Object.entries(grant.fixed)) {
+              delete remaining[ab as AbilityScore];
+            }
+            // Map remaining to choice slots
+            featChoiceSelections = grant.choices.map((choice) => {
+              const selected: AbilityScore[] = [];
+              for (const ability of choice.from) {
+                if (remaining[ability] && selected.length < choice.count) {
+                  selected.push(ability);
+                  delete remaining[ability];
+                }
+              }
+              return selected;
+            });
+          } else {
+            featChoiceSelections = grant.choices.map(() => []);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[edit-level] Failed to load feat ability grant:', e);
+    }
+  }
+
+  function buildFeatIncreases(): Partial<Record<AbilityScore, 1 | 2>> {
+    const result: Partial<Record<AbilityScore, number>> = {};
+    for (const [ability, val] of Object.entries(featFixedIncreases)) {
+      result[ability as AbilityScore] = val;
+    }
+    if (featAbilityGrant?.choices) {
+      for (let i = 0; i < featAbilityGrant.choices.length; i++) {
+        const choice = featAbilityGrant.choices[i]!;
+        for (const ability of featChoiceSelections[i] ?? []) {
+          result[ability] = (result[ability] ?? 0) + choice.amount;
+        }
+      }
+    }
+    return result as Partial<Record<AbilityScore, 1 | 2>>;
+  }
+
+  function toggleFeatAbilityChoice(choiceIdx: number, ability: AbilityScore) {
+    const choice = featAbilityGrant!.choices[choiceIdx]!;
+    const current = [...(featChoiceSelections[choiceIdx] ?? [])];
+    const idx = current.indexOf(ability);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else if (current.length < choice.count) {
+      current.push(ability);
+    }
+    featChoiceSelections = featChoiceSelections.map((s, i) => (i === choiceIdx ? current : s));
+  }
+
+  const featAbilityChoicesResolved = $derived.by(() => {
+    if (!featAbilityGrant) return true;
+    for (let i = 0; i < featAbilityGrant.choices.length; i++) {
+      if ((featChoiceSelections[i]?.length ?? 0) < featAbilityGrant.choices[i]!.count) return false;
+    }
+    return true;
+  });
+
+  // Reactively update asiChoice when feat ability selections change
+  $effect(() => {
+    if (open && hasAsi && asiMode === 'feat' && selectedFeatId && featAbilityGrant && featAbilityGrant.choices.length > 0) {
+      void featChoiceSelections;
+      if (featAbilityChoicesResolved) {
+        const increases = buildFeatIncreases();
+        asiChoice = {
+          type: 'feat',
+          featId: selectedFeatId,
+          featName: selectedFeatName,
+          increases: Object.keys(increases).length > 0 ? increases : undefined,
+        };
+      } else {
+        asiChoice = undefined;
+      }
+    }
+  });
 
   // ---- Skills ----
   function setSkillSlot(slotIndex: number, value: string) {
@@ -476,10 +615,51 @@
                 <div class="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
                   <CheckIcon class="size-3.5 text-primary" />
                   <span class="font-medium">{selectedFeatName}</span>
-                  <button class="ml-auto text-muted-foreground hover:text-foreground" onclick={() => { asiChoice = undefined; selectedFeatName = ''; }}>
+                  <button class="ml-auto text-muted-foreground hover:text-foreground" onclick={() => { asiChoice = undefined; selectedFeatName = ''; selectedFeatId = ''; featAbilityGrant = null; featFixedIncreases = {}; featChoiceSelections = []; }}>
                     <XIcon class="size-3.5" />
                   </button>
                 </div>
+
+                <!-- Feat ability score grant picker -->
+                {#if featAbilityGrant}
+                  <div class="rounded-md border border-border p-3 space-y-2">
+                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Ability Score Increase
+                    </p>
+
+                    {#if Object.keys(featAbilityGrant.fixed).length > 0}
+                      <div class="flex flex-wrap gap-1.5">
+                        {#each Object.entries(featAbilityGrant.fixed) as [ability, bonus]}
+                          <Badge variant="secondary" class="text-xs">
+                            +{bonus} {ability.slice(0, 3).toUpperCase()}
+                          </Badge>
+                        {/each}
+                      </div>
+                    {/if}
+
+                    {#each featAbilityGrant.choices as choice, choiceIdx}
+                      <div class="space-y-1.5">
+                        <p class="text-xs text-muted-foreground">
+                          Choose {choice.count} ability {choice.count === 1 ? 'score' : 'scores'} for +{choice.amount}:
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                          {#each choice.from as ability}
+                            {@const selected = featChoiceSelections[choiceIdx]?.includes(ability) ?? false}
+                            <button
+                              class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
+                                {selected
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-card hover:bg-accent/50 text-foreground'}"
+                              onclick={() => toggleFeatAbilityChoice(choiceIdx, ability)}
+                            >
+                              {ability.slice(0, 3).toUpperCase()}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
               {/if}
 
               <div class="space-y-1 max-h-48 overflow-auto">

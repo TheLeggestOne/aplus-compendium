@@ -3,7 +3,8 @@
     DndClass, AsiChoice, AbilityScore, SkillName,
     CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
-  import { classFeatureEntryToFeature, entryToFeature } from '$lib/utils/compendium-to-character.js';
+  import { classFeatureEntryToFeature, entryToFeature, extractFeatAbilityGrant } from '$lib/utils/compendium-to-character.js';
+  import type { FeatAbilityGrant } from '$lib/utils/compendium-to-character.js';
   import { extractProficiencyList, extractMulticlassProficiencyList } from '$lib/utils/class-page-helpers.js';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL, CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
@@ -64,6 +65,11 @@
   let featResults = $state<CompendiumSearchResult[]>([]);
   let featSearching = $state(false);
   let selectedFeatName = $state('');
+
+  // Feat ability grant state
+  let featAbilityGrant = $state<FeatAbilityGrant | null>(null);
+  let featFixedIncreases = $state<Partial<Record<AbilityScore, number>>>({});
+  let featChoiceSelections = $state<AbilityScore[][]>([]);
 
   // Skill selection state
   let skillSelections = $state<SkillName[]>([]);
@@ -162,6 +168,10 @@
     featQuery = '';
     featResults = [];
     selectedFeatName = '';
+    selectedFeatId = '';
+    featAbilityGrant = null;
+    featFixedIncreases = {};
+    featChoiceSelections = [];
     skillSelections = [];
     summaryFeaturesPromise = null;
     summaryFeaturesLoading = false;
@@ -331,10 +341,101 @@
     }
   }
 
-  function selectFeat(sr: CompendiumSearchResult) {
-    asiChoice = { type: 'feat', featId: sr.id, featName: sr.name };
+  let selectedFeatId = $state('');
+
+  async function selectFeat(sr: CompendiumSearchResult) {
     selectedFeatName = sr.name;
+    selectedFeatId = sr.id;
+    featAbilityGrant = null;
+    featFixedIncreases = {};
+    featChoiceSelections = [];
+
+    // Fetch full feat data to check for ability grants
+    const api = window.electronAPI;
+    if (api) {
+      try {
+        const result = await api.compendium.get(sr.id, 'feat');
+        if (result.ok && result.data) {
+          const grant = extractFeatAbilityGrant(result.data.raw);
+          if (grant) {
+            featAbilityGrant = grant;
+            featFixedIncreases = { ...grant.fixed };
+            featChoiceSelections = grant.choices.map(() => []);
+            // If no choices needed, resolve immediately
+            if (grant.choices.length === 0) {
+              const increases = { ...grant.fixed } as Partial<Record<AbilityScore, 1 | 2>>;
+              asiChoice = { type: 'feat', featId: sr.id, featName: sr.name, increases: Object.keys(increases).length > 0 ? increases : undefined };
+            } else {
+              asiChoice = undefined; // wait for user to resolve choices
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[level-up] Failed to fetch feat ability data:', e);
+      }
+    }
+
+    // No ability grant — set asiChoice immediately
+    asiChoice = { type: 'feat', featId: sr.id, featName: sr.name };
   }
+
+  function buildFeatIncreases(): Partial<Record<AbilityScore, 1 | 2>> {
+    const result: Partial<Record<AbilityScore, number>> = {};
+    // Fixed
+    for (const [ability, val] of Object.entries(featFixedIncreases)) {
+      result[ability as AbilityScore] = val;
+    }
+    // Choices
+    if (featAbilityGrant?.choices) {
+      for (let i = 0; i < featAbilityGrant.choices.length; i++) {
+        const choice = featAbilityGrant.choices[i]!;
+        for (const ability of featChoiceSelections[i] ?? []) {
+          result[ability] = (result[ability] ?? 0) + choice.amount;
+        }
+      }
+    }
+    return result as Partial<Record<AbilityScore, 1 | 2>>;
+  }
+
+  function toggleFeatAbilityChoice(choiceIdx: number, ability: AbilityScore) {
+    const choice = featAbilityGrant!.choices[choiceIdx]!;
+    const current = [...(featChoiceSelections[choiceIdx] ?? [])];
+    const idx = current.indexOf(ability);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else if (current.length < choice.count) {
+      current.push(ability);
+    }
+    featChoiceSelections = featChoiceSelections.map((s, i) => (i === choiceIdx ? current : s));
+  }
+
+  // Derived: are all feat ability choices resolved?
+  const featAbilityChoicesResolved = $derived.by(() => {
+    if (!featAbilityGrant) return true;
+    for (let i = 0; i < featAbilityGrant.choices.length; i++) {
+      if ((featChoiceSelections[i]?.length ?? 0) < featAbilityGrant.choices[i]!.count) return false;
+    }
+    return true;
+  });
+
+  // Reactively update asiChoice when feat ability selections change
+  $effect(() => {
+    if (currentStep === 'asi' && asiMode === 'feat' && selectedFeatId && featAbilityGrant && featAbilityGrant.choices.length > 0) {
+      void featChoiceSelections;
+      if (featAbilityChoicesResolved) {
+        const increases = buildFeatIncreases();
+        asiChoice = {
+          type: 'feat',
+          featId: selectedFeatId,
+          featName: selectedFeatName,
+          increases: Object.keys(increases).length > 0 ? increases : undefined,
+        };
+      } else {
+        asiChoice = undefined;
+      }
+    }
+  });
 
   // ---- Summary: pre-fetched features ----
   // Use a Promise stored in state so {#await} in the template handles pending/resolved/rejected
@@ -722,10 +823,51 @@
               <div class="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
                 <CheckIcon class="size-3.5 text-primary" />
                 <span class="font-medium">{selectedFeatName}</span>
-                <button class="ml-auto text-muted-foreground hover:text-foreground" onclick={() => { asiChoice = undefined; selectedFeatName = ''; }}>
+                <button class="ml-auto text-muted-foreground hover:text-foreground" onclick={() => { asiChoice = undefined; selectedFeatName = ''; selectedFeatId = ''; featAbilityGrant = null; featFixedIncreases = {}; featChoiceSelections = []; }}>
                   <XIcon class="size-3.5" />
                 </button>
               </div>
+
+              <!-- Feat ability score grant picker -->
+              {#if featAbilityGrant}
+                <div class="rounded-md border border-border p-3 space-y-2">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Ability Score Increase
+                  </p>
+
+                  {#if Object.keys(featAbilityGrant.fixed).length > 0}
+                    <div class="flex flex-wrap gap-1.5">
+                      {#each Object.entries(featAbilityGrant.fixed) as [ability, bonus]}
+                        <Badge variant="secondary" class="text-xs">
+                          +{bonus} {ability.slice(0, 3).toUpperCase()}
+                        </Badge>
+                      {/each}
+                    </div>
+                  {/if}
+
+                  {#each featAbilityGrant.choices as choice, choiceIdx}
+                    <div class="space-y-1.5">
+                      <p class="text-xs text-muted-foreground">
+                        Choose {choice.count} ability {choice.count === 1 ? 'score' : 'scores'} for +{choice.amount}:
+                      </p>
+                      <div class="flex flex-wrap gap-1.5">
+                        {#each choice.from as ability}
+                          {@const selected = featChoiceSelections[choiceIdx]?.includes(ability) ?? false}
+                          <button
+                            class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors
+                              {selected
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-card hover:bg-accent/50 text-foreground'}"
+                            onclick={() => toggleFeatAbilityChoice(choiceIdx, ability)}
+                          >
+                            {ability.slice(0, 3).toUpperCase()}
+                          </button>
+                        {/each}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             {/if}
 
             <div class="space-y-1 max-h-48 overflow-auto">
@@ -777,6 +919,11 @@
                   {Object.entries(asiChoice.increases).map(([a, v]) => `+${v} ${capitalize(a)}`).join(', ')}
                 {:else}
                   Feat: {asiChoice.featName}
+                  {#if asiChoice.increases && Object.keys(asiChoice.increases).length > 0}
+                    <span class="text-muted-foreground ml-1">
+                      ({Object.entries(asiChoice.increases).map(([a, v]) => `+${v} ${capitalize(a)}`).join(', ')})
+                    </span>
+                  {/if}
                 {/if}
               </div>
             {/if}
