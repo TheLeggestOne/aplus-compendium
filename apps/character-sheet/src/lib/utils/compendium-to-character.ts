@@ -368,6 +368,21 @@ const FEATURE_SOURCE_TYPE: Partial<Record<CompendiumContentType, FeatureSourceTy
   'subclass':         'subclass',
 };
 
+// ---------------------------------------------------------------------------
+// Known per-level HP bonus features
+// ---------------------------------------------------------------------------
+
+function _normalizeName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z ]/g, '').trim();
+}
+
+/** Known features that grant a flat HP bonus per level. */
+const HP_BONUS_FEATURES: Record<string, { amount: number; classOnly?: boolean }> = {
+  'tough':               { amount: 2 },
+  'dwarven toughness':   { amount: 1 },
+  'draconic resilience': { amount: 1, classOnly: true },
+};
+
 export function entryToFeature(entry: CompendiumEntry): Feature {
   const base: Feature = {
     id:         entry.id,
@@ -386,6 +401,13 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
       if (grant.proficiencies.length > 0) base.grantedProficiencies = grant.proficiencies;
       if (grant.choices.length > 0) base.choices = [...(base.choices ?? []), ...grant.choices];
     }
+  }
+
+  // Auto-set HP bonus for known feats
+  const hpBonus = HP_BONUS_FEATURES[_normalizeName(entry.name)];
+  if (hpBonus) {
+    base.hpBonusPerLevel = hpBonus.amount;
+    if (hpBonus.classOnly) base.hpBonusPerClassLevel = true;
   }
 
   return base;
@@ -545,6 +567,7 @@ export function classFeatureEntryToFeature(
   dndClass: string,
   classLevel: number,
 ): Feature {
+  const hpBonus = HP_BONUS_FEATURES[_normalizeName(entry.name)];
   return {
     id: `class-feat::${dndClass}::${classLevel}::${entry.name.toLowerCase().replace(/\s+/g, '-')}`,
     name: entry.name,
@@ -555,6 +578,8 @@ export function classFeatureEntryToFeature(
     grantedLanguages: entry.grantedLanguages?.length ? entry.grantedLanguages : undefined,
     grantedSpells: entry.grantedSpells?.length ? entry.grantedSpells : undefined,
     knownChoiceOptions: entry.knownChoiceOptions?.length ? entry.knownChoiceOptions : undefined,
+    hpBonusPerLevel: hpBonus?.amount,
+    hpBonusPerClassLevel: hpBonus?.classOnly || undefined,
   };
 }
 
@@ -838,12 +863,15 @@ export function extractRaceData(entry: CompendiumEntry): RaceData {
     for (const ent of rawEntries) {
       if (ent['type'] === 'entries' && ent['name']) {
         const desc = ent['entries'] ? flattenEntries(ent['entries'] as unknown[]) : '';
+        const hpBonus = HP_BONUS_FEATURES[_normalizeName(ent['name'] as string)];
         features.push({
           id: `${entry.id}::${ent['name']}`,
           name: ent['name'] as string,
           source: entry.source,
           sourceType: 'race',
           description: desc,
+          hpBonusPerLevel: hpBonus?.amount,
+          hpBonusPerClassLevel: hpBonus?.classOnly || undefined,
         });
       }
     }

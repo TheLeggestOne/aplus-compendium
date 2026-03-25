@@ -294,7 +294,8 @@ function createCharacterStore(initial: Character) {
     const stack = character.levelStack;
     if (!stack || stack.length === 0) return character.combat.maxHitPoints;
     const conMod = abilityModifier(effectiveAbilityScores.constitution);
-    return stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+    const baseHp = stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+    return baseHp + computeFeatureHpBonus(character.features, stack);
   });
 
   // --- Per-class spell capacity ---
@@ -415,6 +416,22 @@ function createCharacterStore(initial: Character) {
     };
   }
 
+  /** Sum flat per-level HP bonuses from features (e.g. Tough +2/level, Dwarven Toughness +1/level). */
+  function computeFeatureHpBonus(features: Feature[], stack: ClassLevel[]): number {
+    let bonus = 0;
+    for (const f of features) {
+      if (!f.hpBonusPerLevel) continue;
+      if (f.hpBonusPerClassLevel && f.sourceClass) {
+        // Only count levels of the specific class (e.g. Draconic Resilience → sorcerer levels)
+        const classLevels = stack.filter((lv) => lv.class === f.sourceClass).length;
+        bonus += f.hpBonusPerLevel * classLevels;
+      } else {
+        bonus += f.hpBonusPerLevel * stack.length;
+      }
+    }
+    return bonus;
+  }
+
   /**
    * Recompute max HP from the level stack using current effective CON mod.
    * Adjusts current HP by the same delta (5e rule: CON changes are retroactive).
@@ -423,7 +440,8 @@ function createCharacterStore(initial: Character) {
     const stack = character.levelStack;
     if (!stack || stack.length === 0) return;
     const conMod = abilityModifier(effectiveAbilityScores.constitution);
-    const newMax = stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+    const baseHp = stack.reduce((sum, lv) => sum + Math.max(1, lv.hpRoll + conMod), 0);
+    const newMax = baseHp + computeFeatureHpBonus(character.features, stack);
     const oldMax = character.combat.maxHitPoints;
     const delta = newMax - oldMax;
     character = {

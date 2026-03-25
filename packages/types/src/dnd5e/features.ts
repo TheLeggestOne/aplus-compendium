@@ -49,4 +49,12 @@ export interface Feature {
   grantedSpells?: Spell[];
   /** Pre-resolved option names for features whose choices aren't embedded in rawEntries (e.g. subclass archetypes). */
   knownChoiceOptions?: string[];
+
+  /**
+   * Flat HP bonus added per level (e.g. Dwarven Toughness +1, Tough feat +2).
+   * When `hpBonusPerClassLevel` is true the bonus only applies to levels of `sourceClass`.
+   */
+  hpBonusPerLevel?: number;
+  /** If true, `hpBonusPerLevel` applies only to levels of `sourceClass` (e.g. Draconic Resilience). */
+  hpBonusPerClassLevel?: boolean;
 }
