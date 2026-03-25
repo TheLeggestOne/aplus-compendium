@@ -12,7 +12,7 @@ import {
   cantripCapacity, spellCapacity,
 } from '@aplus-compendium/types';
 import type { RaceData } from '$lib/utils/compendium-to-character.js';
-import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity, migrateSkillGrants, migrateInventory } from '$lib/utils/migrate-character.js';
+import { migrateAbilityScoreLayers, migrateHpRoll, migrateSpellCapacity, migrateSkillGrants, migrateInventory, migrateAsiFeatFeatures } from '$lib/utils/migrate-character.js';
 import { mockPaladinAerindel } from '$lib/mock-data/paladin-5.js';
 
 // ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ function createCharacterStore(initial: Character) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
     }
-    character = migrateInventory(migrateSkillGrants(migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar))))));
+    character = migrateAsiFeatFeatures(migrateInventory(migrateSkillGrants(migrateSpellCapacity(migrateHpRoll(migrateAbilityScoreLayers(structuredClone(newChar)))))));
   }
 
   // --- Derived values ---
@@ -843,6 +843,8 @@ function createCharacterStore(initial: Character) {
     hpRoll: number;
     subclassChoice?: string;
     asiChoice?: AsiChoice;
+    /** Pre-built Feature for an ASI feat choice (fetched from compendium by caller) */
+    asiFeatFeature?: Feature;
     /** Armor/weapon/tool proficiencies to grant (from compendium class data) */
     proficiencies?: string[];
     features?: Feature[];
@@ -909,6 +911,25 @@ function createCharacterStore(initial: Character) {
     }
 
     // ASI data is stored in the ClassLevel entry — effectiveAbilityScores derives the total
+    // If the ASI choice is a feat, also add it as a Feature so it appears on the sheet
+    if (params.asiChoice?.type === 'feat') {
+      const featFeatureId = `asi-feat-${params.asiChoice.featId}`;
+      const base = params.asiFeatFeature ?? {
+        id: featFeatureId,
+        name: params.asiChoice.featName,
+        source: '',
+        sourceType: 'feat' as const,
+        description: '',
+      };
+      newFeatures.push({
+        ...base,
+        id: featFeatureId,
+        sourceType: 'feat' as const,
+        sourceClass: params.class,
+        sourceClassLevel: newClassLevel,
+      });
+      newLevel.featureIds = [...newLevel.featureIds, featFeatureId];
+    }
 
     // First class ever → set saving throw proficiencies + add skill grant
     const isFirstClassEver = stack.length === 0;
@@ -1096,6 +1117,8 @@ function createCharacterStore(initial: Character) {
     hpRoll?: number;
     subclassChoice?: string | null; // null to clear
     asiChoice?: AsiChoice | null;   // null to clear
+    /** Pre-built Feature for an ASI feat choice (fetched from compendium by caller) */
+    asiFeatFeature?: Feature;
     skillSelections?: SkillName[];
   }): void {
     const stack = character.levelStack;
@@ -1110,6 +1133,41 @@ function createCharacterStore(initial: Character) {
     }
     if (changes.asiChoice !== undefined) {
       updatedLevel.asiChoice = changes.asiChoice ?? undefined;
+
+      // Sync feat Features when asiChoice changes
+      let features = [...character.features];
+      let featureIds = [...(updatedLevel.featureIds ?? [])];
+
+      // Remove old feat Feature if previous choice was a feat
+      if (level.asiChoice?.type === 'feat') {
+        const oldFeatId = `asi-feat-${level.asiChoice.featId}`;
+        features = features.filter((f) => f.id !== oldFeatId);
+        featureIds = featureIds.filter((id) => id !== oldFeatId);
+      }
+
+      // Add new feat Feature if new choice is a feat
+      const newAsi = changes.asiChoice;
+      if (newAsi?.type === 'feat') {
+        const featFeatureId = `asi-feat-${newAsi.featId}`;
+        const base = changes.asiFeatFeature ?? {
+          id: featFeatureId,
+          name: newAsi.featName,
+          source: '',
+          sourceType: 'feat' as const,
+          description: '',
+        };
+        features.push({
+          ...base,
+          id: featFeatureId,
+          sourceType: 'feat' as const,
+          sourceClass: level.class,
+          sourceClassLevel: level.classLevel,
+        });
+        featureIds.push(featFeatureId);
+      }
+
+      updatedLevel.featureIds = featureIds;
+      character = { ...character, features };
     }
 
     const newStack = [...stack];

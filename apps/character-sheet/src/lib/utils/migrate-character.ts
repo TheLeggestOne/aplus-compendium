@@ -1,4 +1,4 @@
-import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, InventoryContainer, InventoryItem, InventoryWeapon, InventoryArmor, InventoryEquipment } from '@aplus-compendium/types';
+import type { Character, ClassLevel, ClassSpellcasting, AbilityScore, AbilityScoreSet, SkillName, SkillEntry, SkillProficiencyGrant, InventoryContainer, InventoryItem, InventoryWeapon, InventoryArmor, InventoryEquipment, Feature } from '@aplus-compendium/types';
 import {
   abilityModifier,
   CLASS_HIT_DICE,
@@ -363,4 +363,53 @@ export function migrateSpellCapacity(char: Character): Character {
   });
 
   return { ...char, levelStack };
+}
+
+/**
+ * Ensures every level-stack entry with `asiChoice.type === 'feat'` has a
+ * corresponding Feature in `character.features` and its id tracked in
+ * `featureIds`. Older saves stored the feat choice on the ClassLevel but
+ * never created the Feature, so it wouldn't appear on the sheet.
+ */
+export function migrateAsiFeatFeatures(char: Character): Character {
+  if (!char.levelStack || char.levelStack.length === 0) return char;
+
+  const existingIds = new Set(char.features.map((f) => f.id));
+  const newFeatures: Feature[] = [];
+  let stackChanged = false;
+
+  const levelStack = char.levelStack.map((lv) => {
+    if (lv.asiChoice?.type !== 'feat') return lv;
+
+    const featFeatureId = `asi-feat-${lv.asiChoice.featId}`;
+    if (existingIds.has(featFeatureId)) return lv;
+
+    // Create the missing Feature
+    newFeatures.push({
+      id: featFeatureId,
+      name: lv.asiChoice.featName,
+      source: '',
+      sourceType: 'feat',
+      description: '',
+      sourceClass: lv.class,
+      sourceClassLevel: lv.classLevel,
+    });
+    existingIds.add(featFeatureId);
+
+    // Ensure the id is tracked in featureIds
+    const ids = lv.featureIds ?? [];
+    if (!ids.includes(featFeatureId)) {
+      stackChanged = true;
+      return { ...lv, featureIds: [...ids, featFeatureId] };
+    }
+    return lv;
+  });
+
+  if (newFeatures.length === 0) return char;
+
+  return {
+    ...char,
+    features: [...char.features, ...newFeatures],
+    ...(stackChanged ? { levelStack } : {}),
+  };
 }

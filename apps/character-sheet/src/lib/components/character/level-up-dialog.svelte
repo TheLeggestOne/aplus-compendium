@@ -3,7 +3,7 @@
     DndClass, AsiChoice, AbilityScore, SkillName,
     CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
-  import { classFeatureEntryToFeature } from '$lib/utils/compendium-to-character.js';
+  import { classFeatureEntryToFeature, entryToFeature } from '$lib/utils/compendium-to-character.js';
   import { extractProficiencyList, extractMulticlassProficiencyList } from '$lib/utils/class-page-helpers.js';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL, CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
@@ -402,11 +402,26 @@
         }
       }
 
+      // Fetch full feat data from compendium if a feat was chosen at the ASI level
+      let asiFeatFeature: Feature | undefined;
+      if (asiChoice?.type === 'feat') {
+        const api = window.electronAPI;
+        if (api) {
+          try {
+            const result = await api.compendium.get(asiChoice.featId, 'feat');
+            if (result.ok && result.data) asiFeatFeature = entryToFeature(result.data);
+          } catch (e) {
+            console.warn('[level-up] Failed to fetch feat data:', e);
+          }
+        }
+      }
+
       characterStore.addClassLevel({
         class: cls,
         hpRoll,
         subclassChoice,
         asiChoice,
+        asiFeatFeature,
         features,
         skillSelections: skillSelections.length > 0 ? skillSelections : undefined,
         proficiencies,

@@ -1,12 +1,13 @@
 <script lang="ts">
   import type {
     DndClass, AsiChoice, AbilityScore, SkillName, ClassLevel,
-    CompendiumSearchResult,
+    CompendiumSearchResult, Feature,
   } from '@aplus-compendium/types';
   import {
     CLASS_HIT_DICE, CLASS_ASI_LEVELS, CLASS_SUBCLASS_LEVEL,
     CLASS_SKILL_CHOICES, MULTICLASS_SKILL_CHOICES, SKILL_NAMES,
   } from '@aplus-compendium/types';
+  import { entryToFeature } from '$lib/utils/compendium-to-character.js';
   import { characterStore } from '$lib/stores/character.svelte.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -227,17 +228,39 @@
   }
 
   // ---- Save ----
-  function save() {
-    if (!level) return;
+  let saving = $state(false);
 
-    characterStore.updateLevelChoices(stackIndex, {
-      hpRoll,
-      subclassChoice: hasSubclass ? (subclassChoice ?? null) : undefined,
-      asiChoice: hasAsi ? (asiChoice ?? null) : undefined,
-      skillSelections: hasSkillGrant ? skillSelections : undefined,
-    });
+  async function save() {
+    if (!level || saving) return;
+    saving = true;
+    try {
+      // Fetch full feat data from compendium if a feat was chosen at the ASI level
+      let asiFeatFeature: Feature | undefined;
+      const effectiveAsi = hasAsi ? (asiChoice ?? null) : undefined;
+      if (effectiveAsi?.type === 'feat') {
+        const api = window.electronAPI;
+        if (api) {
+          try {
+            const result = await api.compendium.get(effectiveAsi.featId, 'feat');
+            if (result.ok && result.data) asiFeatFeature = entryToFeature(result.data);
+          } catch (e) {
+            console.warn('[edit-level] Failed to fetch feat data:', e);
+          }
+        }
+      }
 
-    open = false;
+      characterStore.updateLevelChoices(stackIndex, {
+        hpRoll,
+        subclassChoice: hasSubclass ? (subclassChoice ?? null) : undefined,
+        asiChoice: effectiveAsi,
+        asiFeatFeature,
+        skillSelections: hasSkillGrant ? skillSelections : undefined,
+      });
+
+      open = false;
+    } finally {
+      saving = false;
+    }
   }
 </script>
 
@@ -486,9 +509,9 @@
       <Dialog.Close>
         <Button variant="outline" size="sm" class="text-xs">Cancel</Button>
       </Dialog.Close>
-      <Button size="sm" class="text-xs gap-1" onclick={save}>
+      <Button size="sm" class="text-xs gap-1" onclick={save} disabled={saving}>
         <CheckIcon class="size-3.5" />
-        Save Changes
+        {saving ? 'Saving…' : 'Save Changes'}
       </Button>
     </Dialog.Footer>
   </Dialog.Content>

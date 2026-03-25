@@ -374,6 +374,7 @@ export function entryToFeature(entry: CompendiumEntry): Feature {
     source:     entry.source,
     sourceType: FEATURE_SOURCE_TYPE[entry.contentType] ?? 'feat',
     description: '',
+    rawEntries: _rawEntries(entry.raw),
   };
 }
 
